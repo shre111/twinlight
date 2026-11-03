@@ -40,6 +40,8 @@ jobs:
             python:
               - 'services/minds/**'
               - 'tools/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
             formats:
               - 'fixtures/tape/**'
               - 'fixtures/pack/**'
