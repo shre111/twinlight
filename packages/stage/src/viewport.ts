@@ -4,11 +4,16 @@ export interface ViewportSize {
   pixelRatio: number
 }
 
+export interface Viewport {
+  remeasure: () => void
+  stop: () => void
+}
+
 export function watchViewport(
   canvas: HTMLCanvasElement,
   maxPixelRatio: () => number,
   onChange: (size: ViewportSize) => void,
-): { remeasure: () => void; stop: () => void } {
+): Viewport {
   let resolutionQuery: MediaQueryList | undefined
 
   const remeasure = () => {

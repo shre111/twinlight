@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
-import { type ViewportSize, watchViewport } from './viewport'
+import { type Viewport, type ViewportSize, watchViewport } from './viewport'
 
 export interface StageOptions {
   tier?: TierOption
@@ -15,7 +15,8 @@ export class Stage {
   #camera = new PerspectiveCamera(40, 1, 20, 90_000)
   #tier: TierName
   #pendingSize: ViewportSize | null = null
-  #viewport: ReturnType<typeof watchViewport>
+  #viewport: Viewport
+  #disposed = false
 
   static async create(canvas: HTMLCanvasElement, options: StageOptions = {}): Promise<Stage> {
     const { renderer, backend } = await createRenderer(canvas, options.backend ?? 'auto')
@@ -42,7 +43,7 @@ export class Stage {
         this.#pendingSize = size
       },
     )
-    void renderer.setAnimationLoop((now) => this.#frame(now))
+    void renderer.setAnimationLoop(() => this.#frame())
   }
 
   get tier(): TierName {
@@ -55,12 +56,14 @@ export class Stage {
   }
 
   dispose(): void {
+    if (this.#disposed) return
+    this.#disposed = true
     void this.#renderer.setAnimationLoop(null)
     this.#viewport.stop()
     void this.#renderer.dispose()
   }
 
-  #frame(_now: number): void {
+  #frame(): void {
     // Resizing clears the canvas, so it waits for the start of a frame instead of the observer callback.
     if (this.#pendingSize) {
       this.#applySize(this.#pendingSize)
