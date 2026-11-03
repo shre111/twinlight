@@ -23,12 +23,14 @@ packages/stage    three.js scene engine, framework-agnostic (WebGPU with WebGL2 
 packages/tape     TS decoder for run tapes + types
 packages/ui       React components, design tokens as CSS vars
 packages/contracts zod schemas shared by web, gateway, worker
+packages/config   shared tsconfig presets
 py/engine         Python simulation core, twl_engine (NumPy + Numba, deterministic)
 py/tape           Python tape writer/reader, twl_tape
 services/runner   Python FastAPI service that executes runs and uploads tapes
 services/minds    Python FastAPI: personas, elicitation, calibration, interviews, voice
 tools/citybake    Python: OSM + population + personas -> city packs
 infra/            docker compose, otel, deploy
+fixtures/         golden hashes, fixture tapes, packs and scenarios
 design/           tokens.json, City prototype + toy sim, screen designs (see design/README.md)
 docs/             the documents listed above
 ```

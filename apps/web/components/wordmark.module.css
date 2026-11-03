@@ -1,0 +1,19 @@
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36em;
+  font-family: var(--font-display-stack);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.mark {
+  width: 1.07em;
+  height: 0.79em;
+  isolation: isolate;
+}
+
+.mark circle {
+  opacity: 0.9;
+  mix-blend-mode: screen;
+}
