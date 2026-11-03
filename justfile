@@ -1,3 +1,5 @@
+compose := "docker compose -f infra/compose/dev.yml"
+
 default:
     @just --list
 
@@ -5,8 +7,15 @@ setup:
     pnpm install
     uv sync
 
-dev:
+dev: infra
     pnpm turbo run dev
+
+infra:
+    {{ compose }} up -d --wait
+    {{ compose }} run --rm minio-buckets
+
+down:
+    {{ compose }} down
 
 lint:
     pnpm biome check .
