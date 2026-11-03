@@ -1,7 +1,7 @@
-import { color } from '@twinlight/ui/tokens'
+import { color, sky } from '@twinlight/ui/tokens'
 import { Color, NoColorSpace } from 'three/webgpu'
 
-type TokenHex = (typeof color)[keyof typeof color]
+type TokenHex = (typeof color)[keyof typeof color] | (typeof sky)[keyof typeof sky]
 
 // Shades are mixed on the sRGB values designers read in tokens.json, then converted for the GPU.
 function srgb(hex: TokenHex): Color {
@@ -17,17 +17,17 @@ export function blend(from: TokenHex, to: TokenHex, amount: number): Color {
 }
 
 export const palette = {
-  skyTop: shade(color.dusk, 0.3),
-  skyMid: shade(color.dusk, 0.7),
-  horizon: blend(color.dusk, color.chatter, 0.11),
-  horizonBand: blend(color.dusk, color.chatter, 0.32),
+  skyTop: shade(sky.zenith, 1),
+  skyMid: shade(sky.mid, 1),
+  horizon: shade(sky.horizon, 1),
+  horizonBand: shade(sky.band, 1),
   fog: shade(color.dusk, 1),
   ground: shade(color.dusk, 1),
   cityGlow: shade(color.tube, 0.5),
   wall: shade(color.dusk, 1.33),
   roof: shade(color.dusk, 1.75),
   edgeLip: shade(color.haze, 1.13),
-  skyLight: blend(color.dusk, color.chatter, 0.15),
+  skyLight: blend(sky.horizon, sky.band, 0.25),
   street: shade(color.haze, 1.25),
   arterial: blend(color.haze, color.mist, 0.35),
   bridge: blend(color.haze, color.mist, 0.55),
