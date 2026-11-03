@@ -36,13 +36,13 @@ HEADER_SIZE = _PACKED_HEADER + (-_PACKED_HEADER % COLUMN_ALIGN)
 def write_tape(tape: Tape) -> bytes:
     """The complete file bytes for a finished run (flags bit0 set)."""
     header = tape.header
-    ticks = header.ticks
+    _check_counts(tape)
     raw_sections = [
-        encode_residents(tape.residents),
-        encode_chatter(tape.chatter),
-        encode_deliveries(tape.deliveries),
-        encode_stores(tape.stores, ticks),
-        encode_aggregates(tape.aggregates, ticks),
+        encode_residents(tape.residents, header),
+        encode_chatter(tape.chatter, header),
+        encode_deliveries(tape.deliveries, header),
+        encode_stores(tape.stores, header),
+        encode_aggregates(tape.aggregates, header),
         b"",
     ]
     body = bytearray(HEADER_SIZE)
@@ -73,13 +73,25 @@ def tape_hash(data: bytes) -> str:
 
 
 def compress(raw: bytes) -> bytes:
-    """Deterministic zstd frame; an empty section stays empty (zero bytes)."""
-    if not raw:
-        return b""
+    """One deterministic zstd frame per section, including an empty frame for empty sections."""
     compressor = zstandard.ZstdCompressor(
         level=ZSTD_LEVEL, write_checksum=False, write_content_size=True, threads=0
     )
     return compressor.compress(raw)
+
+
+def _check_counts(tape: Tape) -> None:
+    header = tape.header
+    expected = {
+        "residents": (header.residents, tape.residents.aware_at.shape[0]),
+        "stores": (header.stores, tape.stores.stockout_offsets.shape[0] - 1),
+        "chatter_rows": (header.chatter_rows, tape.chatter.at.shape[0]),
+        "delivery_rows": (header.delivery_rows, tape.deliveries.ordered_at.shape[0]),
+        "stockout_pairs": (header.stockout_pairs, tape.stores.stockout_intervals.shape[0] // 2),
+    }
+    for name, (in_header, in_arrays) in expected.items():
+        if in_header != in_arrays:
+            raise ValueError(f"header {name} is {in_header} but the arrays hold {in_arrays}")
 
 
 def _pack_header(header: TapeHeader, rows: list[bytes]) -> bytes:
@@ -102,6 +114,12 @@ def _pack_header(header: TapeHeader, rows: list[bytes]) -> bytes:
         header.scenario_hash,
         header.sim_minutes,
         header.tick_minutes,
+        header.residents,
+        header.stores,
+        header.chatter_rows,
+        header.delivery_rows,
+        header.stockout_pairs,
+        0,
     )
     packed = fixed + b"".join(rows)
     return packed + bytes(HEADER_SIZE - len(packed))

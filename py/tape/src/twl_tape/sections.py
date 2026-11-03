@@ -1,8 +1,7 @@
-"""Raw (uncompressed) bytes of each section: a u64 row count, then little-endian columns.
+"""Raw (uncompressed) bytes of each section: little-endian columns in the documented order.
 
 Every column is zero-padded to a multiple of 8 bytes as in the pack format (ARCHITECTURE
-section 5). The row count comes first because padding makes the row count ambiguous from
-the raw length alone, and the header carries no per-section counts.
+section 5). Column lengths come from the header counts, never from the byte size.
 """
 
 from typing import Any
@@ -18,17 +17,17 @@ from twl_tape.format import (
     ResidentsSection,
     StoresSection,
     TapeError,
+    TapeHeader,
 )
 
-U8, U16, U32, U64, F32 = "<u1", "<u2", "<u4", "<u8", "<f4"
+U8, U16, U32, F32 = "<u1", "<u2", "<u4", "<f4"
 
 Column = tuple[NDArray[Any], str, int]
 
 
-def encode_residents(section: ResidentsSection) -> bytes:
-    n = section.aware_at.shape[0]
+def encode_residents(section: ResidentsSection, header: TapeHeader) -> bytes:
+    n = header.residents
     return _encode(
-        n,
         [
             (section.aware_at, U32, n),
             (section.first_order_at, U32, n),
@@ -36,13 +35,13 @@ def encode_residents(section: ResidentsSection) -> bytes:
             (section.heard_from, U32, n),
             (section.first_source, U8, n),
             (section.outcome_flags, U8, n),
-        ],
+        ]
     )
 
 
-def decode_residents(raw: bytes) -> ResidentsSection:
+def decode_residents(raw: bytes, header: TapeHeader) -> ResidentsSection:
     cursor = _Cursor(raw)
-    n = cursor.count()
+    n = header.residents
     section = ResidentsSection(
         aware_at=cursor.column(U32, n),
         first_order_at=cursor.column(U32, n),
@@ -55,14 +54,14 @@ def decode_residents(raw: bytes) -> ResidentsSection:
     return section
 
 
-def encode_chatter(section: ChatterSection) -> bytes:
-    m = section.at.shape[0]
-    return _encode(m, [(section.from_, U32, m), (section.to, U32, m), (section.at, U32, m)])
+def encode_chatter(section: ChatterSection, header: TapeHeader) -> bytes:
+    m = header.chatter_rows
+    return _encode([(section.from_, U32, m), (section.to, U32, m), (section.at, U32, m)])
 
 
-def decode_chatter(raw: bytes) -> ChatterSection:
+def decode_chatter(raw: bytes, header: TapeHeader) -> ChatterSection:
     cursor = _Cursor(raw)
-    m = cursor.count()
+    m = header.chatter_rows
     section = ChatterSection(
         from_=cursor.column(U32, m), to=cursor.column(U32, m), at=cursor.column(U32, m)
     )
@@ -70,10 +69,9 @@ def decode_chatter(raw: bytes) -> ChatterSection:
     return section
 
 
-def encode_deliveries(section: DeliveriesSection) -> bytes:
-    d = section.ordered_at.shape[0]
+def encode_deliveries(section: DeliveriesSection, header: TapeHeader) -> bytes:
+    d = header.delivery_rows
     return _encode(
-        d,
         [
             (section.store, U16, d),
             (section.resident, U32, d),
@@ -81,13 +79,13 @@ def encode_deliveries(section: DeliveriesSection) -> bytes:
             (section.picked_at, U32, d),
             (section.delivered_at, U32, d),
             (section.outcome, U8, d),
-        ],
+        ]
     )
 
 
-def decode_deliveries(raw: bytes) -> DeliveriesSection:
+def decode_deliveries(raw: bytes, header: TapeHeader) -> DeliveriesSection:
     cursor = _Cursor(raw)
-    d = cursor.count()
+    d = header.delivery_rows
     section = DeliveriesSection(
         store=cursor.column(U16, d),
         resident=cursor.column(U32, d),
@@ -100,52 +98,49 @@ def decode_deliveries(raw: bytes) -> DeliveriesSection:
     return section
 
 
-def encode_stores(section: StoresSection, ticks: int) -> bytes:
-    if section.stockout_offsets.shape[0] == 0:
-        raise ValueError("stockout_offsets needs stores + 1 entries")
-    stores = section.stockout_offsets.shape[0] - 1
-    intervals = 2 * int(section.stockout_offsets[-1])
+def encode_stores(section: StoresSection, header: TapeHeader) -> bytes:
+    series = header.stores * header.ticks
     return _encode(
-        stores,
         [
-            (section.stock, F32, stores * ticks),
-            (section.orders, U16, stores * ticks),
-            (section.stockout_offsets, U32, stores + 1),
-            (section.stockout_intervals, U32, intervals),
-        ],
+            (section.stock, F32, series),
+            (section.orders, U16, series),
+            (section.stockout_offsets, U32, header.stores + 1),
+            (section.stockout_intervals, U32, 2 * header.stockout_pairs),
+        ]
     )
 
 
-def decode_stores(raw: bytes, ticks: int) -> StoresSection:
+def decode_stores(raw: bytes, header: TapeHeader) -> StoresSection:
     cursor = _Cursor(raw)
-    stores = cursor.count()
-    stock = cursor.column(F32, stores * ticks)
-    orders = cursor.column(U16, stores * ticks)
-    offsets = cursor.column(U32, stores + 1)
-    intervals = cursor.column(U32, 2 * int(offsets[-1]))
-    cursor.finish()
-    return StoresSection(
-        stock=stock, orders=orders, stockout_offsets=offsets, stockout_intervals=intervals
+    series = header.stores * header.ticks
+    section = StoresSection(
+        stock=cursor.column(F32, series),
+        orders=cursor.column(U16, series),
+        stockout_offsets=cursor.column(U32, header.stores + 1),
+        stockout_intervals=cursor.column(U32, 2 * header.stockout_pairs),
     )
+    cursor.finish()
+    if int(section.stockout_offsets[-1]) != header.stockout_pairs:
+        raise TapeError("stockout_offsets does not end at stockout_pairs")
+    return section
 
 
-def encode_aggregates(section: AggregatesSection, ticks: int) -> bytes:
+def encode_aggregates(section: AggregatesSection, header: TapeHeader) -> bytes:
+    ticks = header.ticks
     return _encode(
-        ticks,
         [
             (section.aware, U32, ticks),
             (section.adopted, U32, ticks),
             (section.orders, U32, ticks),
             (section.stores_out, U16, ticks),
             (section.rain_intensity, F32, ticks),
-        ],
+        ]
     )
 
 
-def decode_aggregates(raw: bytes, ticks: int) -> AggregatesSection:
+def decode_aggregates(raw: bytes, header: TapeHeader) -> AggregatesSection:
     cursor = _Cursor(raw)
-    if cursor.count() != ticks:
-        raise TapeError("aggregates row count does not match sim_minutes / tick_minutes")
+    ticks = header.ticks
     section = AggregatesSection(
         aware=cursor.column(U32, ticks),
         adopted=cursor.column(U32, ticks),
@@ -157,8 +152,8 @@ def decode_aggregates(raw: bytes, ticks: int) -> AggregatesSection:
     return section
 
 
-def _encode(count: int, columns: list[Column]) -> bytes:
-    out = bytearray(np.array([count], dtype=U64).tobytes())
+def _encode(columns: list[Column]) -> bytes:
+    out = bytearray()
     for values, dtype, length in columns:
         if values.shape != (length,):
             raise ValueError(f"column of shape {values.shape} where ({length},) was expected")
@@ -172,14 +167,11 @@ class _Cursor:
         self.raw = raw
         self.pos = 0
 
-    def count(self) -> int:
-        return int(self.column(U64, 1)[0])
-
     def column(self, dtype: str, length: int) -> NDArray[Any]:
         size = np.dtype(dtype).itemsize * length
         end = self.pos + size
         if end > len(self.raw):
-            raise TapeError("section is shorter than its columns")
+            raise TapeError("section is shorter than the header counts require")
         values = np.frombuffer(self.raw, dtype=dtype, count=length, offset=self.pos).copy()
         self.pos = end + (-end % COLUMN_ALIGN)
         return values

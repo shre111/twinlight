@@ -1,3 +1,4 @@
+import dataclasses
 import struct
 
 import numpy as np
@@ -30,8 +31,8 @@ PACK, SCENARIO, PARAMS = (
 )
 
 
-def small_tape(residents: int = 3, stores: int = 2, ticks: int = 4) -> Tape:
-    header = TapeHeader(
+def small_header(residents: int = 3, stores: int = 2, ticks: int = 4) -> TapeHeader:
+    return TapeHeader(
         run_id=derive_run_id(PACK, SCENARIO, PARAMS, 7),
         seed=7,
         engine_version="twl-engine 1",
@@ -39,11 +40,19 @@ def small_tape(residents: int = 3, stores: int = 2, ticks: int = 4) -> Tape:
         scenario_hash=SCENARIO,
         sim_minutes=ticks * 15,
         tick_minutes=15,
+        residents=residents,
+        stores=stores,
+        chatter_rows=1,
+        delivery_rows=0,
+        stockout_pairs=1,
         flags=0,
     )
+
+
+def small_tape(residents: int = 3, stores: int = 2, ticks: int = 4) -> Tape:
     series = stores * ticks
     return Tape(
-        header=header,
+        header=small_header(residents, stores, ticks),
         residents=ResidentsSection(
             aware_at=np.full(residents, NEVER, "<u4"),
             first_order_at=np.full(residents, NEVER, "<u4"),
@@ -93,22 +102,31 @@ def reseal(body: bytearray) -> bytes:
 
 
 def test_odd_row_counts_round_trip_through_padding() -> None:
+    header = small_header()
     chatter = ChatterSection(
         from_=np.array([3], "<u4"), to=np.array([4], "<u4"), at=np.array([5], "<u4")
     )
-    decoded = decode_chatter(encode_chatter(chatter))
-    assert decoded.at.tolist() == [5]
-    assert len(encode_chatter(chatter)) == 8 + 3 * 8
+    raw = encode_chatter(chatter, header)
+    assert len(raw) == 3 * 8
+    assert decode_chatter(raw, header).at.tolist() == [5]
 
 
-def test_empty_sections_take_no_bytes_and_every_section_is_aligned() -> None:
+def test_header_is_352_bytes_and_every_section_is_aligned() -> None:
     data = write_tape(small_tape())
     rows = table_rows(data)
+    assert HEADER_SIZE == 352
     assert [row[0] for row in rows] == [int(kind) for kind in SectionKind]
-    assert rows[SectionKind.DELIVERIES - 1][2] > 0, "an empty table still carries its row count"
-    assert rows[SectionKind.CHUNKS - 1][2:4] == (0, 0)
-    assert HEADER_SIZE % 8 == 0
+    assert rows[SectionKind.DELIVERIES - 1][3] == 0
+    assert rows[SectionKind.CHUNKS - 1][3] == 0
+    assert all(row[2] > 0 for row in rows), "empty sections are still a valid zstd frame"
     assert all(row[1] % 8 == 0 for row in rows)
+
+
+def test_header_counts_must_match_the_arrays() -> None:
+    tape = small_tape()
+    wrong = dataclasses.replace(tape.header, chatter_rows=2)
+    with pytest.raises(ValueError, match="chatter_rows"):
+        write_tape(dataclasses.replace(tape, header=wrong))
 
 
 def test_section_corruption_fails_the_crc_even_with_a_fresh_footer() -> None:
@@ -121,8 +139,25 @@ def test_section_corruption_fails_the_crc_even_with_a_fresh_footer() -> None:
         read_tape(reseal(body))
 
 
+def test_raw_length_is_checked_against_the_decompressed_size() -> None:
+    data = write_tape(small_tape())
+    footer = struct.calcsize(FOOTER_STRUCT)
+    body = bytearray(data[:-footer])
+    row_start = struct.calcsize(HEADER_STRUCT) + (SectionKind.CHATTER - 1) * 32
+    kind, offset, length, raw_length, crc = struct.unpack(
+        TABLE_ROW_STRUCT, body[row_start : row_start + 32]
+    )
+    body[row_start : row_start + 32] = struct.pack(
+        TABLE_ROW_STRUCT, kind, offset, length, raw_length + 8, crc
+    )
+    with pytest.raises(TapeError, match="CHATTER section decompressed"):
+        read_tape(reseal(body))
+
+
 def test_stockout_intervals_follow_the_csr_offsets() -> None:
     tape = read_tape(write_tape(small_tape()))
+    assert tape.header.flags == 1
+    assert tape.header.stores == 2 and tape.header.stockout_pairs == 1
     assert tape.stores.stockout_offsets.tolist() == [0, 0, 1]
     assert tape.stores.stockout_intervals.tolist() == [15, 45]
     assert tape.stores.stock.tolist() == list(range(8))

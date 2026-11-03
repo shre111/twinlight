@@ -41,14 +41,13 @@ def read_tape(data: bytes) -> Tape:
     }
     if raw[SectionKind.CHUNKS]:
         raise TapeError("CHUNKS must be empty in tape version 1")
-    ticks = header.ticks
     return Tape(
         header=header,
-        residents=decode_residents(raw[SectionKind.RESIDENTS]),
-        chatter=decode_chatter(raw[SectionKind.CHATTER]),
-        deliveries=decode_deliveries(raw[SectionKind.DELIVERIES]),
-        stores=decode_stores(raw[SectionKind.STORES], ticks),
-        aggregates=decode_aggregates(raw[SectionKind.AGGREGATES], ticks),
+        residents=decode_residents(raw[SectionKind.RESIDENTS], header),
+        chatter=decode_chatter(raw[SectionKind.CHATTER], header),
+        deliveries=decode_deliveries(raw[SectionKind.DELIVERIES], header),
+        stores=decode_stores(raw[SectionKind.STORES], header),
+        aggregates=decode_aggregates(raw[SectionKind.AGGREGATES], header),
     )
 
 
@@ -76,6 +75,12 @@ def _read_header(body: bytes) -> TapeHeader:
         scenario_hash,
         sim_minutes,
         tick_minutes,
+        residents,
+        stores,
+        chatter_rows,
+        delivery_rows,
+        stockout_pairs,
+        _reserved,
     ) = struct.unpack(HEADER_STRUCT, body[:_FIXED_SIZE])
     if magic != MAGIC:
         raise TapeError("not a tape (bad magic)")
@@ -91,6 +96,11 @@ def _read_header(body: bytes) -> TapeHeader:
         scenario_hash=scenario_hash,
         sim_minutes=sim_minutes,
         tick_minutes=tick_minutes,
+        residents=residents,
+        stores=stores,
+        chatter_rows=chatter_rows,
+        delivery_rows=delivery_rows,
+        stockout_pairs=stockout_pairs,
         flags=flags,
     )
 
@@ -116,11 +126,10 @@ def _read_section(body: bytes, row: TableRow) -> bytes:
     compressed = body[offset : offset + length]
     if zlib.crc32(compressed) != crc:
         raise TapeError(f"{name} section crc32 mismatch")
-    if length == 0:
-        if raw_length:
-            raise TapeError(f"{name} section is empty but claims {raw_length} raw bytes")
-        return b""
-    raw = zstandard.ZstdDecompressor().decompress(compressed, max_output_size=raw_length)
+    try:
+        raw = zstandard.ZstdDecompressor().decompress(compressed)
+    except zstandard.ZstdError as error:
+        raise TapeError(f"{name} section is not a valid zstd frame: {error}") from error
     if len(raw) != raw_length:
         raise TapeError(f"{name} section decompressed to {len(raw)} bytes, expected {raw_length}")
     return raw

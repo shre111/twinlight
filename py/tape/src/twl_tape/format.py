@@ -20,7 +20,7 @@ ENGINE_VERSION_BYTES = 32
 COLUMN_ALIGN = 8
 ZSTD_LEVEL = 3
 
-HEADER_STRUCT = "<4sHH16sQ32s32s32sII"
+HEADER_STRUCT = "<4sHH16sQ32s32s32sIIIIIIII"
 TABLE_ROW_STRUCT = "<IQQQI"
 FOOTER_STRUCT = "<Q32s"
 
@@ -47,6 +47,11 @@ class TapeHeader:
     scenario_hash: bytes
     sim_minutes: int
     tick_minutes: int
+    residents: int
+    stores: int
+    chatter_rows: int
+    delivery_rows: int
+    stockout_pairs: int
     flags: int
 
     @property
