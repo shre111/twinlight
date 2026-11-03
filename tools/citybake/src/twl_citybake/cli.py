@@ -1,7 +1,9 @@
 import argparse
+import json
 from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any
 
 from twl_citybake.config import CityConfig, DataDirs, load_city
 from twl_citybake.footprints.raster import fetch_height_mosaic
@@ -11,6 +13,7 @@ from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import fetch
+from twl_citybake.store import table_digest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -95,12 +98,19 @@ def run_footprints(city: str, dirs: DataDirs) -> None:
 
 
 def building_layers(city: str, dirs: DataDirs) -> Path:
-    """The combined footprints layers once `citybake footprints` has run, else the OSM ones."""
+    """The combined footprints layers once `citybake footprints` has run, else the OSM ones;
+    combined layers baked from older OSM layers are refused."""
     combined = dirs.stage(city, "buildings") / "layers"
-    return combined if (combined / "buildings").exists() else dirs.stage(city, "osm") / "layers"
+    osm = dirs.stage(city, "osm") / "layers"
+    if not (combined / "buildings").exists():
+        return osm
+    meta = json.loads((combined / "layer.json").read_text(encoding="utf-8"))
+    if meta.get("osm_buildings_sha256") != table_digest(osm / "buildings"):
+        raise SystemExit(f"{combined} predates the OSM layers; rerun `citybake footprints {city}`")
+    return combined
 
 
-def footprints_summary(report: dict) -> str:
+def footprints_summary(report: dict[str, Any]) -> str:
     lines = [
         f"{name} {c['fetched']:,} fetched: {c['invalid']:,} invalid, {c['outside_bbox']:,} "
         f"outside the bbox, {c['dropped_by_dedupe']:,} overlapping, {c['kept']:,} kept"

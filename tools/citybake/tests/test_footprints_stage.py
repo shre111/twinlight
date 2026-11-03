@@ -30,7 +30,7 @@ from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import OsmLayers, extract_osm, write_osm_layers
 from twl_citybake.osm.tags import BuildingKind, HeightSource
 from twl_citybake.projection import LocalProjection
-from twl_citybake.store import read_table
+from twl_citybake.store import read_table, table_digest, write_json
 
 VIDA_FILE = "vida.parquet"
 HEIGHTS_FILE = "heights.tif"
@@ -60,6 +60,7 @@ def footprints_config(base: CityConfig) -> CityConfig:
         footprints=section(
             vida_url="https://example.invalid/vida.parquet",
             vida_etag='"test-etag"',
+            vida_snapshot="2024-08-27",
             heights_manifest="https://example.invalid/manifest.json",
             overlap_drop=0.3,
             raster_min_height_m=1.0,
@@ -491,6 +492,8 @@ def test_the_population_command_reads_the_combined_buildings_when_that_stage_exi
     )
     combined = dirs.stage(city.slug, "buildings") / "layers"
     expected = write_world(city.bbox, tmp_path / "unused.tif", combined, block=10)
+    osm_digest = table_digest(dirs.stage(city.slug, "osm") / "layers" / "buildings")
+    write_json(combined / "layer.json", {"osm_buildings_sha256": osm_digest})
     assert expected["buildings"] != len(
         read_table(dirs.stage(city.slug, "osm") / "layers" / "buildings")["x"]
     )
@@ -499,3 +502,24 @@ def test_the_population_command_reads_the_combined_buildings_when_that_stage_exi
 
     persons = read_table(dirs.stage(city.slug, "population") / "building_population")["persons"]
     assert len(persons) == int(expected["buildings"])
+
+
+def test_the_population_command_refuses_combined_buildings_older_than_the_osm_layers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    city = tiny_population_config()
+    assert city.worldpop is not None
+    monkeypatch.setattr("twl_citybake.cli.load_city", lambda slug: city)
+    dirs = DataDirs(tmp_path)
+    write_world(
+        city.bbox,
+        dirs.raw / "worldpop" / city.worldpop.filename,
+        dirs.stage(city.slug, "osm") / "layers",
+        block=18,
+    )
+    combined = dirs.stage(city.slug, "buildings") / "layers"
+    write_world(city.bbox, tmp_path / "unused.tif", combined, block=10)
+    write_json(combined / "layer.json", {"osm_buildings_sha256": "0" * 64})
+
+    with pytest.raises(SystemExit, match="predates the OSM layers"):
+        main(["--data-dir", str(tmp_path), "population", city.slug])

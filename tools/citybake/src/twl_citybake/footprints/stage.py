@@ -26,16 +26,22 @@ from twl_citybake.osm.geometry import (
 from twl_citybake.osm.heights import final_heights
 from twl_citybake.osm.tags import LEVEL_HEIGHT_M, BuildingKind, HeightSource
 from twl_citybake.projection import LocalProjection
-from twl_citybake.store import read_table, write_json, write_ragged, write_table
+from twl_citybake.store import read_table, table_digest, write_json, write_ragged, write_table
 
-ATTRIBUTION = [
-    "© OpenStreetMap contributors, ODbL 1.0",
-    "Google-Microsoft-OSM Open Buildings combined by VIDA, ODbL 1.0",
-    "Google Open Buildings v3, CC BY 4.0 or ODbL 1.0",
-    "Microsoft Global ML Building Footprints (ODbL 1.0, via VIDA's 2024-08-27 snapshot)",
-    "Google Open Buildings 2.5D Temporal (Sirko et al. 2023, arXiv:2310.11622), CC BY 4.0 or "
-    "ODbL 1.0, contains modified Copernicus Sentinel data",
-]
+
+def attribution(config: FootprintsConfig) -> list[str]:
+    """Licence lines for every source; Microsoft's rows carry ODbL as of VIDA's snapshot."""
+    snapshot = f"VIDA's {config.vida_snapshot} snapshot" if config.vida_snapshot else "VIDA"
+    return [
+        "© OpenStreetMap contributors, ODbL 1.0",
+        "Google-Microsoft-OSM Open Buildings combined by VIDA, ODbL 1.0",
+        "Google Open Buildings v3, CC BY 4.0 or ODbL 1.0",
+        f"Microsoft Global ML Building Footprints (ODbL 1.0, via {snapshot})",
+        "Google Open Buildings 2.5D Temporal (Sirko et al. 2023, arXiv:2310.11622), CC BY 4.0 or "
+        "ODbL 1.0, contains modified Copernicus Sentinel data",
+    ]
+
+
 OSM_SOURCE = 0
 SOURCE_NAMES = {"osm": OSM_SOURCE, **SOURCE_CODES}
 NON_OSM_TYPE = 255
@@ -100,7 +106,7 @@ def build_buildings(
         },
         districts=[{**d, "buildings": int(counts[d["id"]])} for d in districts],
         report=report,
-        meta=_meta(city, config, proj, heights),
+        meta=_meta(city, config, proj, heights, osm_layers),
     )
 
 
@@ -252,13 +258,18 @@ def _raster_check(table: dict[str, np.ndarray], medians: np.ndarray, n_osm: int)
 
 
 def _meta(
-    city: CityConfig, config: FootprintsConfig, proj: LocalProjection, heights: Path
+    city: CityConfig,
+    config: FootprintsConfig,
+    proj: LocalProjection,
+    heights: Path,
+    osm_layers: Path,
 ) -> dict[str, Any]:
     return {
         "city": city.slug,
         "bbox": [city.bbox.west, city.bbox.south, city.bbox.east, city.bbox.north],
         "proj4": proj.proj4,
-        "attribution": ATTRIBUTION,
+        "attribution": attribution(config),
+        "osm_buildings_sha256": table_digest(osm_layers / "buildings"),
         "source": {
             "osm": {"url": city.osm.url, "md5": city.osm.md5},
             "vida": {
