@@ -4,11 +4,12 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M0 Foundations
-- Point: P-004 Gateway skeleton (not started); P-007 tokens in progress in a scene-director worktree
+- Point: P-005 Dev infrastructure (not started); P-007 tokens in progress in a scene-director worktree (lead ships it); Lane B session on P-015 in `.claude/worktrees/stage`
 - Branch: none
-- Next: P-004, then P-005; P-006 last. Lane C (minds) can start now that P-003 is merged.
+- Next: P-005, then P-006 last. Lane C (minds) can start now that P-003 is merged.
 
 ## Recent changes
+- 2026-11-03 P-004 done: NestJS 12 gateway (ESM) with `/v1/health` (version, git sha), zod env config, OpenAPI at `/docs`, pino with auth headers redacted; vitest e2e (#7).
 - 2026-11-03 P-003 done: `services/minds` `/health` and `tools/citybake` CLI (stdlib argparse) as workspace members; python CI filter restored (#6).
 - 2026-11-03 P-002 done: uv workspace (members by glob), twl_engine with a Numba smoke test, twl_tape skeleton, runner `/health` (#4).
 - 2026-11-03 P-001 done: pnpm workspace, Turborepo, Biome, `packages/config`, justfile (#1); Next.js 16 app with the wordmark on dusk (#2).
@@ -24,6 +25,9 @@ Working memory for coding sessions. Read at the start of every session; update a
 - The CI `TWL_WORKERS` loop is gone; the first golden tests (P-011) must parametrise 1, 4 and 8 workers inside pytest (golden-test skill) so D-006 stays covered.
 - Starlette's test client wants `httpx2`, not `httpx` (deprecation warning otherwise). pytest runs with `--import-mode=importlib`, so test module names may repeat across packages.
 - The git hook rejects any Bash command containing a heredoc together with the words git and commit on one line; do file edits and commits in separate calls.
+- Gateway: NestJS 12 is ESM-only, so imports carry `.js` suffixes. There's no Nest CLI: dev runs through `@swc-node/register` and tests through `unplugin-swc`, because both emit decorator metadata (esbuild and tsx don't, which breaks DI). Biome needs `unsafeParameterDecoratorsEnabled` for it (override in `biome.json`). `NODE_ENV` defaults to production, so set `NODE_ENV=development` in `.env` for pretty logs.
+- `/docs` and `/docs-json` are public; gate or disable them in production when auth lands (P-050).
+- pnpm 10 skips dependency install scripts; `pnpm-workspace.yaml` lists the ones deliberately ignored. A new native dependency that needs its script goes in `onlyBuiltDependencies`.
 - No branch protection on `main` (owner's choice for now); the git hook and squash-only repo settings are the only guards.
 - The git hook blocks multi-line commit messages, heredoc messages, `--no-verify`, force pushes, commits on `main` and badly named branches. Use a single `-m "type(scope): subject"`. Squash-merge deletes the branch, so each PR of a point gets its own branch.
 - `design/prototype/twinlight-city.html` is the visual reference for the stage (WebGL, single file, toy sim inlined). It is not production code; match its look, not its structure. Its scale clamps (point size, fog distance) were tuned by eye and are a good starting point for P-016.
