@@ -6,6 +6,8 @@ import { NEVER, ROAD_KIND, type StageCity, type StageTape } from './inputs'
 
 type ToyWorld = ReturnType<typeof buildWorld>
 
+const SIM_MINUTES = HOURS * 60
+
 // Constants inside toy-sim.mjs that it does not export.
 const TOY_DELIVERY_RADIUS_M = 900
 const TOY_RAIN_HOURS = { from: 264, to: 336 }
@@ -54,15 +56,15 @@ function toyCity(world: ToyWorld): StageCity {
 
 function toyTape(world: ToyWorld): StageTape {
   const { sim, res } = world
-  const orderCount = new Uint16Array(res.count)
-  for (const resident of sim.deliveries.res) orderCount[resident] = (orderCount[resident] ?? 0) + 1
+  const firstOrderAt = Uint32Array.from(sim.adoptT, toMinutes)
   return {
-    simMinutes: HOURS * 60,
+    simMinutes: SIM_MINUTES,
+    // The toy sim ticks hourly; engine tapes use 15-minute ticks.
     tickMinutes: 60,
     residents: {
       awareAt: Uint32Array.from(sim.awareT, toMinutes),
-      firstOrderAt: Uint32Array.from(sim.adoptT, toMinutes),
-      orderCount,
+      firstOrderAt,
+      orderCount: orderCounts(sim.deliveries.res, firstOrderAt, res.count),
     },
     stores: stockouts(sim.outIntervals as number[][][]),
     aggregates: {
@@ -77,8 +79,24 @@ function toyTape(world: ToyWorld): StageTape {
   }
 }
 
+// Word of mouth can land just past the last hour; an event inside the run stays inside it.
 function toMinutes(hours: number): number {
-  return hours >= TOY_NEVER_HOURS ? NEVER : Math.round(hours * 60)
+  return hours >= TOY_NEVER_HOURS ? NEVER : Math.min(Math.round(hours * 60), SIM_MINUTES - 1)
+}
+
+// The toy sim stops logging deliveries at a fixed cap, so a large run can have adopters
+// with no logged order; they still ordered once.
+function orderCounts(
+  deliveryResidents: Int32Array,
+  firstOrderAt: Uint32Array,
+  residents: number,
+): Uint16Array {
+  const counts = new Uint16Array(residents)
+  for (const resident of deliveryResidents) counts[resident] = (counts[resident] ?? 0) + 1
+  firstOrderAt.forEach((at, resident) => {
+    if (at !== NEVER && counts[resident] === 0) counts[resident] = 1
+  })
+  return counts
 }
 
 function negate(values: Float32Array): Float32Array {
