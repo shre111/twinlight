@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Page, type TestInfo, test } from '@playwright/test'
 import type { FrameReport, TierName } from '@twinlight/stage'
 
 const TIERS: TierName[] = ['high', 'medium', 'low']
@@ -33,15 +33,25 @@ async function openStage(page: Page, query: string) {
   )
 }
 
-for (const day of [1, 6, 13]) {
+async function captureStill(page: Page, testInfo: TestInfo, name: string) {
+  const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-${name}.png`)
+  await page.screenshot({ path: still })
+  await expect(page).toHaveScreenshot(`${name}.png`)
+}
+
+// Day 10 has stores out of stock; `still=1` holds their flicker so two screenshots match.
+for (const day of [1, 6, 10, 13]) {
   test(`city day ${day}`, async ({ page }, testInfo) => {
-    await openStage(page, `hud=0&day=${day}`)
-    const name = `city-day${day}`
-    const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-${name}.png`)
-    await page.screenshot({ path: still })
-    await expect(page).toHaveScreenshot(`${name}.png`)
+    await openStage(page, `hud=0&still=1&day=${day}`)
+    await captureStill(page, testInfo, `city-day${day}`)
   })
 }
+
+test('city day 10 with reduced motion', async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await openStage(page, 'hud=0&day=10')
+  await captureStill(page, testInfo, 'city-day10-reduced-motion')
+})
 
 test('frame report', async ({ page }, testInfo) => {
   // Three tiers of 60 software GL frames with 20k residents run past the default timeout.
