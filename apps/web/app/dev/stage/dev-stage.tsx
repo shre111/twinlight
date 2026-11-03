@@ -5,21 +5,23 @@ import { StageHost } from '../../../components/stage-host'
 
 declare global {
   interface Window {
-    /** The stage once its city is loaded; shots and the perf report wait for it. */
+    /** The stage once its city, tape and time are applied; shots and the perf report wait for it. */
     __twinlightStage?: Stage
   }
 }
 
-function loadSyntheticCity(stage: Stage, residents: number) {
+function loadSyntheticRun(stage: Stage, residents: number, minutes: number) {
   let cancelled = false
   import('@twinlight/stage/synthetic')
-    .then(({ synthesizeToyRun }) => {
+    .then(async ({ synthesizeToyRun }) => {
       if (cancelled) return
-      const { city } = synthesizeToyRun(residents)
-      return stage.loadCity(city)
-    })
-    .then(() => {
-      if (!cancelled) window.__twinlightStage = stage
+      const { city, tape } = synthesizeToyRun(residents)
+      await stage.loadCity(city)
+      if (cancelled) return
+      await stage.setTape(tape)
+      if (cancelled) return
+      stage.setTime(minutes)
+      window.__twinlightStage = stage
     })
     .catch(console.error)
   return () => {
@@ -33,6 +35,7 @@ export function DevStage(props: {
   backend?: BackendPreference
   hud: boolean
   residents: number
+  minutes: number
 }) {
   return (
     <main>
@@ -40,7 +43,7 @@ export function DevStage(props: {
         tier={props.tier}
         backend={props.backend}
         hud={props.hud}
-        onReady={(stage) => loadSyntheticCity(stage, props.residents)}
+        onReady={(stage) => loadSyntheticRun(stage, props.residents, props.minutes)}
       />
     </main>
   )
