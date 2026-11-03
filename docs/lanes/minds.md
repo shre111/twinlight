@@ -3,20 +3,34 @@
 Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
-- P-020 OSM bake for Ahmedabad. Done: pinned Geofabrik `western-zone-260101` extract (md5 checked), clipped to the bbox 72.45,22.92,72.72,23.14 with pyosmium (6.7 MB, 61 s), local transverse Mercator centred on the bbox (#16). In progress: buildings with heights, road graph, river and lakes, Sabarmati banks, districts, bake report.
-- Next: P-021 population synthesis (WorldPop R2025A 2025, 100 m, constrained), then P-022 to P-024.
+- P-020 OSM bake for Ahmedabad: code complete with this PR (#16, #18, #22, then this one). `citybake fetch ahmedabad` downloads and clips the pinned extract; `citybake osm ahmedabad` writes layers and `report.json` to `data/cache/citybake/ahmedabad/osm/layers` in about 4 s, byte-identical across runs. Pack rendering waits for P-025 (the pack writer) and P-016 (the city layer).
+- Next: a follow-up that conditions default heights on footprint size, then P-021 on cells that have OSM buildings (lead's instruction until the footprint decision lands).
 
-## For Lane A (decisions needed)
-1. **OSM building coverage gap (blocks P-021 AC).** The bbox has 100,504 OSM buildings, but the walled city (Khadia, Jamalpur, Dariyapur) and the south (Vatva, Narol, Isanpur, Lambha) have almost none, while WorldPop puts dense population there. "No building over capacity" cannot hold there. Options: (a) fill gaps from VIDA's combined Google v3 + Microsoft + OSM footprints (source.coop `vida/google-microsoft-osm-open-buildings`, GeoParquet by country and S2 cell, ODbL like OSM), adding only footprints that don't overlap OSM ones. Heights still come from district defaults. This is a new source, so it would amend D-013. (b) synthesise box buildings in populated cells without OSM footprints, flagged `synthetic` in the pack. Lane C proposes (a), with (b) as the fallback.
-2. **Districts.** OSM has no ward boundaries for Ahmedabad, only talukas (admin_level 6). Lane C builds about 100 districts as Voronoi cells of named OSM place nodes (suburb, neighbourhood, quarter, village, town), split along the Sabarmati so no district spans both banks. The 48 AMC wards exist as open data (DataMeet `Municipal_Spatial_Data/Ahmedabad/Wards.geojson`). They have the official names but are CC BY-SA 2.5 India (share-alike) and would be a new source. Proposal: stay OSM-only per D-013. The district source is a city-config switch, so wards can be added later by a decision.
-3. **Heights.** Only 16 buildings have `height` and 18.7% have `building:levels`. Defaults are the median levels x 3.2 m (D-013), taken over the district and building kind, falling back to the city-wide kind, then the city.
-4. **P-024 travel times without OSRM.** OSRM needs a container, and Docker is off-limits until a laptop restart. Proposal: compute store-to-hex travel times on the baked road graph (scipy Dijkstra, per-class speeds per time-of-day band), with OSRM as an optional backend later. This changes the plan's wording, so it needs a decision.
-5. **Pack byte layouts (P-025).** ARCHITECTURE section 5 gives no offsets for `roads.bin` or `river.bin`. Proposal: `roads.bin` = u32 n, u32 offsets[n+1], f32 xy[2m], u8 class[n], with class = stage `ROAD_KIND` (0 street, 1 arterial, 2 bridge). `river.bin` = u32 p, u32 poly_offsets[p+1] (into rings), u32 ring_offsets[r+1] (into vertices), f32 xy[2k], u8 kind[p] (0 river, 1 lake), with the exterior ring first.
+## P-020 bake report (Ahmedabad, bbox 72.45,22.92,72.72,23.14, Geofabrik western-zone-260101)
+- Buildings: 100,488. By kind: unknown (`building=yes`) 85,531, residential 11,985, commercial 1,832, civic 509, industrial 315, other 273, religious 43.
+- Height sources: `height` tag 14, `building:levels` 18,776, default 81,698 (81%). Defaults come from district-and-kind medians for 8,528 buildings and from city-wide kind medians for 73,170.
+- Height distribution: p5 to p75 are all 6.4 m (2 levels), p95 19.2 m, max 137.6 m (43 levels).
+- Footprint: p5 44 m2, p50 133 m2, p95 625 m2.
+- Roads: 88,744 nodes and 112,373 edges in 21 weak components, the largest holding 99.8% of nodes. Length: local 4,865 km, tertiary 1,556 km, service 831 km, secondary 431 km, primary 392 km, major 254 km. 454 bridge edges.
+- Water: the Sabarmati covers 14.9 km2 in 3 polygons; 60 lakes total 3.0 km2.
+- Banks: the Sabarmati splits the bbox; the west bank holds 64.3% of buildings.
+- Districts: 105 (57 seeds west, 48 east). Buildings per district: min 0, median 482, max 6,936 (Thakkarabapa Nagar).
+- Coverage: 250 of 672 one-km cells (37%) have no buildings. These are the walled city and the south.
+
+## Lead answers (2026-11-03)
+- Approved within D-013: districts from OSM place-node Voronoi cells split along the Sabarmati, with the source kept a city-config switch; and the height defaults (district and kind, then kind, then city).
+- Pack layouts: use ARCHITECTURE section 5 "Binary layout (v1)" from P-010. `roads.bin` and `river.bin` have separate x and y columns, counts in `manifest.json`, and one exterior ring per polygon. The water layer here keeps holes. In Ahmedabad the river polygons have none and one lake has one (likely Kankaria's island), so v1 dropping holes costs one island.
+- With the owner: VIDA footprints for the coverage gap, and P-024 travel times on the baked graph versus OSRM. Docker works again. P-024 goes behind a backend interface.
 
 ## Data notes
-- Persona pool (P-022): Nemotron-Personas-India `en_IN` has 1,000,000 personas: 53,077 in Gujarat and 6,604 in Ahmadabad district. All are aged 18 or over. There are 1,216 distinct occupation titles, and 47% are "No Occupation / Retired / Homemaker". DuckDB reads the demographic columns over HTTP (about 12 s), with no need to download the 5 GB of text.
-- WorldPop R2025A India is 778 MB and its server ignores HTTP range requests, so citybake downloads it whole.
+- Persona pool (P-022): Nemotron-Personas-India `en_IN` has 1,000,000 personas: 53,077 in Gujarat and 6,604 in Ahmadabad district. All are aged 18 or over. There are 1,216 distinct occupation titles, and 47% are "No Occupation / Retired / Homemaker". DuckDB reads the demographic columns over HTTP in about 12 s.
+- Household sizes (P-021): Census 2011 HH-01 (Gujarat, `DDW-HH01-2400-2011.XLS`). Ahmadabad City sub-district: 1,175,757 households, 5,552,466 persons, mean 4.7. Bins: 1, 2, 3, 4, 5, 6, 7 to 10, 11 to 14, 15+.
+- WorldPop R2025A India 2025 (100 m, constrained) is 778 MB, and its server ignores HTTP range requests, so citybake downloads it whole.
+- Levels rise with footprint size for residential and commercial buildings: about 2 below 150 m2, 5 to 6 at 250 to 700 m2, 8 to 10 above 700 m2. Unknown buildings stay near 2 to 3. This is the basis for the follow-up.
 
 ## Gotchas
 - Bake data lives in `data/raw` (downloads) and `data/cache/citybake/<city>/<stage>` (gitignored). `TWL_DATA_DIR` overrides the root.
 - `uv add --package <member>` syncs only that member and uninstalls the others' deps; run `uv sync` afterwards.
+- pyosmium hands self-intersecting closed ways over as empty areas, and its WKB factory raises `RuntimeError` on them; they count as `skipped_invalid`.
+- `shapely.voronoi_polygons(ordered=True)` needs GEOS 3.12 or later. The shapely 2.2 wheels include it.
+- Tests use `--import-mode=importlib`, so `tests/conftest.py` puts the tests directory on `sys.path` for the shared `osm_fixture` builder.
