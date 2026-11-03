@@ -1,0 +1,8 @@
+slug = "ahmedabad"
+name = "Ahmedabad"
+# west, south, east, north in degrees (WGS84): the municipal corporation plus its western suburbs
+bbox = [72.45, 22.92, 72.72, 23.14]
+
+[osm]
+url = "https://download.geofabrik.de/asia/india/western-zone-260101.osm.pbf"
+md5 = "d62746c49b4ba9277e1e6de4b5afad70"
