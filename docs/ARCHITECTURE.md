@@ -101,7 +101,7 @@ Tape writer/reader (section 4). Also used by the engine's golden tests.
 - Narration: run summary where every sentence links to tape event ids.
 
 ### tools/citybake (Python batch)
-OSM extract -> buildings with heights, road graph; WorldPop raster -> households per building (iterative proportional fitting to district marginals); persona pool -> residents; social graph; dark-store placement; travel-time tables via OSRM; writes a city pack (section 5).
+OSM extract plus VIDA's combined Google + Microsoft footprints where OSM has gaps (D-021) -> buildings with heights, road graph; WorldPop raster -> households per building (iterative proportional fitting to district marginals); persona pool -> residents; social graph; dark-store placement; travel-time tables by Dijkstra on the baked road graph (D-022); writes a city pack (section 5).
 
 ## 3. The run lifecycle (Temporal `LaunchRun` workflow)
 1. `resolveScenario(scenarioId)` -> canonical JSON + `scenario_hash`.
@@ -153,7 +153,7 @@ river.bin          polygon(s)
 residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)
 graph.bin          CSR adjacency: u32 offsets[n+1], u32 targets[m], u8 tie_kind[m], f32 strength[m]
 stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
-travel.bin         travel minutes store -> hex (u16), from OSRM, per time-of-day band
+travel.bin         travel minutes store -> hex (u16), from the baked road graph (D-022), per time-of-day band
 districts.json     names, polygons, marginals used in synthesis
 ```
 Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
@@ -198,7 +198,7 @@ All request and response shapes are zod schemas in `packages/contracts`.
 - **Observability:** OpenTelemetry in every service (NestJS and FastAPI). Dev runs the Grafana LGTM container. Trace ids flow from the gateway through Temporal into runner and minds. The stage reports frame-time percentiles and tier to the gateway (sampled) for real-device performance data.
 - **Security:** sessions are httpOnly cookies; tapes and packs via presigned URLs with short TTLs; LLM and voice keys only in minds; uploads limited in size and validated by schema; per-org quotas on seeds and LLM spend; no PII anywhere (residents are synthetic).
 - **Costs:** LLM use is bounded per run (deep personas x questions, cached); interviews metered per minute; the cost guard rejects work that would exceed the org's daily cap.
-- **Attribution:** OSM (ODbL), WorldPop (CC BY 4.0), Nemotron-Personas-India (CC BY 4.0) credited in the app footer and in `manifest.json`.
+- **Attribution:** OSM (ODbL), VIDA combined building footprints with Google Open Buildings and Microsoft Global ML Building Footprints (D-021), WorldPop (CC BY 4.0), Nemotron-Personas-India (CC BY 4.0) credited in the app footer and in `manifest.json`.
 
 ## 9. Performance budgets
 | Area | Budget |

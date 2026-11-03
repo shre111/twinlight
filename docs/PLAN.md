@@ -58,7 +58,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: segment shares within tolerance of source marginals; attribution written to the manifest.
 - [ ] **P-023 Social graph** Lane C. Households, neighbours (distance decay), friends (homophily on segment), work ties (long range), target mean degree 5 to 8. `[tests] [deep]`
   AC: degree distribution, clustering and share of cross-river ties reported and within targets.
-- [ ] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; OSRM travel times store -> H3 cell per time band. `[tests]`
+- [ ] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
   AC: coverage of residents >= 90%; travel table complete.
 - [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with meshopt-compressed buildings; Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
