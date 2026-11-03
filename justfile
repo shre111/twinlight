@@ -21,3 +21,6 @@ test:
 
 test-engine:
     uv run pytest -q py
+
+shots *args:
+    pnpm -F @twinlight/web shots {{ replace(args, "--update", "--update-snapshots=all") }}
