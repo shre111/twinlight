@@ -3,6 +3,7 @@ import { LoggerModule } from 'nestjs-pino'
 import { BUILD_INFO, readBuildInfo } from './build-info.js'
 import type { Config } from './config.js'
 import { HealthController } from './health/health.controller.js'
+import { InfraModule } from './infra/infra.module.js'
 
 @Module({})
 export class AppModule {
@@ -21,6 +22,7 @@ export class AppModule {
             transport: config.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
           },
         }),
+        InfraModule.forRoot(config),
       ],
       controllers: [HealthController],
       providers: [{ provide: BUILD_INFO, useValue: readBuildInfo(config.GIT_SHA) }],
