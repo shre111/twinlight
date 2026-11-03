@@ -4,11 +4,12 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M0 Foundations
-- Point: P-003 Minds and citybake (not started); P-007 tokens in progress in a scene-director worktree
+- Point: P-004 Gateway skeleton (not started); P-007 tokens in progress in a scene-director worktree
 - Branch: none
-- Next: P-003, then P-004; P-005 after P-004; P-006 last
+- Next: P-004, then P-005; P-006 last. Lane C (minds) can start now that P-003 is merged.
 
 ## Recent changes
+- 2026-11-03 P-003 done: `services/minds` `/health` and `tools/citybake` CLI (stdlib argparse) as workspace members; python CI filter restored (#6).
 - 2026-11-03 P-002 done: uv workspace (members by glob), twl_engine with a Numba smoke test, twl_tape skeleton, runner `/health` (#4).
 - 2026-11-03 P-001 done: pnpm workspace, Turborepo, Biome, `packages/config`, justfile (#1); Next.js 16 app with the wordmark on dusk (#2).
 - 2026-11-03 Repo seeded with planning docs, Claude Code agents, skills, hooks and CI from the starter kit.
@@ -19,7 +20,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 - Biome 2.6 also formats Markdown and YAML; `biome.json` excludes those, `.claude/` and `design/` (D-018 scopes Biome to TS/JS/JSON).
 - `next dev` writes `apps/web/AGENTS.md` unless `agentRules: false` (set). Next 16's own docs ship in `apps/web/node_modules/next/dist/docs/`; read them before relying on remembered APIs.
 - P-007 must replace the stopgaps in `apps/web/app/globals.css` (hand-copied colour vars, literal font fallback stack) and the relative `node_modules` font path in `apps/web/app/fonts.ts`.
-- CI stopgaps until the code exists: the python filter skips root `pyproject.toml`/`uv.lock` (P-003 restores them); the formats filter only matches `fixtures/tape/**` (P-014 restores `py/tape/**` and `packages/tape/**`). P-006 reworks CI with a single `ci-ok` gate.
+- CI stopgap until the code exists: the formats filter only matches `fixtures/tape/**` (P-014 restores `py/tape/**` and `packages/tape/**`). P-006 reworks CI with a single `ci-ok` gate.
 - The CI `TWL_WORKERS` loop is gone; the first golden tests (P-011) must parametrise 1, 4 and 8 workers inside pytest (golden-test skill) so D-006 stays covered.
 - Starlette's test client wants `httpx2`, not `httpx` (deprecation warning otherwise). pytest runs with `--import-mode=importlib`, so test module names may repeat across packages.
 - The git hook rejects any Bash command containing a heredoc together with the words git and commit on one line; do file edits and commits in separate calls.
