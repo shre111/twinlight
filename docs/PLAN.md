@@ -24,7 +24,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
   AC: all containers healthy; gateway connects to Postgres and MinIO.
 - [ ] **P-006 CI** Lane A. Path-filtered jobs: web (biome, tsc, vitest), engine (ruff, pyright, pytest, determinism across worker counts), python services (ruff, pyright, pytest), cross-language goldens, PR title check. Cache pnpm and uv.
   AC: a docs-only PR runs only the title check; an engine PR runs only engine + title.
-- [ ] **P-007 Tokens package** Lane B. `design/tokens.json` -> `packages/ui` CSS variables + TS constants; fonts loaded with `next/font`.
+- [x] **P-007 Tokens package** Lane B. `design/tokens.json` -> `packages/ui` CSS variables + TS constants; fonts loaded with `next/font`.
   AC: web app uses only token variables; a lint rule or test fails on hex literals in components.
 
 ## M1 First light (vertical slice on a toy city)
