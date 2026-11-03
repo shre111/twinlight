@@ -42,7 +42,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: TS decodes Python-written fixtures with matching checksums and probe values; streaming decode of day chunks works.
 - [ ] **P-015 Stage core** Lane B. `Stage.create`, WebGPU with WebGL2 fallback, render loop, resize, DPR caps, quality tiers, perf HUD (dev only).
   AC: runs on Chrome, Safari 26, Firefox; HUD shows backend and frame time.
-- [ ] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
+- [x] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
   AC: scrubbing anywhere in 30 days updates instantly; 20k residents at 60 fps on the reference laptop.
 - [ ] **P-017 Stores layer** Lane B. Beams, radius rings, red flicker during stockout intervals from the tape.
 - [ ] **P-018 Timeline and readouts** Lane B. Docked timeline with play/pause, speeds, scrubber with day ticks, event markers and adoption sparkline; readouts card.
