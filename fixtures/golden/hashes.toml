@@ -1,0 +1,13 @@
+# Strict hashes are checked on the pinned CI platform (TWL_GOLDEN_STRICT=1); elsewhere the probes are compared with tolerance.
+# Change these only for an intended output change, with the reason in the PR body.
+
+[toy_pack.seed49_residents5000]
+hash = "3037c244ba7bd4c3e2f3b2bc4a1b0efa811e6c126c5e48f7bdd40a3533cacab0"
+buildings = 7210
+ties = 22521
+roads = 5839
+road_points = 12772
+river_points = 802
+building_height_sum = 143589.11580324173
+resident_x_sum = -2174347.764502242
+resident_y_sum = 210379.91088458896
