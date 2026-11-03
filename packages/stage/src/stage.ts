@@ -97,8 +97,11 @@ export class Stage {
     this.#stats.reset()
     this.#viewport.remeasure()
     this.#mountResidents()
+    // Compile the remounted residents now rather than on the next frame.
+    void this.#compile().catch((error: unknown) => console.error(error))
   }
 
+  /** Replaces the city. Its tape is cleared, so call `setTape` again for the new one. */
   async loadCity(city: StageCity): Promise<void> {
     if (this.#disposed) return
     const load = ++this.#loads
@@ -126,15 +129,23 @@ export class Stage {
     if (awareAt.length !== expected || firstOrderAt.length !== expected) {
       throw new Error(`The tape has ${awareAt.length} residents but the city has ${expected}`)
     }
+    const load = this.#loads
     this.#tape = tape
     this.#mountResidents()
     await this.#compile()
+    if (!this.#disposed && load !== this.#loads) {
+      throw new Error('A new city loaded while its tape was being set; set the tape again')
+    }
   }
 
   /** Clamps to the tape and updates uniforms only; no work grows with the resident count. */
   setTime(simMinutes: number): void {
     const tape = this.#tape
-    this.#time = tape ? clampTime(simMinutes, tape) : Math.max(0, simMinutes || 0)
+    this.#time = tape
+      ? clampTime(simMinutes, tape)
+      : Number.isFinite(simMinutes)
+        ? Math.max(0, simMinutes)
+        : 0
     this.#applyTime()
   }
 
