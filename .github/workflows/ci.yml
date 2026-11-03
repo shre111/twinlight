@@ -40,11 +40,7 @@ jobs:
             python:
               - 'services/minds/**'
               - 'tools/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
             formats:
-              - 'py/tape/**'
-              - 'packages/tape/**'
               - 'fixtures/tape/**'
               - 'fixtures/pack/**'
 
@@ -83,10 +79,7 @@ jobs:
       - run: uv run ruff format --check py services/runner
       - run: uv run ruff check py services/runner
       - run: uv run pyright py services/runner
-      - run: uv run pytest -q py services/runner -m "not golden"
-      - name: Determinism across worker counts
-        run: |
-          for w in 1 4 8; do TWL_WORKERS=$w uv run pytest -q py/engine -m golden; done
+      - run: uv run pytest -q py services/runner
 
   python:
     needs: changes

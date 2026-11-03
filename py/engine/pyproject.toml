@@ -1,0 +1,9 @@
+[project]
+name = "twl-engine"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = ["numba>=0.68,<0.69", "numpy>=2.5,<2.6"]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
