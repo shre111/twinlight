@@ -21,9 +21,12 @@ function residentCount(value: unknown): number {
 
 function startMinutes(query: { t?: unknown; day?: unknown }): number {
   const minutes = Number(query.t)
-  if (typeof query.t === 'string' && Number.isFinite(minutes) && minutes >= 0) return minutes
-  const hours = STILL_HOURS[String(query.day)] ?? STILL_HOURS[DEFAULT_DAY] ?? 0
-  return hours * 60
+  if (typeof query.t === 'string' && query.t !== '' && Number.isFinite(minutes) && minutes >= 0) {
+    return minutes
+  }
+  const day = String(query.day)
+  const hours = Object.hasOwn(STILL_HOURS, day) ? STILL_HOURS[day] : STILL_HOURS[DEFAULT_DAY]
+  return (hours ?? 0) * 60
 }
 
 export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
