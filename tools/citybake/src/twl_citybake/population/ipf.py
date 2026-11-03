@@ -54,20 +54,23 @@ def integerise(
     capacity: npt.ArrayLike,
     col_totals: npt.ArrayLike,
 ) -> IntArray:
-    """Whole households per (building, size class) from expected counts: floors, then one more
-    household at a time by largest remainder (ties by lower row) wherever it still fits, largest
-    sizes first, until each column reaches its total or nothing fits."""
+    """Whole households per (building, size class) from expected counts: floors, trimmed by
+    smallest remainder where a column overshoots its total, then one more household at a time by
+    largest remainder (ties by lower row) in cells with a positive expectation that still fit,
+    largest sizes first, until each column reaches its total or nothing fits."""
     wanted = np.maximum(np.asarray(expected, np.float64), 0.0)
     size = np.asarray(sizes, np.int64)
     room_for = np.maximum(np.asarray(capacity, np.int64), 0)
     totals = np.asarray(col_totals, np.int64)
     counts = np.floor(wanted).astype(np.int64)
-    remainder = wanted - counts
+    remainder = wanted - counts.astype(np.float64)
     _trim_to_capacity(counts, size, room_for)
+    _trim_to_totals(counts, remainder, totals)
     persons = counts @ size
     for k in np.argsort(-size, kind="stable"):
         need = int(totals[k] - counts[:, k].sum())
         order = np.argsort(-remainder[:, k], kind="stable")
+        order = order[wanted[order, k] > 0]
         while need > 0:
             fits = order[room_for[order] - persons[order] >= size[k]][:need]
             if not len(fits):
@@ -88,6 +91,18 @@ def _trim_to_capacity(counts: IntArray, size: IntArray, capacity: IntArray) -> N
         drop = np.minimum(counts[:, k], -(-np.maximum(over, 0) // size[k]))
         counts[:, k] -= drop
         over -= drop * size[k]
+
+
+def _trim_to_totals(counts: IntArray, remainder: FloatArray, totals: IntArray) -> None:
+    """Drop households from columns whose floors already exceed their total, one per row at a
+    time from the smallest remainder (ties by higher row)."""
+    for k in range(counts.shape[1]):
+        excess = int(counts[:, k].sum() - totals[k])
+        while excess > 0:
+            rows = np.flatnonzero(counts[:, k] > 0)
+            order = rows[np.lexsort((-rows, remainder[rows, k]))][:excess]
+            counts[order, k] -= 1
+            excess -= len(order)
 
 
 def _scale(matrix: FloatArray, targets: FloatArray, axis: int) -> None:
