@@ -88,6 +88,7 @@ def test_array_dtypes_match_the_pack_spec(city: ToyCity) -> None:
         "river.offsets": np.uint32,
         "river.x": np.float32,
         "river.y": np.float32,
+        "river.kind": np.uint8,
         "residents.x": np.float32,
         "residents.y": np.float32,
         "residents.z": np.float32,
@@ -251,6 +252,8 @@ def test_river_polygons_span_the_city_north_to_south(city: ToyCity) -> None:
     assert rv.offsets[0] == 0
     assert np.all(np.diff(rv.offsets.astype(np.int64)) > 2)
     assert rv.offsets[-1] == len(rv.x) == len(rv.y)
+    assert len(rv.kind) == len(rv.offsets) - 1
+    assert np.all(rv.kind == 0)
     assert float(rv.y.max()) - float(rv.y.min()) > 5000
     assert float(rv.y.max()) > 0 > float(rv.y.min())
 

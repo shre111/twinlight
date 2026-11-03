@@ -37,6 +37,7 @@ class River:
     offsets: NDArray[np.uint32]
     x: NDArray[np.float32]
     y: NDArray[np.float32]
+    kind: NDArray[np.uint8]
 
 
 @dataclass(frozen=True)

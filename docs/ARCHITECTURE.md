@@ -149,7 +149,7 @@ Footer
 manifest.json      name, bbox, crs, counts, hashes, attributions, version
 buildings.glb      meshopt-compressed instanced boxes or extruded footprints (LOD0/LOD1)
 roads.bin          polylines for rendering (f32 xy, u8 class: 0 street, 1 arterial incl. ring road, 2 bridge)
-river.bin          polygon(s)
+river.bin          water polygons (river, lakes)
 residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)
 graph.bin          CSR adjacency: u32 offsets[n+1], u32 targets[m], u8 tie_kind[m], f32 strength[m]
 stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
@@ -158,7 +158,16 @@ districts.json     names, polygons, marginals used in synthesis
 ```
 Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
 
-Until P-025, toy packs ship `buildings.bin` instead of `buildings.glb`: little-endian f32 SoA `x, y, width, depth, height, rotation` (radians about up, counter-clockwise from east), with the count in `manifest.json`.
+**Binary layout (v1).** Every `.bin` file is a sequence of little-endian columns in the order listed, each zero-padded to a multiple of 8 bytes, so every column starts 8-byte aligned (a client views it as a typed array without copying) and the file size is the sum of the padded columns. Lengths come from `manifest.json` `counts`, which has exactly the keys `buildings`, `residents`, `ties`, `stores`, `roads`, `roadPoints`, `riverPolygons`, `riverPoints`. Variable-length lists are CSR: `u32 offsets[n + 1]`, then the flat columns.
+- `buildings.bin` (toy packs, until P-025 brings `buildings.glb`): `f32 x, y, width, depth, height, rotation` (radians about up, counter-clockwise from east), `u16 district`. Count `buildings`.
+- `residents.bin`: the columns above. Count `residents`; `building` indexes `buildings`.
+- `graph.bin`: directed ties; resident `i` talks to `targets[offsets[i]..offsets[i + 1]]`, and an undirected relation appears in both directions. Count `ties` = length of `targets`. `tie_kind`: 0 household, 1 neighbour, 2 friend, 3 work.
+- `stores.bin`: `f32 x, y`, `u32 hex`, `f32 radius_m`, `u16 district`. Count `stores`.
+- `roads.bin`: `u32 offsets[roads + 1]` into points, `f32 x[roadPoints]`, `f32 y[roadPoints]`, `u8 class[roads]`.
+- `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake). One exterior ring per polygon, no holes in v1.
+- `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add polygons and marginals.
+- `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
+- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
 
 ## 6. Data model (Postgres)
 ```
