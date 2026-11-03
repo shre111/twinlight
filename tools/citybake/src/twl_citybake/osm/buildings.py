@@ -7,7 +7,7 @@ from osmium.geom import WKBFactory
 from osmium.osm import Area
 from shapely import Polygon
 
-from twl_citybake.osm.geometry import from_wkb, oriented_boxes, ring_arrays
+from twl_citybake.osm.geometry import from_wkb, oriented_boxes, outer_rings, ring_arrays
 from twl_citybake.osm.tags import HeightSource, building_kind, parse_levels, tagged_height
 from twl_citybake.projection import LocalProjection
 
@@ -102,7 +102,7 @@ class BuildingCollector:
         keep = order[valid][inside]
         geoms = geoms[valid][inside]
         w, d, rot = oriented_boxes(geoms)
-        ring_offsets, ring_xy = ring_arrays(_outer_rings(geoms))
+        ring_offsets, ring_xy = ring_arrays(outer_rings(geoms))
         return Buildings(
             osm_type=osm_type[keep],
             osm_id=osm_id[keep],
@@ -119,12 +119,3 @@ class BuildingCollector:
             rings={"offsets": ring_offsets, "xy": ring_xy},
             skipped_invalid=self.invalid + int((~valid).sum()),
         )
-
-
-def _outer_rings(geoms: np.ndarray) -> np.ndarray:
-    """Exterior ring, counter-clockwise, of the largest polygon of each footprint."""
-    parts, owner = shapely.get_parts(geoms, return_index=True)
-    by_size = np.lexsort((-shapely.area(parts), owner))
-    first = by_size[np.searchsorted(owner[by_size], np.arange(len(geoms)))]
-    largest = shapely.orient_polygons(parts[first], exterior_cw=False)
-    return shapely.get_exterior_ring(largest)

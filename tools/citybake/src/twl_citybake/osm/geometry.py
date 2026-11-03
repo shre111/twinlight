@@ -14,13 +14,18 @@ MULTI_TYPE_IDS = (4, 5, 6, 7)
 GeometryArray = npt.NDArray[np.object_]
 
 
-def clip_polygon(bbox: BBox, proj: LocalProjection) -> Polygon:
-    """The bbox in local metres, densified so its curved projected edges stay accurate."""
+def bbox_outline(bbox: BBox) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Longitudes and latitudes around the bbox, densified so its projected edges can curve."""
     t = np.linspace(0.0, 1.0, CLIP_POINTS_PER_SIDE, endpoint=False)
     w, s, e, n = bbox.west, bbox.south, bbox.east, bbox.north
     lon = np.concatenate([w + t * (e - w), np.full_like(t, e), e - t * (e - w), np.full_like(t, w)])
     lat = np.concatenate([np.full_like(t, s), s + t * (n - s), np.full_like(t, n), n - t * (n - s)])
-    x, y = proj.forward(lon, lat)
+    return lon, lat
+
+
+def clip_polygon(bbox: BBox, proj: LocalProjection) -> Polygon:
+    """The bbox in local metres."""
+    x, y = proj.forward(*bbox_outline(bbox))
     clip = shapely.Polygon(np.column_stack([x, y]))
     shapely.prepare(clip)
     return clip
@@ -38,8 +43,8 @@ def project(geoms: GeometryArray, proj: LocalProjection) -> GeometryArray:
     return np.asarray(shapely.transform(geoms, forward), dtype=object)
 
 
-def from_wkb(wkb: Sequence[str], proj: LocalProjection) -> GeometryArray:
-    """Parse osmium hex WKB (lon/lat) into projected geometries; unparseable entries are None."""
+def from_wkb(wkb: Sequence[str] | Sequence[bytes], proj: LocalProjection) -> GeometryArray:
+    """Parse hex or binary WKB (lon/lat) into projected geometries; unparseable entries are None."""
     if not wkb:
         return np.empty(0, dtype=object)
     return project(shapely.from_wkb(np.asarray(wkb, dtype=object), on_invalid="ignore"), proj)
@@ -89,3 +94,22 @@ def encode_polygons(
     poly_offsets = np.concatenate([[0], np.cumsum(np.bincount(owner, minlength=len(polygons)))])
     ring_offsets, xy = ring_arrays(rings)
     return poly_offsets.astype(np.uint32), ring_offsets, xy
+
+
+def outer_rings(geoms: GeometryArray) -> GeometryArray:
+    """Exterior ring, counter-clockwise, of the largest polygon of each footprint."""
+    parts, owner = shapely.get_parts(geoms, return_index=True)
+    by_size = np.lexsort((-shapely.area(parts), owner))
+    first = by_size[np.searchsorted(owner[by_size], np.arange(len(geoms)))]
+    largest = shapely.orient_polygons(parts[first], exterior_cw=False)
+    return shapely.get_exterior_ring(largest)
+
+
+def ring_polygons(offsets: np.ndarray, xy: np.ndarray) -> GeometryArray:
+    """Polygons from CSR-encoded closed rings, one per record."""
+    counts = np.diff(offsets.astype(np.int64))
+    owner = np.repeat(np.arange(len(counts), dtype=np.intp), counts)
+    rings = np.asarray(shapely.linearrings(xy.astype(np.float64), indices=owner), dtype=object)
+    if len(rings) != len(counts):
+        raise ValueError("every ring needs at least one point")
+    return np.asarray(shapely.polygons(rings), dtype=object)
