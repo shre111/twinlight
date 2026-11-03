@@ -42,7 +42,7 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
     proj = LocalProjection.for_bbox(city.bbox)
     clip = clip_polygon(city.bbox, proj)
     buildings, roads, water = BuildingCollector(), RoadCollector(), WaterCollector()
-    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts.place_kinds)
+    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts)
     factory = WKBFactory()
     for obj in osmium.FileProcessor(str(pbf)).with_areas():
         if isinstance(obj, Area):
@@ -52,7 +52,7 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
         elif isinstance(obj, Way):
             roads.add(obj)
             river.add(obj)
-        elif isinstance(obj, Node) and "place" in obj.tags:
+        elif isinstance(obj, Node) and ("place" in obj.tags or obj.id in places.extra_nodes):
             places.add_node(obj)
 
     footprints = buildings.finish(proj, clip)
@@ -77,7 +77,7 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
         "water": _water_report(waters),
         "banks_split": banks.split,
         "bank_share_west": _round(np.mean(bank == 0)) if len(bank) else 0.0,
-        "districts": _district_report(districts),
+        "districts": _district_report(districts, seeds.applied),
         "coverage": coverage(clip, footprints.x, footprints.y),
     }
     meta = {
@@ -104,14 +104,14 @@ def district_seeds(pbf: Path, city: CityConfig) -> tuple[Seeds, Banks]:
     """The district seeds and river banks that extract_osm assigns districts and banks from."""
     proj = LocalProjection.for_bbox(city.bbox)
     clip = clip_polygon(city.bbox, proj)
-    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts.place_kinds)
+    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts)
     factory = WKBFactory()
     for obj in osmium.FileProcessor(str(pbf)).with_areas():
         if isinstance(obj, Area):
             places.add_area(obj, factory)
         elif isinstance(obj, Way):
             river.add(obj)
-        elif isinstance(obj, Node) and "place" in obj.tags:
+        elif isinstance(obj, Node) and ("place" in obj.tags or obj.id in places.extra_nodes):
             places.add_node(obj)
     banks = split_banks(clip, river.finish(proj), north_west(city.bbox, proj))
     return places.finish(proj, clip), banks
@@ -178,13 +178,14 @@ def _water_report(water: Water) -> dict[str, Any]:
     }
 
 
-def _district_report(districts: list[dict[str, Any]]) -> dict[str, Any]:
+def _district_report(districts: list[dict[str, Any]], applied: dict[str, int]) -> dict[str, Any]:
     counts = np.asarray([d["buildings"] for d in districts])
     return {
         "count": len(districts),
         "buildings_min": int(counts.min()),
         "buildings_median": _round(np.median(counts)),
         "buildings_max": int(counts.max()),
+        **applied,
     }
 
 
