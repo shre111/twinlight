@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@twinlight/ui": "workspace:*",
     "three": "0.186.1"
   },
   "devDependencies": {

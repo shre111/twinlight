@@ -4,7 +4,9 @@ import { expect, type Page, test } from '@playwright/test'
 import type { FrameReport, TierName } from '@twinlight/stage'
 
 const TIERS: TierName[] = ['high', 'medium', 'low']
-const SAMPLE_MS = 3000
+// A frame count rather than a time window, so software GL samples as many frames as a GPU.
+const SAMPLE_FRAMES = 60
+const SAMPLE_TIMEOUT_MS = 30_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
 async function openStage(page: Page, query: string) {
@@ -13,20 +15,26 @@ async function openStage(page: Page, query: string) {
   await page.waitForFunction(() => (window.__twinlightStage?.perf().frames ?? 0) > 2)
 }
 
-test('empty stage', async ({ page }, testInfo) => {
+test('city', async ({ page }, testInfo) => {
   await openStage(page, 'hud=0')
-  const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-empty.png`)
+  const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-city.png`)
   await page.screenshot({ path: still })
-  await expect(page).toHaveScreenshot('empty.png')
+  await expect(page).toHaveScreenshot('city.png')
 })
 
 test('frame report', async ({ page }, testInfo) => {
   const report: Partial<Record<TierName, FrameReport>> = {}
   for (const tier of TIERS) {
     await openStage(page, `hud=0&tier=${tier}`)
-    await page.waitForTimeout(SAMPLE_MS)
+    await page.waitForFunction(
+      (frames) => (window.__twinlightStage?.perf().frames ?? 0) >= frames,
+      SAMPLE_FRAMES,
+      { timeout: SAMPLE_TIMEOUT_MS },
+    )
     report[tier] = await page.evaluate(() => window.__twinlightStage?.perf())
-    expect(report[tier]?.frames, `${tier} tier rendered frames`).toBeGreaterThan(30)
+    expect(report[tier]?.frames, `${tier} tier rendered frames`).toBeGreaterThanOrEqual(
+      SAMPLE_FRAMES,
+    )
   }
   const file = path.join(testInfo.project.outputDir, 'frame-report.json')
   const earlier = await readFile(file, 'utf8')

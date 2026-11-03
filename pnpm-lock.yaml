@@ -129,6 +129,9 @@ importers:
 
   packages/stage:
     dependencies:
+      '@twinlight/ui':
+        specifier: workspace:*
+        version: link:../ui
       three:
         specifier: 0.186.1
         version: 0.186.1

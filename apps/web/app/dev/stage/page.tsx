@@ -4,9 +4,16 @@ import { DevStage } from './dev-stage'
 
 const TIER_OPTIONS: readonly TierOption[] = ['auto', 'high', 'medium', 'low']
 const BACKEND_OPTIONS: readonly BackendPreference[] = ['auto', 'webgl2']
+const DEFAULT_RESIDENTS = 20_000
+const MAX_RESIDENTS = 100_000
 
 function pick<T extends string>(value: unknown, options: readonly T[]): T | undefined {
   return options.find((option) => option === value)
+}
+
+function residentCount(value: unknown): number {
+  const count = Number(value)
+  return Number.isInteger(count) && count > 0 ? Math.min(count, MAX_RESIDENTS) : DEFAULT_RESIDENTS
 }
 
 export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
@@ -17,6 +24,7 @@ export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
       tier={pick(query.tier, TIER_OPTIONS)}
       backend={pick(query.backend, BACKEND_OPTIONS)}
       hud={query.hud !== '0'}
+      residents={residentCount(query.residents)}
     />
   )
 }
