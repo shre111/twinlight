@@ -6,3 +6,10 @@ export const display = localFont({
   variable: '--font-display-face',
   display: 'swap',
 })
+
+export const body = localFont({
+  src: '../node_modules/@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2',
+  weight: '200 800',
+  variable: '--font-body-face',
+  display: 'swap',
+})

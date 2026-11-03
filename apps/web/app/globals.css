@@ -9,3 +9,7 @@ body {
   background: var(--color-dusk);
   color: var(--color-paper);
 }
+
+body {
+  font-family: var(--font-body);
+}
