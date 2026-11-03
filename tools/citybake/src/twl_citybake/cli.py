@@ -188,7 +188,8 @@ def summary(report: dict) -> str:
             f"river {w['river_area_km2']} km2, {w['lakes']} lakes {w['lake_area_km2']} km2, "
             f"banks split {report['banks_split']}",
             f"districts {d['count']} (buildings min {d['buildings_min']}, "
-            f"median {d['buildings_median']}, max {d['buildings_max']})",
+            f"median {d['buildings_median']}, max {d['buildings_max']}); "
+            f"{d['extra_seeds']} extra seeds, {d['merged']} merged, {d['renamed']} renamed",
             f"coverage {cover['cells_without_buildings']} of {cover['cells_in_bbox']} "
             f"{cover['cell_m']} m cells without buildings",
         ]
