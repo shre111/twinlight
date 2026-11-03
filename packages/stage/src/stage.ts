@@ -137,7 +137,11 @@ export class Stage {
     if (awareAt.length !== expected || firstOrderAt.length !== expected) {
       throw new Error(`The tape has ${awareAt.length} residents but the city has ${expected}`)
     }
-    const stores = tape.stores.stockoutOffsets.length - 1
+    // CSR offsets carry one more entry than there are stores, so even a storeless tape has [0].
+    const offsets = tape.stores.stockoutOffsets
+    if (offsets.length === 0)
+      throw new Error('The tape has no store offsets; expected at least [0]')
+    const stores = offsets.length - 1
     const cityStores = this.#stores?.count ?? 0
     if (stores !== cityStores) {
       throw new Error(`The tape has ${stores} stores but the city has ${cityStores}`)

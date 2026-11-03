@@ -22,6 +22,14 @@ describe('isOutOfStock', () => {
     expect(isOutOfStock(tape, 0, 199.5)).toBe(true)
   })
 
+  it('treats a zero-length interval as never out', () => {
+    const empty = {
+      stockoutOffsets: Uint32Array.of(0, 1),
+      stockoutIntervals: Uint32Array.of(70, 70),
+    }
+    for (const minute of [69, 70, 71]) expect(isOutOfStock(empty, 0, minute)).toBe(false)
+  })
+
   it('keeps a store with no intervals in stock', () => {
     for (const minute of [0, 50, 100, 1e6]) expect(isOutOfStock(tape, 1, minute)).toBe(false)
   })
