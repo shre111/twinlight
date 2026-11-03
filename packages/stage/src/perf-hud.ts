@@ -4,7 +4,7 @@ const FIELDS = [
   ['backend', 'Backend'],
   ['tier', 'Tier'],
   ['p50', 'Median frame'],
-  ['p95', 'Slowest 5%'],
+  ['p95', '95th percentile'],
   ['fps', 'Frames per second'],
   ['drawCalls', 'Draw calls'],
   ['pixelRatio', 'Pixel ratio'],
