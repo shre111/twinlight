@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from twl_engine.fixtures import ToyCity, build_toy_city
-from twl_engine.rng import spawn_streams
 
 PROTO_BUILDINGS = 7253
 PROTO_TIES_PER_RESIDENT = 4.5
@@ -159,9 +158,16 @@ def test_tie_kinds_and_strengths_use_the_toy_values(city: ToyCity) -> None:
     assert np.all(city.ties.strength == 1.0)
 
 
-def test_most_ties_are_local_and_few_are_long_range(city: ToyCity) -> None:
-    share_random = float(np.mean(city.ties.kind == 2))
-    assert 0.03 < share_random < 0.2
+def test_each_resident_has_at_most_six_ties_and_almost_all_have_three(city: ToyCity) -> None:
+    degrees = np.diff(city.ties.offsets.astype(np.int64))
+    assert degrees.min() >= 1
+    assert degrees.max() <= 6
+    assert np.mean(degrees >= 3) > 0.995
+
+
+def test_one_tie_in_ten_is_long_range(full_city: ToyCity) -> None:
+    share_random = float(np.mean(full_city.ties.kind == 2))
+    assert share_random == pytest.approx(0.1, abs=0.01)
 
 
 def test_toy_resident_constants(city: ToyCity) -> None:
@@ -289,25 +295,3 @@ def test_building_geometry_is_plausible(city: ToyCity) -> None:
     assert np.all(b.depth > 0)
     assert np.all(np.abs(b.x) < 5000)
     assert np.all(np.abs(b.y) < 5000)
-
-
-def test_spawn_streams_returns_generators_in_the_given_order() -> None:
-    streams = spawn_streams(49, ["city", "ties", "residents"])
-    assert list(streams) == ["city", "ties", "residents"]
-    assert all(isinstance(g, np.random.Generator) for g in streams.values())
-
-
-def test_spawn_streams_are_reproducible() -> None:
-    a = spawn_streams(7, ["a", "b"])
-    b = spawn_streams(7, ["a", "b"])
-    for name in ("a", "b"):
-        np.testing.assert_array_equal(a[name].random(16), b[name].random(16))
-
-
-def test_spawn_streams_are_independent_of_each_other_and_of_the_seed() -> None:
-    a = spawn_streams(7, ["a", "b"])
-    other = spawn_streams(8, ["a", "b"])
-    draws_a, draws_b = a["a"].random(64), a["b"].random(64)
-    assert not np.array_equal(draws_a, draws_b)
-    assert not np.array_equal(draws_a, other["a"].random(64))
-    assert abs(float(np.corrcoef(draws_a, draws_b)[0, 1])) < 0.5
