@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./pack": "./src/pack.ts",
     "./synthetic": "./src/synthetic.ts"
   },
   "scripts": {
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@twinlight/config": "workspace:*",
+    "@types/node": "24.19.2",
     "@types/three": "0.186.0",
     "typescript": "6.0.3",
     "vite": "8.3.5",

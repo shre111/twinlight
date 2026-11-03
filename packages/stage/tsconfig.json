@@ -3,7 +3,8 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "erasableSyntaxOnly": true,
-    "allowJs": true
+    "allowJs": true,
+    "types": ["node"]
   },
   "include": ["src", "test"]
 }

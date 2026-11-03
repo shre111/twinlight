@@ -139,6 +139,9 @@ importers:
       '@twinlight/config':
         specifier: workspace:*
         version: link:../config
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
       '@types/three':
         specifier: 0.186.0
         version: 0.186.0
