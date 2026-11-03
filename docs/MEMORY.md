@@ -4,11 +4,12 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M0 Foundations
-- Point: P-005 Dev infrastructure (Docker healthy again after the restart). Lane B on P-015 (stage core and perf HUD merged, `just shots` next), then P-016 on a synthetic tape. Lane C (minds) not started yet.
-- Branch: `feat/p005-dev-infra` (local only; Postgres 17 + PostGIS + h3 image committed and built)
-- Next: P-005 compose and gateway connection, then M1 Lane A (P-010 toy city, P-011 engine core).
+- Point: M0 Lane A done (P-001 to P-007 except Lane B's P-015 browser checks). Next is M1 Lane A: P-010 toy city generator. Lane B on P-016 (synthetic city and tape). Lane C not started.
+- Branch: none
+- Next: P-010 (`[tests]`, engine-smith + test-author), then P-011 (`[deep]`: switch to Fable for it).
 
 ## Recent changes
+- 2026-11-03 P-005 done: `infra/compose/dev.yml` (Postgres 17 + PostGIS 3.7 + h3 4.2, Chainguard MinIO with packs and tapes, Redis 8.8, Temporal dev, otel-lgtm), `just infra`/`down` (#15); gateway `/v1/health/ready` probes Postgres and MinIO (#17).
 - 2026-11-03 P-006 done: path-filtered CI with shared lockfile/workflow filters, a `ci-ok` gate, actions on their Node 24 majors (#10). Lane B merged stage core (#9) and the perf HUD (#11).
 - 2026-11-03 P-007 done: `@twinlight/ui` generates CSS vars and TS constants from `design/tokens.json` (checked in, freshness test); Atkinson body face; lamp focus ring; vitest guard on colour literals across apps and packages (#8).
 - 2026-11-03 P-004 done: NestJS 12 gateway (ESM) with `/v1/health` (version, git sha), zod env config, OpenAPI at `/docs`, pino with auth headers redacted; vitest e2e (#7).
@@ -27,7 +28,10 @@ Working memory for coding sessions. Read at the start of every session; update a
 - Phone stills: headless Chrome `--window-size` below about 500 px lays out wider; use viewport emulation (Playwright or CDP).
 - Disk: the Mac disk filled once (Docker VM about 38 GB) and Docker hung; restarting Docker means restarting the laptop. Check `df -h /` before big downloads. MinIO comes from `cgr.dev/chainguard/minio` pinned by digest (official images are gone).
 - CI: `ci-ok` is the single status (it reports even when all jobs skip; docs-only PRs run only `changes`, `ci-ok` and the title check). The formats job matches only `packages/tape/**` and `fixtures/tape/**` until P-014 adds `py/tape/**`; P-025 adds `fixtures/pack/**`. The python matrix lists projects explicitly, so a new `tools/` dir must be added to it. `astral-sh/setup-uv` has no major tags; pin its exact release.
+- Dev stack ports: this Mac runs native Postgres and Redis on 5432 and 6379, so the stack maps Postgres to 15432 and Redis to 16379 (all ports bound to 127.0.0.1). A `.env` copied before that still points at 5432/6379; update `DATABASE_URL` and `REDIS_URL` from `.env.example`. Grafana is on 3001.
+- Compose: `up --wait` exits 1 if any started container exits (even with 0), so the bucket one-shot sits behind `profiles: [init]` and `just infra` runs it after. Images pulled while the disk was full can be silently corrupt (zero-byte files) and Docker reuses the layers; switch tags rather than prune others' images.
 - P-010 port: the prototype's toy sim works in three.js axes (negative z is north), so pack `y = -z_proto` (ARCHITECTURE §5).
+- Stage inputs: roads as segments (x0, y0, x1, y1), split from `roads.bin` polylines by the pack loader; residents carry `building`. `@twinlight/stage/synthetic` mirrors two toy-sim constants (delivery radius 900 m, rain hours 264 to 336); change both together. `just shots` reuses a dev server on `SHOTS_PORT` (default 3101).
 - Stage (Lane B): use `http://localhost:<port>`, not `127.0.0.1` (Next dev blocks it as cross-origin). Lane B's dev server runs on 3101. On an M4 the empty stage runs 16.7 ms p50; the prototype itself averages about 24 ms at 1837 px and DPR 1.75, so P-016 has to beat it. Shot baselines are macOS SwiftShader; CI needs Linux baselines (P-046).
 - The CI `TWL_WORKERS` loop is gone; the first golden tests (P-011) must parametrise 1, 4 and 8 workers inside pytest (golden-test skill) so D-006 stays covered.
 - Starlette's test client wants `httpx2`, not `httpx` (deprecation warning otherwise). pytest runs with `--import-mode=importlib`, so test module names may repeat across packages.
