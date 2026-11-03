@@ -4,7 +4,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M0 Foundations
-- Point: M0 Lane A done (P-001 to P-007 except Lane B's P-015 browser checks). Next is M1 Lane A: P-010 toy city generator. Lane B on P-016 (synthetic city and tape). Lane C not started.
+- Point: M0 Lane A done. P-015 stays open until Safari 26 and Firefox are checked (`SHOTS_ENGINES=1 just shots` after Playwright's WebKit and Firefox downloads, or open `/dev/stage` in Safari and read the HUD); Chrome passes. Lane B on P-016 in four PRs: synthetic inputs with `loadCity`/`setTape`/`setTime`, city layer, residents layer with the flare, dev scrubber and day stills. Lane C not started.
 - Branch: none
 - Next: P-010 (`[tests]`, engine-smith + test-author), then P-011 (`[deep]`: switch to Fable for it).
 
@@ -31,7 +31,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 - Dev stack ports: this Mac runs native Postgres and Redis on 5432 and 6379, so the stack maps Postgres to 15432 and Redis to 16379 (all ports bound to 127.0.0.1). A `.env` copied before that still points at 5432/6379; update `DATABASE_URL` and `REDIS_URL` from `.env.example`. Grafana is on 3001.
 - Compose: `up --wait` exits 1 if any started container exits (even with 0), so the bucket one-shot sits behind `profiles: [init]` and `just infra` runs it after. Images pulled while the disk was full can be silently corrupt (zero-byte files) and Docker reuses the layers; switch tags rather than prune others' images.
 - P-010 port: the prototype's toy sim works in three.js axes (negative z is north), so pack `y = -z_proto` (ARCHITECTURE §5).
-- Stage inputs: roads as segments (x0, y0, x1, y1), split from `roads.bin` polylines by the pack loader; residents carry `building`. `@twinlight/stage/synthetic` mirrors two toy-sim constants (delivery radius 900 m, rain hours 264 to 336); change both together. `just shots` reuses a dev server on `SHOTS_PORT` (default 3101).
+- Stage inputs: roads as segments (x0, y0, x1, y1), split from `roads.bin` polylines by the pack loader; residents carry `building`. `@twinlight/stage/synthetic` mirrors two toy-sim constants (delivery radius 900 m, rain hours 264 to 336); change both together. `just shots` reuses a dev server on `SHOTS_PORT` (default 3101). Compare shots on p50 and p95 (SwiftShader mean fps swings 41 to 52). Playwright wipes its output dir each run (named after the branch, never `artifacts/shots/` itself), skips `undefined` options so `channel` is set per project, and `toHaveScreenshot` takes `stylePath` while ignoring unknown options.
 - Stage (Lane B): use `http://localhost:<port>`, not `127.0.0.1` (Next dev blocks it as cross-origin). Lane B's dev server runs on 3101. On an M4 the empty stage runs 16.7 ms p50; the prototype itself averages about 24 ms at 1837 px and DPR 1.75, so P-016 has to beat it. Shot baselines are macOS SwiftShader; CI needs Linux baselines (P-046).
 - The CI `TWL_WORKERS` loop is gone; the first golden tests (P-011) must parametrise 1, 4 and 8 workers inside pytest (golden-test skill) so D-006 stays covered.
 - Starlette's test client wants `httpx2`, not `httpx` (deprecation warning otherwise). pytest runs with `--import-mode=importlib`, so test module names may repeat across packages.
