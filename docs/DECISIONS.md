@@ -135,7 +135,7 @@ Status: Accepted (2026-11-03)
 - **Consequences:** Runner replicas limited by the box; Monte Carlo default seeds tuned to fit.
 
 ### D-021 Fill OSM building gaps from VIDA's combined footprints
-Status: Accepted (2026-11-03)
+Status: Accepted (2026-11-03); refined by D-024
 - **Decision:** Citybake adds building footprints from VIDA's combined Google + Microsoft + OSM dataset (source.coop `vida/google-microsoft-osm-open-buildings`, `country_iso=IND` GeoParquet), reading only the city bbox with DuckDB and caching it under `data/cache`. Footprints are deduplicated across all three sources with priority OSM > Google > Microsoft: a footprint is dropped when more than 30% of its area overlaps a higher-priority one (VIDA does not deduplicate). Heights: OSM `height` or `building:levels` when present, else the median Google Open Buildings 2.5D Temporal 2023 `building_height` (4 m grid) inside the footprint, else the district default. Synthetic boxes in populated cells with no footprint come last and are flagged `synthetic` in the pack.
 - **Why:** OSM has about 100k buildings in the Ahmedabad bbox and almost none in the walled city and the south (Vatva, Narol, Lambha), where WorldPop puts dense population, so P-021's "no building over capacity" cannot hold on OSM alone. The combined dataset gives real shapes there under open licences.
 - **Alternatives:** Synthetic boxes only (keeps D-013 unchanged, but whole districts look procedural rather than like the city); leaving the gaps and relaxing the capacity check (residents pile into the few buildings that exist).
@@ -154,3 +154,10 @@ Status: Accepted (2026-11-03)
 - **Why:** GitHub's Linux runners mix CPUs with and without AVX-512, and NumPy dispatches different SIMD kernels for `exp` and `log` on each, which can flip the last bit and make strict goldens flaky. NumPy 2.5 groups features as `X86_V2`/`X86_V3`/`X86_V4` and silently ignores old names such as `AVX512F`, so the guard makes a renamed group fail loudly instead of flaking.
 - **Alternatives:** No pinning, fixing the first flake when it appears (slow to diagnose); the pinned container image D-006 originally described (it does not exist, and an image does not pin the CPU).
 - **Consequences:** "Pinned CI platform" in D-006 now means Linux x86_64 at `X86_V3` with these variables. A small CI-only speed cost. Strict hashes come from CI; other machines compare probes with tolerance. Check the group names on every NumPy upgrade.
+
+### D-024 Correct 2.5D raster heights against OSM storeys
+Status: Accepted (2026-11-04)
+- **Decision:** Citybake corrects raster-sourced building heights with a monotone fit to OSM-tagged storeys. The tagged sample is binned by raster median height (1 m bins), each bin taking the median of `building:levels x 3.2` weighted by count; `scipy.optimize.isotonic_regression` fits the bins; corrected heights interpolate linearly between bin centres (no plateaus), and above the top bin they keep the top bin's ratio instead of clipping. The correction applies only to raster-sourced heights. The raw raster value stays as a column, floors are derived as corrected height / 3.2 for every source, and the fitted knots go into the pack manifest.
+- **Why:** Google's 2.5D heights run low against OSM storeys (median ratio 0.82 over 18,557 tagged buildings; 0.96 at 1 to 2 storeys, 0.71 at 5 to 7, 0.65 at 13+), so tall buildings rendered about 30% short and held too few floors for residents.
+- **Alternatives:** Raw raster heights (towers about 30% short); one global factor of 1 / 0.82 (over-corrects the low-rise majority and under-corrects towers).
+- **Consequences:** Validation holds out whole districts, not a random sample, and the bake report gives the median absolute percentage error per storey band (1 to 2, 3 to 4, 5 to 7, 8 to 12, 13+) before and after correction. The fit is deterministic given the pinned OSM extract and raster tiles.
