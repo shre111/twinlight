@@ -14,11 +14,11 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
   - P-022.
 
 ## D-021 bake (Ahmedabad, cached rerun 23 s, peak RSS about 3.2 GB, byte-identical reruns)
-- Buildings: 1,054,622 in total.
+- Buildings: 1,054,627 in total.
   - OSM: 100,488.
-  - Google: 936,446 kept of 1,056,667. 120,069 were dropped by dedupe and 152 fell outside the bbox.
+  - Google: 936,451 kept of 1,056,667. 120,064 were dropped by dedupe (overlap counted once where higher footprints overlap each other) and 152 fell outside the bbox.
   - Microsoft: 17,688 kept of 18,338. 645 were dropped and 5 fell outside.
-- Heights by source: 14 from `height` tags, 18,776 from `building:levels`, 919,020 from the raster and 116,812 defaults. The raw raster median is kept in `raster_height_m` (NaN means no raster support).
+- Heights by source: 14 from `height` tags, 18,776 from `building:levels`, 919,024 from the raster and 116,813 defaults. The raw raster median is kept in `raster_height_m` (NaN means no raster support).
 - Raster against OSM levels x 3.2 m on 18,557 tagged buildings: median ratio 0.817 and median absolute error 2.17 m. The ratio falls with height: 0.96 at 1 to 2 storeys, 0.77 at 3 to 4, 0.71 at 5 to 7, 0.69 at 8 to 12 and 0.65 at 13 or more. D-024 corrects this.
 - Coverage: 1 km cells without buildings drop from 250 of 672 to 0. Jamalpur, Khadia, Dariyapur, Isanpur, Lambha and Narol are now over 98% Google footprints.
 - Synthetic P-021 check: capacity-bound districts drop from 10 to 0 with the combined buildings. Zero-capacity cells with people drop from 82 to 12, holding about 6k people in temples and sheds.
