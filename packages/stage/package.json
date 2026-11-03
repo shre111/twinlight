@@ -1,0 +1,20 @@
+{
+  "name": "@twinlight/stage",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@twinlight/config": "workspace:*",
+    "@types/three": "0.186.0",
+    "typescript": "6.0.3"
+  }
+}
