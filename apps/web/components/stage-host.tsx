@@ -7,7 +7,8 @@ import styles from './stage-host.module.css'
 interface StageHostProps {
   tier?: TierOption
   backend?: BackendPreference
-  onReady?: (stage: Stage) => void
+  /** Runs once the stage is live; a returned function runs before the stage is disposed. */
+  onReady?: (stage: Stage) => (() => void) | undefined
 }
 
 export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHostProps) {
@@ -18,10 +19,14 @@ export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHos
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    setFailed(false)
     // A fresh canvas per mount, because a canvas keeps the first GPU context it hands out.
     const canvas = document.createElement('canvas')
+    canvas.setAttribute('role', 'img')
+    canvas.setAttribute('aria-label', 'Live city view')
     host.append(canvas)
     let stage: Stage | undefined
+    let release: (() => void) | undefined
     let disposed = false
 
     import('@twinlight/stage')
@@ -32,7 +37,7 @@ export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHos
           return
         }
         stage = created
-        ready(created)
+        release = ready(created)
       })
       .catch((error: unknown) => {
         console.error(error)
@@ -41,6 +46,7 @@ export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHos
 
     return () => {
       disposed = true
+      release?.()
       stage?.dispose()
       canvas.remove()
     }

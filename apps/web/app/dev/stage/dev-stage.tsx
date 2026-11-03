@@ -11,6 +11,9 @@ declare global {
 
 function expose(stage: Stage) {
   window.__twinlightStage = stage
+  return () => {
+    if (window.__twinlightStage === stage) window.__twinlightStage = undefined
+  }
 }
 
 export function DevStage(props: { tier?: TierOption; backend?: BackendPreference }) {
