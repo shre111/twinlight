@@ -9,6 +9,11 @@ interface HealthResponse extends BuildInfo {
   status: 'ok'
 }
 
+function describeError(error: unknown): string {
+  if (error instanceof AggregateError) return error.errors.map(describeError).join('; ')
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+}
+
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
@@ -31,7 +36,7 @@ export class HealthController {
   @ApiServiceUnavailableResponse({ description: 'A dependency is down; see checks' })
   async ready(): Promise<Readiness> {
     const readiness = await checkReadiness(this.database, this.storage, (check, error) =>
-      this.logger.warn(`${check} readiness check failed: ${String(error)}`),
+      this.logger.warn(`${check} readiness check failed: ${describeError(error)}`),
     )
     if (readiness.status !== 'ok') throw new ServiceUnavailableException(readiness)
     return readiness
