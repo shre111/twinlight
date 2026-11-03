@@ -16,8 +16,8 @@ def valid_footprints(geoms: GeometryArray) -> BoolArray:
 
 
 def dedupe(higher: GeometryArray, lower: GeometryArray, threshold: float) -> BoolArray:
-    """Keep mask for `lower`: valid footprints whose intersections with the valid `higher`
-    footprints add up to at most `threshold` of their own area."""
+    """Keep mask for `lower`: valid footprints whose area covered by the valid `higher`
+    footprints is at most `threshold` of their own."""
     keep = valid_footprints(lower)
     higher = higher[valid_footprints(higher)]
     candidates = np.flatnonzero(keep)
@@ -27,7 +27,13 @@ def dedupe(higher: GeometryArray, lower: GeometryArray, threshold: float) -> Boo
     owner = candidates[pairs[0]]
     shared = shapely.area(shapely.intersection(lower[owner], higher[pairs[1]]))
     overlap = np.bincount(owner, weights=shared, minlength=len(lower))
-    keep[candidates] = overlap[candidates] <= threshold * shapely.area(lower[candidates])
+    limit = threshold * shapely.area(lower)
+    # summed pairs double-count where higher footprints overlap each other; settle those exactly
+    several = np.bincount(owner, minlength=len(lower)) > 1
+    for i in np.flatnonzero(several & (overlap > limit)):
+        union = shapely.union_all(higher[pairs[1][owner == i]])
+        overlap[i] = shapely.area(shapely.intersection(lower[i], union))
+    keep[candidates] = overlap[candidates] <= limit[candidates]
     return keep
 
 

@@ -10,13 +10,13 @@ from osmium.osm import Area, Node, Way
 from shapely import Polygon
 
 from twl_citybake.config import CityConfig
-from twl_citybake.osm.banks import RiverCollector, split_banks
+from twl_citybake.osm.banks import Banks, RiverCollector, split_banks
 from twl_citybake.osm.buildings import BuildingCollector, Buildings
-from twl_citybake.osm.districts import PlaceCollector, assign_districts
+from twl_citybake.osm.districts import PlaceCollector, Seeds, assign_districts
 from twl_citybake.osm.geometry import clip_polygon, north_west
 from twl_citybake.osm.heights import final_heights
 from twl_citybake.osm.roads import RoadCollector, RoadGraph, length_km_by_class
-from twl_citybake.osm.tags import BuildingKind, HeightSource
+from twl_citybake.osm.tags import OSM_HEIGHT_SOURCES, BuildingKind, HeightSource
 from twl_citybake.osm.water import Water, WaterCollector
 from twl_citybake.projection import LocalProjection
 from twl_citybake.store import write_json, write_ragged, write_table
@@ -78,7 +78,7 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
         "banks_split": banks.split,
         "bank_share_west": _round(np.mean(bank == 0)) if len(bank) else 0.0,
         "districts": _district_report(districts),
-        "coverage": _coverage(clip, footprints.x, footprints.y),
+        "coverage": coverage(clip, footprints.x, footprints.y),
     }
     meta = {
         "city": city.slug,
@@ -98,6 +98,23 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
         report=report,
         meta=meta,
     )
+
+
+def district_seeds(pbf: Path, city: CityConfig) -> tuple[Seeds, Banks]:
+    """The district seeds and river banks that extract_osm assigns districts and banks from."""
+    proj = LocalProjection.for_bbox(city.bbox)
+    clip = clip_polygon(city.bbox, proj)
+    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts.place_kinds)
+    factory = WKBFactory()
+    for obj in osmium.FileProcessor(str(pbf)).with_areas():
+        if isinstance(obj, Area):
+            places.add_area(obj, factory)
+        elif isinstance(obj, Way):
+            river.add(obj)
+        elif isinstance(obj, Node) and "place" in obj.tags:
+            places.add_node(obj)
+    banks = split_banks(clip, river.finish(proj), north_west(city.bbox, proj))
+    return places.finish(proj, clip), banks
 
 
 def write_osm_layers(layers: OsmLayers, out_dir: Path) -> None:
@@ -131,7 +148,7 @@ def _building_report(b: Buildings, height_m: np.ndarray) -> dict[str, Any]:
         "count": len(b),
         "skipped_invalid": b.skipped_invalid,
         "by_kind": {kind.name: int(kinds[kind]) for kind in BuildingKind},
-        "by_height_source": {source.name: int(sources[source]) for source in HeightSource},
+        "by_height_source": {source.name: int(sources[source]) for source in OSM_HEIGHT_SOURCES},
         "height_m": _quantiles(
             height_m, {"p5": 5, "p25": 25, "p50": 50, "p75": 75, "p95": 95, "max": 100}
         ),
@@ -171,7 +188,7 @@ def _district_report(districts: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _coverage(clip: Polygon, x: np.ndarray, y: np.ndarray) -> dict[str, int]:
+def coverage(clip: Polygon, x: np.ndarray, y: np.ndarray) -> dict[str, int]:
     """1 km cells aligned to the origin whose centres fall inside the clip polygon."""
     cell = COVERAGE_CELL_M
     min_x, min_y, max_x, max_y = clip.bounds

@@ -154,3 +154,11 @@ def test_every_valid_footprint_is_dropped_against_a_higher_copy_of_itself(
 ) -> None:
     arr = geoms(*(rect(*r) for r in lower))
     assert not dedupe(arr, arr, THRESHOLD).any()
+
+
+def test_overlapping_higher_footprints_are_counted_once() -> None:
+    lower = np.asarray([square(0.0, 0.0, 10.0)], dtype=object)
+    higher = np.asarray(
+        [shapely.box(-5.0, -5.0, -2.5, 5.0), shapely.box(-5.0, -5.0, -2.5, 5.0)], dtype=object
+    )
+    assert dedupe(higher, lower, 0.3).tolist() == [True]

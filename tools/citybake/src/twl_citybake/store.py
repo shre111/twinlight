@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from collections.abc import Mapping
@@ -30,6 +31,15 @@ def write_ragged(path: Path, columns: Mapping[str, np.ndarray], rows: int) -> No
     for name, array in columns.items():
         _first_axis(name, array)
     _write(path, columns, rows)
+
+
+def table_digest(path: Path) -> str:
+    """sha256 over a table's files in name order, to tell whether a derived layer is stale."""
+    digest = hashlib.sha256()
+    for file in sorted(path.iterdir()):
+        digest.update(file.name.encode())
+        digest.update(file.read_bytes())
+    return digest.hexdigest()
 
 
 def read_table(path: Path) -> dict[str, np.ndarray]:

@@ -18,6 +18,10 @@ class HeightSource(IntEnum):
     HEIGHT = 0
     LEVELS = 1
     DEFAULT = 2
+    RASTER = 3
+
+
+OSM_HEIGHT_SOURCES = (HeightSource.HEIGHT, HeightSource.LEVELS, HeightSource.DEFAULT)
 
 
 class BuildingKind(IntEnum):

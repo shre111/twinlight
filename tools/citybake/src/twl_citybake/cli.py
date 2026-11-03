@@ -1,13 +1,19 @@
 import argparse
+import json
 from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any
 
 from twl_citybake.config import CityConfig, DataDirs, load_city
+from twl_citybake.footprints.raster import fetch_height_mosaic
+from twl_citybake.footprints.stage import build_buildings, write_building_layers
+from twl_citybake.footprints.vida import fetch_vida
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import fetch
+from twl_citybake.store import table_digest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_cmd.add_argument("city")
     osm_cmd = commands.add_parser("osm", help="extract buildings, roads, water and districts")
     osm_cmd.add_argument("city")
+    footprints_cmd = commands.add_parser(
+        "footprints", help="fill OSM building gaps from VIDA footprints with 2.5D heights"
+    )
+    footprints_cmd.add_argument("city")
     population_cmd = commands.add_parser(
         "population", help="place WorldPop people in households per building, sample residents"
     )
@@ -64,17 +74,76 @@ def run_osm(city: str, dirs: DataDirs) -> None:
     print(stage / "layers")
 
 
+def run_footprints(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    footprints = config.footprints
+    if footprints is None:
+        raise SystemExit(f"{city} has no [footprints] sources")
+    osm = dirs.stage(city, "osm")
+    pbf, osm_layers = osm / f"{city}.osm.pbf", osm / "layers"
+    if not pbf.exists() or not (osm_layers / "buildings").exists():
+        raise SystemExit(f"{osm} is incomplete; run `citybake fetch {city}` and `citybake osm`")
+    cache = dirs.stage(city, "footprints")
+    vida = fetch_vida(
+        footprints.vida_url, footprints.vida_etag, config.bbox, cache / "vida.parquet"
+    )
+    heights = fetch_height_mosaic(
+        footprints.heights_manifest, config.bbox, footprints.raster_cell_m, cache / "heights.tif"
+    )
+    layers = build_buildings(osm_layers, pbf, vida, heights, config)
+    out = dirs.stage(city, "buildings") / "layers"
+    write_building_layers(layers, out)
+    print(footprints_summary(layers.report))
+    print(out)
+
+
+def building_layers(city: str, dirs: DataDirs) -> Path:
+    """The combined footprints layers once `citybake footprints` has run, else the OSM ones;
+    combined layers baked from older OSM layers are refused."""
+    combined = dirs.stage(city, "buildings") / "layers"
+    osm = dirs.stage(city, "osm") / "layers"
+    if not (combined / "buildings").exists():
+        return osm
+    meta = json.loads((combined / "layer.json").read_text(encoding="utf-8"))
+    if meta.get("osm_buildings_sha256") != table_digest(osm / "buildings"):
+        raise SystemExit(f"{combined} predates the OSM layers; rerun `citybake footprints {city}`")
+    return combined
+
+
+def footprints_summary(report: dict[str, Any]) -> str:
+    lines = [
+        f"{name} {c['fetched']:,} fetched: {c['invalid']:,} invalid, {c['outside_bbox']:,} "
+        f"outside the bbox, {c['dropped_by_dedupe']:,} overlapping, {c['kept']:,} kept"
+        for name, c in report["sources"].items()
+        if name != "osm"
+    ]
+    heights = ", ".join(f"{k.lower()} {v:,}" for k, v in report["by_height_source"].items())
+    check, cover = report["raster_check"], report["coverage"]
+    return "\n".join(
+        [
+            *lines,
+            f"buildings {report['count']:,}; heights {heights}",
+            f"raster vs levels on {check['n']:,} buildings: median ratio "
+            f"{check['median_ratio']}, median abs error {check['median_abs_error_m']} m",
+            f"coverage {cover['cells_without_buildings']} of {cover['cells_in_bbox']} "
+            f"{cover['cell_m']} m cells without buildings "
+            f"(OSM alone {cover['cells_without_osm_buildings']})",
+        ]
+    )
+
+
 def run_population_command(city: str, dirs: DataDirs) -> None:
     config = load_city(city)
     if config.households is None:
         raise SystemExit(f"{city} has no [households] census table")
-    layers = dirs.stage(city, "osm") / "layers"
+    layers = building_layers(city, dirs)
     if not (layers / "buildings").exists():
         raise SystemExit(f"{layers} is missing; run `citybake osm {city}` first")
     raster = worldpop_raster(config, dirs)
     if not raster.exists():
         raise SystemExit(f"{raster} is missing; run `citybake fetch {city}` first")
     population = run_population(layers, raster, config)
+    print(f"buildings from {layers}")
     out = dirs.stage(city, "population")
     write_population_layers(population, out)
     print(population_summary(population.report, config.households.mean_size))
@@ -133,6 +202,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_fetch(args.city, dirs)
     elif args.command == "osm":
         run_osm(args.city, dirs)
+    elif args.command == "footprints":
+        run_footprints(args.city, dirs)
     elif args.command == "population":
         run_population_command(args.city, dirs)
     return 0
