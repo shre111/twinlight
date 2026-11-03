@@ -69,8 +69,12 @@ def load_city(slug: str) -> CityConfig:
         name=raw["name"],
         bbox=BBox(*raw["bbox"]),
         osm=OsmSource(url=raw["osm"]["url"], md5=raw["osm"]["md5"]),
-        river=RiverConfig(names=tuple(raw["river"]["names"])),
-        districts=DistrictConfig(place_kinds=tuple(raw["districts"]["place_kinds"])),
+        river=RiverConfig(names=tuple(raw.get("river", {}).get("names", ()))),
+        districts=DistrictConfig(
+            place_kinds=tuple(
+                raw.get("districts", {}).get("place_kinds", DistrictConfig.place_kinds)
+            )
+        ),
     )
 
 
