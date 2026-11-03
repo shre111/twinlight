@@ -4,11 +4,12 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M1 First light (Lane A, B); Lane C on M2.
-- Point: P-011 engine core next, on Fable: the owner restarts the session on Fable and says "continue P-011". Lane B: P-016 done; residents visual pass (lilac and mint visibility, building saturation, amber density), then P-017 and P-018. Lane C: P-021 households and residents merged (#33, #35, #37); D-021 footprints stage next, then the P-021 rerun on merged buildings.
+- Point: P-011 engine core next, on Fable: the owner restarts the session on Fable and says "continue P-011". Lane B: P-016 done; residents visual pass (lilac and mint visibility, building saturation, amber density), then P-017 and P-018. Lane C: P-020 ticked; D-021 footprints (#42 and stacked PRs), D-024 heights, then the P-021 TOML sections and the real Ahmedabad run.
 - Branch: none
 - Next: `/start-point P-011` with engine-smith (inherits Fable) and test-author (Sonnet) in parallel. Its "valid empty tape" AC needs a minimal Python tape writer and reader in `py/tape` (P-014 then adds the TS decoder, fixtures and streaming). Add `just goldens` with the D-023 environment, and parametrise goldens over 1, 4 and 8 workers.
 
 ## Recent changes
+- 2026-11-04 P-020 done (Lane C): Ahmedabad OSM bake complete; Lane B rendered the v1 preview pack (100,488 buildings, 238k road segments, 100k residents) at 16.7 ms p50 in 8 draw calls. D-021 footprints follow in #42 and two stacked PRs; D-024 heights in progress (below the lowest bin, the bottom bin's ratio is kept, mirroring the top). WorldPop raster downloaded (md5 89905eed…).
 - 2026-11-03 P-010 done: Lane B's stage renders the generated 48k toy pack at 16.7 ms p50, with every resident on its footprint (#36). D-023 pins CI CPU features for strict goldens (#38). Subagents engine-smith, scene-director and persona-lab now inherit the session model.
 - 2026-11-03 Lane C: IPF, capacity and seeded streams (#33), WorldPop read and allocation (#35), households and residents (#37). Synthetic check: 100,001 residents, weight about 13.8, 0 buildings over capacity; 10 districts are capacity-bound on OSM alone until D-021.
 - 2026-11-03 P-010 code: `twl_engine.rng` streams; toy city port (7,210 buildings, 4.50 ties per resident at 48k, 36 ms); v1 pack writer + CLI; independent tests from test-author; golden in `fixtures/golden/hashes.toml` (#20, #21, #23, #29). D-021 (VIDA footprints) and D-022 (graph travel times) recorded (#28).

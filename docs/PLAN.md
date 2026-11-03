@@ -50,7 +50,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: the M1 demo: open the route, press play, watch the city warm. Record a 20-second capture for MEMORY.md.
 
 ## M2 Real city
-- [ ] **P-020 OSM bake** Lane C. Geofabrik extract clipped to the Ahmedabad bbox -> buildings with heights, road graph, river polygon, districts. `[tests]`
+- [x] **P-020 OSM bake** Lane C. Geofabrik extract clipped to the Ahmedabad bbox -> buildings with heights, road graph, river polygon, districts. `[tests]`
   AC: counts and height distribution reported; pack renders in the stage.
 - [ ] **P-021 Population synthesis** Lane C. WorldPop raster -> households per building with iterative proportional fitting to district marginals. `[tests] [deep]`
   AC: district totals within 1% of marginals; no building over capacity.
