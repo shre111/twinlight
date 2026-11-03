@@ -1,0 +1,91 @@
+name: twinlight
+
+services:
+  postgres:
+    build: ../postgres
+    image: twinlight-postgres:dev
+    environment:
+      POSTGRES_USER: twinlight
+      POSTGRES_PASSWORD: twinlight
+      POSTGRES_DB: twinlight
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U twinlight -d twinlight']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:3c60a2a8c4d33409a9bc7a623a7fcbfb4605adc3d89422d2f53b3f673a6e5597
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio-dev-secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # The image has bash but no curl, wget or grep, so probe the health endpoint over /dev/tcp.
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && read -r status <&3 && [[ $$status == *' 200 '* ]]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio-buckets:
+    image: cgr.dev/chainguard/minio-client@sha256:1dccd2a6fd59914a98ac2d9dad95e552c91243cb0bd7242aaa224802df4b3432
+    profiles: [init]
+    command: ['mb', '--ignore-existing', 'local/packs', 'local/tapes']
+    environment:
+      MC_HOST_local: http://minio:minio-dev-secret@minio:9000
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: 'no'
+
+  redis:
+    image: redis:8.8.4-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  temporal:
+    image: temporalio/temporal:1.10.0
+    command: ['server', 'start-dev', '--ip', '0.0.0.0']
+    ports:
+      - '7233:7233'
+      - '8233:8233'
+    healthcheck:
+      test: ['CMD', 'temporal', 'operator', 'cluster', 'health', '--address', '127.0.0.1:7233']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.38.1
+    ports:
+      - '3001:3000'
+      - '4317:4317'
+      - '4318:4318'
+    healthcheck:
+      test: ['CMD', '/otel-lgtm/docker/healthcheck.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  postgres-data:
+  minio-data:
