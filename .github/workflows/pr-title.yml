@@ -1,0 +1,58 @@
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            docs
+            refactor
+            perf
+            test
+            build
+            ci
+            style
+          scopes: |
+            web
+            gateway
+            worker
+            stage
+            tape
+            ui
+            contracts
+            engine
+            runner
+            minds
+            citybake
+            infra
+            design
+            docs
+            plan
+            memory
+            decisions
+            ci
+            deps
+          requireScope: false
+          subjectPattern: ^[a-z0-9].*[^.]$
+          subjectPatternError: Subject must start lowercase and must not end with a period.
+          headerPattern: ^(\w+)(?:\(([\w-]+)\))?!?:\s(.+)$
+          validateSingleCommit: false
+      - name: Title length
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [ ${#TITLE} -gt 72 ]; then echo "PR title is ${#TITLE} chars; keep it to 72."; exit 1; fi

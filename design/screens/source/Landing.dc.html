@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Twinlight landing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@300;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap">
+<style>
+body{margin:0;background:#0F1330}
+a{color:#A6F0DA}a:hover{color:#EEF0FB}
+button:focus-visible,a:focus-visible{outline:2px solid #FFB547;outline-offset:3px}
+</style>
+</helmet>
+<div style="background: #0F1330; color: #EEF0FB; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif">
+  <section style="position: relative; min-height: 880px; overflow: hidden; display: flex; flex-direction: column">
+    <img src="../../renders/city-day13.jpg" alt="A synthetic Ahmedabad at night in the rain. Thousands of homes glow amber where people ordered, dark-store beams rise in mint light, and lilac arcs trace word of mouth between homes." style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% 50%">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,19,48,0.92) 0%, rgba(15,19,48,0.74) 34%, rgba(15,19,48,0.08) 62%, rgba(15,19,48,0) 100%)"></div>
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 180px; background: linear-gradient(0deg, #0F1330 0%, rgba(15,19,48,0) 100%)"></div>
+
+    <header style="position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px max(24px, 4vw)">
+      <a href="#" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #EEF0FB">
+        <svg aria-hidden="true" width="30" height="22" viewBox="0 0 28 20"><circle cx="10" cy="10" r="8" fill="#A6F0DA" opacity="0.9"></circle><circle cx="18" cy="10" r="8" fill="#FFB547" opacity="0.9"></circle><path d="M14 3.1a8 8 0 0 1 0 13.8a8 8 0 0 1 0-13.8z" fill="#FFF3DC"></path></svg>
+        <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 28px">Twinlight</span>
+      </a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 28px; font-size: 15px">
+        <a href="#how" style="color: #D9DCF0; text-decoration: none">How it works</a>
+        <a href="#doubts" style="color: #D9DCF0; text-decoration: none">Questions</a>
+        <a href="#" style="color: #D9DCF0; text-decoration: none">Sign in</a>
+        <a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,181,71,0.6); color: #FFB547; text-decoration: none">Rehearse a launch</a>
+      </nav>
+    </header>
+
+    <div style="position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 28px; padding: 40px max(24px, 4vw) 160px; max-width: 700px">
+      <h1 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 96px; line-height: 0.98; letter-spacing: 0.002em; text-wrap: balance">Watch your launch before it happens.</h1>
+      <p style="margin: 0; font-size: 20px; line-height: 1.6; color: #D9DCF0; max-width: 560px">Twinlight builds a living copy of a city, lets your product loose in it for 30 days, and shows you who hears about it, who orders, and which stores run dry.</p>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px">
+        <a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 56px; padding: 0 30px; border-radius: 999px; background: #FFB547; color: #0F1330; text-decoration: none; font-size: 18px; font-weight: 700">Rehearse a launch</a>
+        <a href="City.dc.html" style="font-size: 16px">Open the Ahmedabad demo</a>
+      </div>
+    </div>
+
+    <div style="position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 32px; padding: 0 max(24px, 4vw) 28px">
+      <ul aria-label="What the lights mean" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 24px; font-size: 14px; color: #D9DCF0">
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 999px; background: #A6F0DA; opacity: 0.55"></span>Hasn't heard yet</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 999px; background: #C8B6FF"></span>Heard about it</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 999px; background: #FFB547"></span>Ordered</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 3px; height: 14px; border-radius: 2px; background: #A6F0DA"></span>Dark store</li>
+      </ul>
+      <p style="margin: 0; font-size: 13px; color: #9AA3CF">Ahmedabad on day 13 of a mango lassi launch, in the monsoon. Every light is a synthetic resident.</p>
+    </div>
+  </section>
+
+  <section id="how" style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 96px max(24px, 4vw) 40px; display: flex; flex-direction: column; gap: 48px">
+    <h2 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 60px; line-height: 1.05; max-width: 860px; text-wrap: balance">You describe the launch in one sentence. You get back a month of a city.</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 40px 56px">
+      <div style="display: flex; flex-direction: column; gap: 14px; padding-top: 20px; border-top: 2px solid #C8B6FF">
+        <h3 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 28px">Who catches on, and where</h3>
+        <p style="margin: 0; font-size: 17px; line-height: 1.6; color: #D9DCF0">See the launch spread neighbourhood by neighbourhood, from the ad and from people telling each other, with a likely range for every number.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding-top: 20px; border-top: 2px solid #A6F0DA">
+        <h3 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 28px">What each dark store needs</h3>
+        <p style="margin: 0; font-size: 17px; line-height: 1.6; color: #D9DCF0">Find the stores that run dry, and when. Get a reorder point for each one before you ship a single unit.</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px; padding-top: 20px; border-top: 2px solid #FFB547">
+        <h3 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 28px">Why, from the people themselves</h3>
+        <p style="margin: 0; font-size: 17px; line-height: 1.6; color: #D9DCF0">Tap any home and ask the resident, by voice, why they ordered or didn't. Every answer points to what actually happened to them in the rehearsal.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="doubts" style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 72px max(24px, 4vw); display: flex; flex-wrap: wrap; gap: 48px 72px">
+    <h2 style="flex: 1 1 280px; margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 48px; line-height: 1.05">Fair questions</h2>
+    <dl style="flex: 999 1 560px; min-width: 0; margin: 0; display: flex; flex-direction: column; gap: 36px">
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <dt style="font-size: 20px; font-weight: 700">How is this different from a survey?</dt>
+        <dd style="margin: 0; font-size: 17px; line-height: 1.65; color: #D9DCF0; max-width: 680px">A survey tells you whether people like the idea. Twinlight adds where they live, who they talk to, and which store has to reach them in ten minutes, then shows what that does to your orders and your stock.</dd>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <dt style="font-size: 20px; font-weight: 700">Where do the people come from?</dt>
+        <dd style="margin: 0; font-size: 17px; line-height: 1.65; color: #D9DCF0; max-width: 680px">They are synthetic. We start from census-aligned synthetic personas and population maps, place them in real buildings from OpenStreetMap, and connect them as households, neighbours, friends and colleagues. No real customer data goes in.</dd>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <dt style="font-size: 20px; font-weight: 700">How wrong can it be?</dt>
+        <dd style="margin: 0; font-size: 17px; line-height: 1.65; color: #D9DCF0; max-width: 680px">Every number is a range across 50 rehearsals. Give us a past launch and we rehearse it blind, then show how often your real sales landed inside our ranges. Until you do, every page says the rehearsal isn't checked against real sales yet.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 24px max(24px, 4vw) 96px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 32px; padding: 40px; border: 1px solid #2A3166; border-radius: 14px; background: #171C42">
+      <div style="display: flex; flex-direction: column; gap: 10px; max-width: 620px">
+        <p style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 44px; line-height: 1.05">Start with the city you know best.</p>
+        <p style="margin: 0; font-size: 16px; color: #9AA3CF">Ahmedabad, Surat, Vadodara and Bengaluru are ready. Pune is being built.</p>
+      </div>
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 56px; padding: 0 30px; border-radius: 999px; background: #FFB547; color: #0F1330; text-decoration: none; font-size: 18px; font-weight: 700">Rehearse a launch</a>
+    </div>
+  </section>
+
+  <footer style="border-top: 1px solid #2A3166; padding: 24px max(24px, 4vw); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 13px; color: #9AA3CF">
+    <span>Map data © OpenStreetMap contributors. Population from WorldPop. Synthetic personas from NVIDIA Nemotron-Personas-India.</span>
+    <span>Every resident is synthetic.</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

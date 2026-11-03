@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Twinlight brief</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@300;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap">
+<style>
+body{margin:0;background:#0F1330}
+a{color:#A6F0DA}a:hover{color:#EEF0FB}
+button:focus-visible,a:focus-visible{outline:2px solid #FFB547;outline-offset:3px}
+</style>
+</helmet>
+<div style="position: relative; min-height: 900px; background: #0F1330; color: #EEF0FB; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif; overflow: hidden; display: flex; flex-direction: column">
+  <svg aria-hidden="true" viewBox="0 0 1440 260" preserveAspectRatio="xMidYMax slice" style="position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 260px; pointer-events: none">
+    <sc-for list="{{towers}}" as="t" hint-placeholder-count="40">
+      <rect x="{{t.x}}" y="{{t.y}}" width="{{t.w}}" height="{{t.h}}" fill="#151A3D"></rect>
+    </sc-for>
+    <sc-for list="{{windows}}" as="w" hint-placeholder-count="120">
+      <circle cx="{{w.x}}" cy="{{w.y}}" r="1.6" fill="{{w.c}}" opacity="{{w.o}}"></circle>
+    </sc-for>
+  </svg>
+
+  <header style="position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px max(24px, 4vw)">
+    <a href="Landing.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #EEF0FB">
+      <svg aria-hidden="true" width="28" height="20" viewBox="0 0 28 20"><circle cx="10" cy="10" r="8" fill="#A6F0DA" opacity="0.9"></circle><circle cx="18" cy="10" r="8" fill="#FFB547" opacity="0.9"></circle><path d="M14 3.1a8 8 0 0 1 0 13.8a8 8 0 0 1 0-13.8z" fill="#FFF3DC"></path></svg>
+      <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 26px; letter-spacing: 0.01em">Twinlight</span>
+    </a>
+    <nav aria-label="Main" style="display: flex; align-items: center; gap: 28px; font-size: 15px">
+      <a href="#" style="color: #9AA3CF; text-decoration: none">Your launches</a>
+      <a href="#" style="color: #9AA3CF; text-decoration: none">Cities</a>
+      <button aria-label="Account" style="width: 36px; height: 36px; border-radius: 999px; border: 1px solid #2A3166; background: #171C42; color: #EEF0FB; font: inherit; font-size: 14px; cursor: pointer">S</button>
+    </nav>
+  </header>
+
+  <main style="position: relative; width: 100%; max-width: 1280px; box-sizing: border-box; margin: 0 auto; padding: 56px max(24px, 4vw) 300px; display: flex; flex-wrap: wrap; gap: 64px; align-items: flex-start">
+    <section style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 44px">
+      <h1 style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Describe your launch</h1>
+      <p style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 54px; line-height: 1.32; letter-spacing: 0.005em; text-wrap: pretty">
+        I'm launching
+        <button style="{{chip}}">Mango lassi, 200 ml</button>
+        at
+        <button style="{{chip}}">₹49</button>
+        in
+        <span style="position: relative; display: inline-block">
+          <button aria-expanded="{{cityOpen}}" aria-haspopup="listbox" onClick="{{toggleCity}}" style="{{cityChip}}">{{city}}</button>
+          <sc-if value="{{cityOpen}}" hint-placeholder-val="{{ false }}">
+            <span role="listbox" aria-label="Cities" style="position: absolute; left: 0; top: calc(100% + 10px); z-index: 5; width: 340px; display: flex; flex-direction: column; padding: 8px; background: #171C42; border: 1px solid #2A3166; border-radius: 14px; box-shadow: 0 12px 40px rgba(5,7,20,0.45); font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.4; font-weight: 400">
+              <sc-for list="{{cities}}" as="c" hint-placeholder-count="5">
+                <button role="option" aria-selected="{{c.selected}}" onClick="{{c.pick}}" style="{{c.style}}">
+                  <span style="display: flex; flex-direction: column; gap: 2px; text-align: left">
+                    <span style="color: #EEF0FB; font-size: 16px">{{c.name}}</span>
+                    <span style="color: #9AA3CF; font-size: 13px">{{c.note}}</span>
+                  </span>
+                  <span aria-hidden="true" style="{{c.dot}}"></span>
+                </button>
+              </sc-for>
+              <a href="#" style="padding: 12px 12px 8px; font-size: 14px; border-top: 1px solid #2A3166; margin-top: 4px">Request another city</a>
+            </span>
+          </sc-if>
+        </span>
+        on
+        <button style="{{chip}}">Blinkit</button>
+        <button style="{{chip}}">Zepto</button>
+        with
+        <button style="{{chip}}">₹2,00,000</button>
+        on
+        <button style="{{chip}}">Instagram</button>
+        <button style="{{chip}}">creators</button>
+        from
+        <button style="{{chip}}">12 November</button>.
+      </p>
+
+      <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 18px; max-width: 640px">
+        <li style="display: grid; grid-template-columns: 28px 1fr; gap: 14px; align-items: baseline">
+          <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-size: 22px; color: #A6F0DA">1</span>
+          <span style="font-size: 17px; line-height: 1.55; color: #EEF0FB">We build {{city}}'s quick-commerce shoppers as 100,000 residents, each standing in for about 16 people, with the dark stores and roads between them.</span>
+        </li>
+        <li style="display: grid; grid-template-columns: 28px 1fr; gap: 14px; align-items: baseline">
+          <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-size: 22px; color: #C8B6FF">2</span>
+          <span style="font-size: 17px; line-height: 1.55; color: #EEF0FB">We ask 300 of them what they make of a ₹49 mango lassi, and turn their answers into ranges of behaviour.</span>
+        </li>
+        <li style="display: grid; grid-template-columns: 28px 1fr; gap: 14px; align-items: baseline">
+          <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-size: 22px; color: #FFB547">3</span>
+          <span style="font-size: 17px; line-height: 1.55; color: #EEF0FB">We run your launch 50 times over 30 days and show you the range of what happens, home by home and store by store.</span>
+        </li>
+      </ol>
+    </section>
+
+    <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding: 28px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; border-radius: 14px; box-shadow: 0 12px 40px rgba(5,7,20,0.45)">
+      <h2 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 26px; letter-spacing: 0.01em">Rehearsal settings</h2>
+      <dl style="margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 14px 16px; font-size: 15px">
+        <dt style="color: #9AA3CF">Rehearsals</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">50</dd>
+        <dt style="color: #9AA3CF">Days simulated</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">30</dd>
+        <dt style="color: #9AA3CF">Residents asked first</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">300</dd>
+        <dt style="color: #9AA3CF">Ready in</dt><dd style="margin: 0">about 4 minutes</dd>
+        <dt style="color: #9AA3CF">Calibrated against your sales</dt><dd style="margin: 0; color: #FFB547">Not yet</dd>
+      </dl>
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #9AA3CF">Without a past launch, ranges come from resident answers and model uncertainty only. <a href="#">Add a past launch</a> to calibrate them against real sales.</p>
+      <button style="height: 54px; border: 0; border-radius: 999px; background: #FFB547; color: #0F1330; font: inherit; font-size: 17px; font-weight: 700; cursor: pointer">Build the city</button>
+      <p style="margin: 0; font-size: 13px; color: #9AA3CF; text-align: center">You can change any of this after the city is built.</p>
+    </aside>
+  </main>
+
+  <footer style="position: absolute; left: 0; right: 0; bottom: 0; padding: 16px max(24px, 4vw); font-size: 12px; color: #9AA3CF">Map data © OpenStreetMap contributors. Population from WorldPop. Synthetic personas from NVIDIA Nemotron-Personas-India.</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cityOpen: true, city: 'Ahmedabad' };
+  }
+  renderVals() {
+    const chip = "display: inline-flex; align-items: center; margin: 0 2px; padding: 0 12px 2px; border: 0; border-bottom: 2px solid #FFB547; border-radius: 10px 10px 2px 2px; background: rgba(255,181,71,0.10); color: #FFDDA6; font: inherit; font-weight: 500; line-height: 1.15; cursor: pointer";
+    const cityChip = this.state.cityOpen ? chip + "; background: rgba(255,181,71,0.22); color: #FFF3DC" : chip;
+    const list = [
+      { name: 'Ahmedabad', note: 'Ready, 100,000 residents, 14 dark stores', ready: true },
+      { name: 'Surat', note: 'Ready, 80,000 residents, 11 dark stores', ready: true },
+      { name: 'Vadodara', note: 'Ready, 60,000 residents, 8 dark stores', ready: true },
+      { name: 'Bengaluru', note: 'Ready, 140,000 residents, 22 dark stores', ready: true },
+      { name: 'Pune', note: 'Being built, ready in about 20 minutes', ready: false }
+    ];
+    const cities = list.map((c) => {
+      const selected = c.name === this.state.city;
+      return {
+        ...c,
+        selected,
+        style: 'display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer; font: inherit; background: ' + (selected ? 'rgba(166,240,218,0.10)' : 'transparent'),
+        dot: 'width: 10px; height: 10px; border-radius: 999px; flex: none; background: ' + (c.ready ? '#A6F0DA' : '#2A3166'),
+        pick: () => this.setState({ city: c.name, cityOpen: false })
+      };
+    });
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const towers = [];
+    const windows = [];
+    let x = -10;
+    while (x < 1450) {
+      const w = 18 + Math.floor(rnd() * 46);
+      const centre = Math.exp(-Math.pow((x - 900) / 380, 2));
+      const h = 30 + Math.floor(rnd() * 60 + centre * 150);
+      towers.push({ x, y: 260 - h, w: w - 3, h });
+      const cols = Math.max(1, Math.floor(w / 10));
+      const rows = Math.floor(h / 12);
+      for (let r = 1; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const roll = rnd();
+          if (roll > 0.72) {
+            const amber = rnd() < 0.08 + centre * 0.1;
+            windows.push({ x: x + 5 + c * 9, y: 260 - h + r * 12, c: amber ? '#FFB547' : '#A6F0DA', o: amber ? 0.85 : 0.22 + rnd() * 0.2 });
+          }
+        }
+      }
+      x += w;
+    }
+    return {
+      chip,
+      cityChip,
+      cities,
+      city: this.state.city,
+      cityOpen: this.state.cityOpen,
+      toggleCity: () => this.setState({ cityOpen: !this.state.cityOpen }),
+      towers,
+      windows
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Twinlight city</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@300;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap">
+<style>
+body{margin:0;background:#0F1330}
+a{color:#A6F0DA}a:hover{color:#EEF0FB}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #FFB547;outline-offset:3px}
+input[type=range]{-webkit-appearance:none;appearance:none;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:28px;background:transparent}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:28px;border-radius:7px;background:#EEF0FB;border:3px solid #0F1330;box-shadow:0 0 0 1px #9AA3CF}
+input[type=range]::-moz-range-track{height:28px;background:transparent}
+input[type=range]::-moz-range-thumb{width:10px;height:24px;border-radius:7px;background:#EEF0FB;border:3px solid #0F1330}
+</style>
+</helmet>
+<div style="position: relative; height: 100vh; min-height: 720px; overflow: hidden; background: #0F1330; color: #EEF0FB; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif">
+  <img src="{{img}}" alt="{{alt}}" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+
+  <div style="position: absolute; top: 20px; left: 24px; display: flex; flex-direction: column; gap: 14px; max-width: 520px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px">
+      <a href="Landing.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #EEF0FB">
+        <svg aria-hidden="true" width="28" height="20" viewBox="0 0 28 20"><circle cx="10" cy="10" r="8" fill="#A6F0DA" opacity="0.9"></circle><circle cx="18" cy="10" r="8" fill="#FFB547" opacity="0.9"></circle><path d="M14 3.1a8 8 0 0 1 0 13.8a8 8 0 0 1 0-13.8z" fill="#FFF3DC"></path></svg>
+        <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 24px">Twinlight</span>
+      </a>
+      <nav aria-label="Rehearsal views" style="display: flex; gap: 4px; padding: 4px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; border-radius: 999px">
+        <a href="#" aria-current="page" style="padding: 7px 16px; border-radius: 999px; background: #2A3166; color: #EEF0FB; text-decoration: none; font-size: 14px">City</a>
+        <a href="Plan.dc.html" style="padding: 7px 16px; border-radius: 999px; color: #9AA3CF; text-decoration: none; font-size: 14px">Plan</a>
+        <a href="#" style="padding: 7px 16px; border-radius: 999px; color: #9AA3CF; text-decoration: none; font-size: 14px">Compare</a>
+      </nav>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px">
+      <span style="padding: 6px 12px; border-radius: 999px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166">Mango lassi, 200 ml, ₹49</span>
+      <span style="padding: 6px 12px; border-radius: 999px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; color: #9AA3CF">Ahmedabad, 16 lakh shoppers</span>
+      <span style="padding: 6px 12px; border-radius: 999px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; color: #9AA3CF">Rehearsal 1 of 50</span>
+    </div>
+    <div role="group" aria-label="Layers" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px">
+      <sc-for list="{{layers}}" as="l" hint-placeholder-count="5">
+        <button aria-pressed="{{l.on}}" onClick="{{l.toggle}}" style="{{l.style}}"><span aria-hidden="true" style="{{l.dot}}"></span>{{l.name}}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <section aria-label="Live figures" style="position: absolute; top: 20px; right: 24px; display: grid; grid-template-columns: repeat(4, auto); gap: 4px 28px; padding: 16px 22px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; border-radius: 14px; box-shadow: 0 12px 40px rgba(5,7,20,0.45)">
+    <sc-for list="{{readouts}}" as="r" hint-placeholder-count="4">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 36px; line-height: 1; font-variant-numeric: tabular-nums; color: {{r.color}}">{{r.value}}</span>
+        <span style="font-size: 12px; color: #9AA3CF">{{r.label}}</span>
+      </div>
+    </sc-for>
+  </section>
+
+  <sc-if value="{{showStore}}" hint-placeholder-val="{{ true }}">
+    <aside aria-label="Store 07, Navrangpura" style="position: absolute; top: 132px; right: 24px; width: 320px; display: flex; flex-direction: column; gap: 12px; padding: 20px; background: rgba(23,28,66,0.92); border: 1px solid #2A3166; border-radius: 14px; box-shadow: 0 12px 40px rgba(5,7,20,0.45)">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+        <div>
+          <h2 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 26px; line-height: 1.05">Store 07, Navrangpura</h2>
+          <p style="margin: 4px 0 0; font-size: 13px; color: {{storeStatusColor}}">{{storeStatus}}</p>
+        </div>
+        <button aria-label="Close store card" onClick="{{closeStore}}" style="width: 36px; height: 36px; flex: none; border-radius: 999px; border: 1px solid #2A3166; background: transparent; color: #EEF0FB; cursor: pointer; display: grid; place-items: center">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" stroke="#EEF0FB" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l8 8M11 3l-8 8"></path></svg>
+        </button>
+      </div>
+      <svg role="img" aria-label="Stock over 30 days, empty for 14 hours across days 9 to 11" viewBox="0 0 280 70" style="width: 100%; height: 70px">
+        <rect x="{{spark.outX}}" y="0" width="{{spark.outW}}" height="62" fill="#FF5468" opacity="0.18"></rect>
+        <path d="{{spark.path}}" fill="none" stroke="#A6F0DA" stroke-width="1.8" stroke-linejoin="round"></path>
+        <line x1="{{spark.nowX}}" x2="{{spark.nowX}}" y1="0" y2="62" stroke="#EEF0FB" stroke-width="1" stroke-dasharray="2 3"></line>
+        <line x1="0" x2="280" y1="62" y2="62" stroke="#2A3166" stroke-width="1"></line>
+        <text x="0" y="70" fill="#9AA3CF" font-size="9" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">Launch</text>
+        <text x="280" y="70" text-anchor="end" fill="#9AA3CF" font-size="9" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">Day 30</text>
+      </svg>
+      <dl style="margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; font-size: 14px">
+        <dt style="color: #9AA3CF">Empty for</dt><dd style="margin: 0; color: #FF8A97">14 hours, days 9 to 11</dd>
+        <dt style="color: #9AA3CF">Restocks</dt><dd style="margin: 0">every 48 hours</dd>
+        <dt style="color: #9AA3CF">Orders so far</dt><dd style="margin: 0; font-variant-numeric: tabular-nums">{{storeOrders}}</dd>
+      </dl>
+      <a href="Plan.dc.html" style="font-size: 14px">See the stock plan for this store</a>
+    </aside>
+  </sc-if>
+
+  <ul aria-label="What the lights mean" style="position: absolute; left: 24px; bottom: 128px; list-style: none; margin: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; background: rgba(23,28,66,0.86); border: 1px solid #2A3166; border-radius: 14px">
+    <li style="display: flex; align-items: center; gap: 8px"><span style="width: 9px; height: 9px; border-radius: 999px; background: #A6F0DA; opacity: 0.5"></span>Hasn't heard yet</li>
+    <li style="display: flex; align-items: center; gap: 8px"><span style="width: 9px; height: 9px; border-radius: 999px; background: #C8B6FF"></span>Heard about it</li>
+    <li style="display: flex; align-items: center; gap: 8px"><span style="width: 9px; height: 9px; border-radius: 999px; background: #FFB547"></span>Ordered</li>
+    <li style="display: flex; align-items: center; gap: 8px"><span style="width: 3px; height: 13px; border-radius: 2px; background: #A6F0DA"></span>Dark store</li>
+    <li style="display: flex; align-items: center; gap: 8px"><span style="width: 3px; height: 13px; border-radius: 2px; background: #FF5468"></span>Out of stock</li>
+  </ul>
+
+  <footer style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 20px; padding: 16px 24px 18px; background: rgba(15,19,48,0.9); border-top: 1px solid #2A3166">
+    <button aria-label="{{playLabel}}" onClick="{{togglePlay}}" style="width: 48px; height: 48px; flex: none; border-radius: 999px; border: 0; background: #FFB547; cursor: pointer; display: grid; place-items: center">
+      <sc-if value="{{playing}}" hint-placeholder-val="{{ false }}">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="#0F1330"></rect><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="#0F1330"></rect></svg>
+      </sc-if>
+      <sc-if value="{{paused}}" hint-placeholder-val="{{ true }}">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><path d="M4 2.5v11l9.5-5.5z" fill="#0F1330"></path></svg>
+      </sc-if>
+    </button>
+    <div role="group" aria-label="Speed" style="display: flex; flex: none; gap: 2px; padding: 3px; border: 1px solid #2A3166; border-radius: 999px">
+      <sc-for list="{{speeds}}" as="s" hint-placeholder-count="3">
+        <button aria-pressed="{{s.on}}" onClick="{{s.pick}}" style="{{s.style}}">{{s.label}}</button>
+      </sc-for>
+    </div>
+    <span style="flex: none; width: 128px; font-size: 15px; font-variant-numeric: tabular-nums">{{timeLabel}}</span>
+    <div style="position: relative; flex: 1; min-width: 0; height: 64px">
+      <svg aria-hidden="true" viewBox="0 0 1000 64" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%">
+        <rect x="{{track.rainX}}" y="18" width="{{track.rainW}}" height="28" fill="#6F8CC9" opacity="0.22"></rect>
+        <path d="{{track.spark}}" fill="#FFB547" opacity="0.18"></path>
+        <path d="{{track.played}}" fill="#FFB547" opacity="0.45"></path>
+        <rect x="0" y="45" width="1000" height="2" fill="#2A3166"></rect>
+        <rect x="0" y="45" width="{{track.nowX}}" height="2" fill="#FFB547"></rect>
+        <sc-for list="{{track.outs}}" as="o" hint-placeholder-count="4">
+          <rect x="{{o.x}}" y="40" width="4" height="12" rx="1" fill="#FF5468"></rect>
+        </sc-for>
+        <sc-for list="{{track.ticks}}" as="t" hint-placeholder-count="31">
+          <rect x="{{t.x}}" y="49" width="1" height="{{t.h}}" fill="#9AA3CF" opacity="0.6"></rect>
+        </sc-for>
+      </svg>
+      <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 16px; font-size: 12px; color: #C8B6FF">
+        <span style="position: absolute; left: 3.3%">Instagram ad</span>
+        <span style="position: absolute; left: 26.7%">Creator campaign</span>
+        <span style="position: absolute; left: 40%; color: #A9BDE6">Monsoon</span>
+      </div>
+      <input type="range" min="0" max="30" step="1" value="{{day}}" onChange="{{scrub}}" onInput="{{scrub}}" aria-label="Day of the launch" aria-valuetext="{{timeLabel}}" style="position: absolute; left: 0; right: 0; top: 24px; width: 100%; height: 28px; margin: 0; cursor: pointer">
+      <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: -2px; height: 12px; font-size: 11px; color: #9AA3CF">
+        <span style="position: absolute; left: 0">Launch</span>
+        <span style="position: absolute; left: 16.6%">Day 5</span>
+        <span style="position: absolute; left: 33.3%">Day 10</span>
+        <span style="position: absolute; left: 50%">Day 15</span>
+        <span style="position: absolute; left: 66.6%">Day 20</span>
+        <span style="position: absolute; left: 83.3%">Day 25</span>
+        <span style="position: absolute; right: 0">Day 30</span>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { day: 10, playing: false, speed: 1, storeOpen: true, layers: { residents: true, chatter: true, stores: true, riders: true, weather: true } };
+  }
+  renderVals() {
+    const stills = {
+      1: { img: '../../renders/city-day1.jpg', alt: 'Day 1 evening. The city glows cool; a few homes in the west turn lilac after the Instagram ad.', time: 'Day 1, 8:10 pm' },
+      6: { img: '../../renders/city-day6.jpg', alt: 'Day 6 evening. Amber clusters spread through the western districts with lilac arcs between homes.', time: 'Day 6, 8:40 pm' },
+      10: { img: '../../renders/city-day10.jpg', alt: 'Day 10 evening. The west glows amber; three dark-store beams have turned red because they are out of stock.', time: 'Day 10, 9:40 pm' },
+      13: { img: '../../renders/city-day13.jpg', alt: 'Day 13 evening in the monsoon. Much of the city glows amber under the rain; every store is back in stock.', time: 'Day 13, 9:00 pm' }
+    };
+    const keys = [1, 6, 10, 13];
+    const nearest = (d) => keys.reduce((a, b) => (Math.abs(b - d) < Math.abs(a - d) ? b : a));
+    const shown = nearest(this.state.day);
+    const still = stills[shown];
+    const figures = {
+      1: ['2,100', '7%', '2,300', '0 of 14'],
+      6: ['24,000', '26%', '9,800', '0 of 14'],
+      10: ['61,000', '38%', '12,900', '3 of 14'],
+      13: ['88,000', '47%', '14,600', '0 of 14']
+    }[shown];
+    const readouts = [
+      { value: figures[0], label: 'People who have ordered', color: '#FFB547' },
+      { value: figures[1], label: 'Heard about it', color: '#C8B6FF' },
+      { value: figures[2], label: 'Orders today', color: '#EEF0FB' },
+      { value: figures[3], label: 'Stores out of stock', color: figures[3].startsWith('0') ? '#EEF0FB' : '#FF5468' }
+    ];
+    const L = this.state.layers;
+    const layerDefs = [
+      ['residents', 'Residents', '#FFB547'],
+      ['chatter', 'Word of mouth', '#C8B6FF'],
+      ['stores', 'Dark stores', '#A6F0DA'],
+      ['riders', 'Riders', '#A6F0DA'],
+      ['weather', 'Weather', '#6F8CC9']
+    ];
+    const layers = layerDefs.map(([k, name, c]) => ({
+      name,
+      on: L[k],
+      style: 'display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; border: 1px solid ' + (L[k] ? '#2A3166' : '#2A3166') + '; background: ' + (L[k] ? 'rgba(23,28,66,0.86)' : 'rgba(15,19,48,0.6)') + '; color: ' + (L[k] ? '#EEF0FB' : '#9AA3CF'),
+      dot: 'width: 8px; height: 8px; border-radius: 999px; background: ' + (L[k] ? c : 'transparent') + '; border: 1.5px solid ' + c,
+      toggle: () => this.setState({ layers: { ...L, [k]: !L[k] } })
+    }));
+    const speeds = [1, 4, 16].map((s) => ({
+      label: s + '×',
+      on: this.state.speed === s,
+      style: 'height: 34px; min-width: 44px; padding: 0 10px; border: 0; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; background: ' + (this.state.speed === s ? '#2A3166' : 'transparent') + '; color: ' + (this.state.speed === s ? '#EEF0FB' : '#9AA3CF'),
+      pick: () => this.setState({ speed: s })
+    }));
+    const tx = (d) => (d / 30) * 1000;
+    let F = 0, t = 0;
+    const pts = [[0, 0]];
+    while (t < 30 - 1e-9) {
+      let p = 0.003;
+      if (t >= 1 && t < 4) p += 0.008;
+      if (t >= 8 && t < 11) p += 0.012;
+      let m = 1;
+      if (t >= 9 && t < 12) m *= 0.8;
+      if (t >= 12 && t < 15) m *= 0.72;
+      F += (p + 0.2 * F / 3.6) * (3.6 - F) * 0.25 * m;
+      t += 0.25;
+      pts.push([t, F]);
+    }
+    const area = (upTo) => {
+      const sel = pts.filter(([d]) => d <= upTo);
+      return 'M0 45 ' + sel.map(([d, v]) => 'L' + tx(d).toFixed(1) + ' ' + (45 - (v / 3.6) * 26).toFixed(1)).join(' ') + ' L' + tx(sel[sel.length - 1][0]).toFixed(1) + ' 45 Z';
+    };
+    const nowDay = shown + 0.85;
+    const track = {
+      spark: area(30),
+      played: area(nowDay),
+      nowX: tx(nowDay),
+      rainX: tx(12), rainW: tx(15) - tx(12),
+      outs: [9.4, 9.9, 10.3, 10.8].map((d) => ({ x: tx(d) })),
+      ticks: Array.from({ length: 31 }, (_, i) => ({ x: tx(i), h: i % 5 === 0 ? 6 : 3 }))
+    };
+    const sx = (d) => (d / 30) * 280;
+    const stock = [];
+    for (let d = 0; d <= 30; d += 0.25) {
+      const cycle = (d % 2) / 2;
+      let level = 1 - cycle * (d > 7 && d < 12 ? 1.25 : 0.8);
+      if (d > 12 && d < 15) level = 1 - cycle * 0.6;
+      stock.push([d, Math.max(0, Math.min(1, level))]);
+    }
+    const spark = {
+      path: stock.map(([d, v], i) => (i ? 'L' : 'M') + sx(d).toFixed(1) + ' ' + (62 - v * 56).toFixed(1)).join(' '),
+      outX: sx(9.4), outW: sx(11.2) - sx(9.4),
+      nowX: sx(nowDay)
+    };
+    const status = shown === 10 ? 'Out of stock since 7:40 pm' : shown === 13 ? 'Back in stock, emptied on days 9 to 11' : shown === 6 ? 'In stock, busiest store in the west' : 'In stock';
+    return {
+      img: still.img, alt: still.alt, timeLabel: still.time, day: this.state.day,
+      readouts, layers, speeds, track, spark,
+      showStore: this.state.storeOpen,
+      storeStatus: status,
+      storeStatusColor: shown === 10 ? '#FF8A97' : '#A6F0DA',
+      storeOrders: { 1: '310', 6: '9,400', 10: '22,800', 13: '31,700' }[shown],
+      closeStore: () => this.setState({ storeOpen: false }),
+      playing: this.state.playing,
+      paused: !this.state.playing,
+      playLabel: this.state.playing ? 'Pause' : 'Play',
+      togglePlay: () => this.setState({ playing: !this.state.playing }),
+      scrub: (e) => this.setState({ day: Number(e.target.value) })
+    };
+  }
+}
+</script>
+</body>
+</html>

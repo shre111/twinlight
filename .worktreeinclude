@@ -1,0 +1,5 @@
+.env
+.env.local
+apps/*/.env.local
+services/*/.env
+tools/*/.env

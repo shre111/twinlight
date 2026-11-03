@@ -1,0 +1,1985 @@
+<title>Twinlight City</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@300;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-bleed live city; quiet chrome pinned to the four edges, timeline docked at the bottom. */
+:root {
+  color-scheme: dark;
+  --dusk: #0F1330;
+  --dusk-2: #171C42;
+  --haze: #2A3166;
+  --mist: #9AA3CF;
+  --paper: #EEF0FB;
+  --lamp: #FFB547;
+  --tube: #A6F0DA;
+  --chatter: #C8B6FF;
+  --sindoor: #FF5468;
+  --monsoon: #6F8CC9;
+  --panel: rgba(23, 28, 66, 0.86);
+  --panel-soft: rgba(15, 19, 48, 0.62);
+  --display: 'Big Shoulders', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --body: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif;
+  --gl: max(16px, env(safe-area-inset-left, 0px));
+  --gr: max(16px, env(safe-area-inset-right, 0px));
+  --top: calc(16px + env(safe-area-inset-top, 0px));
+  --tl-h: 92px;
+  --shadow: 0 12px 40px rgba(5, 7, 20, 0.45);
+}
+html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--dusk);
+  color: var(--paper);
+  font: 400 14px/1.4 var(--body);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--paper); outline-offset: 2px; }
+
+#app { position: fixed; inset: 0; }
+#stage { position: absolute; inset: 0; outline: none; touch-action: none; }
+#stage canvas { display: block; width: 100%; height: 100%; }
+#stage:focus-visible { outline: 2px solid var(--haze); outline-offset: -2px; }
+
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; z-index: 20;
+  background: var(--dusk); color: var(--mist); text-align: center;
+  padding: 0 var(--gr) 0 var(--gl);
+  transition: opacity 0.6s ease;
+}
+.overlay.gone { opacity: 0; pointer-events: none; }
+.loading-inner { display: grid; gap: 14px; justify-items: center; }
+.loading-line { width: 120px; height: 1px; background: var(--haze); position: relative; overflow: hidden; }
+.loading-line::after {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--tube);
+  animation: sweep 1.1s ease-in-out infinite;
+}
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.fail-card { max-width: 380px; padding: 22px 24px; text-align: left; color: var(--paper); }
+.fail-card h1 { font: 500 26px/1.1 var(--display); margin: 0 0 8px; }
+.fail-card p { margin: 0; color: var(--mist); }
+
+.glyph { width: 26px; height: 22px; flex: none; }
+.wordmark { display: flex; align-items: center; gap: 8px; font: 500 22px/1 var(--display); letter-spacing: 0.01em; margin: 0; }
+
+.left {
+  position: absolute; z-index: 5; top: var(--top); left: var(--gl);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
+  pointer-events: none;
+}
+.left > * { pointer-events: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; margin: 0; padding: 0; list-style: none; }
+.chip {
+  font-size: 12px; line-height: 1; color: var(--mist); padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--haze); background: var(--panel-soft);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.layers { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 8px 0 0; padding: 0; border: 0; }
+.layer { position: relative; }
+.layer input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.layer label {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 10px; border-radius: 999px;
+  border: 1px solid var(--haze); background: var(--panel); color: var(--paper);
+  font-size: 13px; line-height: 1.1; cursor: pointer; user-select: none; -webkit-user-select: none;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  transition: color 0.15s, background-color 0.15s;
+}
+.layer .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--c); background: var(--c); transition: background-color 0.15s; }
+.layer input:not(:checked) + label { color: var(--mist); background: var(--panel-soft); }
+.layer input:not(:checked) + label .dot { background: transparent; }
+.layer input:focus-visible + label { outline: 2px solid var(--paper); outline-offset: 2px; }
+.layer label:hover { border-color: var(--mist); }
+
+.card {
+  background: var(--panel); border: 1px solid var(--haze); border-radius: 14px; box-shadow: var(--shadow);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.right {
+  position: absolute; z-index: 5; top: var(--top); right: var(--gr);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  max-height: calc(100% - var(--top) - var(--tl-h) - 16px);
+  pointer-events: none;
+}
+.right > * { pointer-events: auto; }
+.readouts { display: grid; grid-template-columns: repeat(4, auto); gap: 0 26px; padding: 14px 20px 13px; margin: 0; }
+.readout { min-width: 0; }
+.readout dd { margin: 0; font: 300 34px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; white-space: nowrap; }
+.readout dd small { font-size: 17px; color: var(--mist); margin-left: 5px; letter-spacing: 0; }
+.readout dt { order: 2; font-size: 12px; color: var(--mist); margin-top: 5px; white-space: nowrap; }
+.readout { display: flex; flex-direction: column; }
+.readout.alert dd { color: var(--sindoor); }
+
+.detail { width: 340px; padding: 18px 20px 18px; position: relative; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.detail .close {
+  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 999px; border: 0;
+  background: transparent; color: var(--mist); display: grid; place-items: center; cursor: pointer;
+}
+.detail .close:hover { background: var(--haze); color: var(--paper); }
+.detail .kicker { font-size: 12px; color: var(--mist); margin: 0 0 4px; }
+.detail h2 { font: 500 28px/1.05 var(--display); margin: 0 40px 6px 0; letter-spacing: 0.01em; text-wrap: balance; }
+.detail .meta { margin: 0 0 14px; color: var(--mist); font-size: 13px; }
+.state { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 5px 11px 5px 9px; border-radius: 999px; border: 1px solid var(--haze); margin-bottom: 14px; }
+.state .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.story { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
+.story li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: start; font-size: 13.5px; line-height: 1.4; }
+.story li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; background: var(--c, var(--mist)); }
+.story li.later { color: var(--mist); }
+.story li.later::before { background: transparent; border: 1px solid var(--haze); }
+.voice { display: grid; gap: 6px; padding-top: 14px; border-top: 1px solid var(--haze); }
+.btn-secondary {
+  justify-self: start; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--haze);
+  background: transparent; color: var(--mist); font-size: 13px; cursor: not-allowed; opacity: 0.75;
+}
+.helper { margin: 0; font-size: 12px; color: var(--mist); }
+.facts { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; font-size: 13.5px; }
+.facts li { display: flex; justify-content: space-between; gap: 12px; }
+.facts li span:first-child { color: var(--mist); }
+.facts li.note { display: block; }
+.facts li.note.bad { color: var(--sindoor); }
+.stock-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--mist); margin-bottom: 6px; }
+.stock-svg { display: block; width: 100%; height: 64px; }
+
+.legend-wrap { position: absolute; z-index: 5; left: var(--gl); bottom: calc(var(--tl-h) + 12px); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.legend {
+  margin: 0; padding: 11px 14px; list-style: none; display: grid; gap: 7px;
+  border-radius: 14px; background: var(--panel-soft); border: 1px solid var(--haze);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  font-size: 12.5px; color: var(--mist);
+}
+.legend li { display: flex; align-items: center; gap: 9px; }
+.sw { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.sw.beam { width: 3px; height: 13px; border-radius: 2px; margin: 0 2.5px; }
+.legend-toggle {
+  display: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--haze);
+  background: var(--panel-soft); color: var(--mist); font-size: 12.5px; cursor: pointer;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+
+.timeline {
+  position: absolute; z-index: 6; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 28px;
+  padding: 12px var(--gr) calc(12px + env(safe-area-inset-bottom, 0px)) var(--gl);
+  background: var(--panel); border-top: 1px solid var(--haze);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.tl-controls { display: flex; align-items: center; gap: 14px; flex: none; }
+.play {
+  width: 42px; height: 42px; border-radius: 999px; border: 0; background: var(--lamp); color: var(--dusk);
+  display: grid; place-items: center; cursor: pointer; flex: none;
+}
+.play:hover { filter: brightness(1.06); }
+.play svg { width: 16px; height: 16px; }
+.speed { display: flex; padding: 2px; border: 1px solid var(--haze); border-radius: 999px; }
+.speed button {
+  border: 0; background: transparent; color: var(--mist); font-size: 12.5px; font-weight: 500;
+  padding: 5px 11px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.speed button[aria-pressed="true"] { background: var(--haze); color: var(--paper); }
+.time { font-size: 14px; font-weight: 500; min-width: 122px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tl-track { position: relative; flex: 1; min-width: 0; height: 62px; }
+.tl-inner { position: absolute; left: 7px; right: 7px; top: 0; bottom: 0; pointer-events: none; }
+.tl-events { position: absolute; left: 0; right: 0; top: 0; height: 16px; }
+.ev { position: absolute; top: 0; font-size: 11.5px; line-height: 14px; color: var(--mist); white-space: nowrap; }
+.ev::after { content: ""; position: absolute; left: 0; top: 16px; width: 1px; height: 30px; background: var(--mist); opacity: 0.55; }
+.ev.end { transform: translateX(-100%); }
+.ev.end::after { left: auto; right: 0; }
+.ev .short { display: none; }
+.ev.rain { color: var(--monsoon); text-align: center; }
+.ev.rain::after { display: none; }
+.tl-bar { position: absolute; left: 0; right: 0; top: 16px; height: 30px; }
+.rain-band { position: absolute; top: 0; bottom: 0; background: var(--monsoon); opacity: 0.16; }
+.spark { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.baseline { position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--haze); }
+.notch { position: absolute; top: 0; height: 5px; min-width: 2px; background: var(--sindoor); border-radius: 0 0 1px 1px; }
+.playhead { position: absolute; top: -2px; bottom: 0; width: 1px; background: var(--paper); opacity: 0.8; }
+.tl-ticks { position: absolute; left: 0; right: 0; top: 46px; height: 16px; }
+.tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; line-height: 1; padding-top: 5px; color: var(--mist); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tick::before { content: ""; position: absolute; left: 50%; top: 0; width: 1px; height: 3px; background: var(--haze); }
+.scrub {
+  position: absolute; left: 0; right: 0; top: 16px; height: 30px; width: 100%; margin: 0;
+  -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+}
+.scrub::-webkit-slider-runnable-track { height: 30px; background: transparent; border: 0; }
+.scrub::-moz-range-track { height: 30px; background: transparent; border: 0; }
+.scrub::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: 23px;
+  border-radius: 50%; background: var(--paper); border: 3px solid var(--dusk);
+}
+.scrub::-moz-range-thumb { width: 8px; height: 8px; border-radius: 50%; background: var(--paper); border: 3px solid var(--dusk); transform: translateY(15px); }
+.scrub:focus-visible { outline: none; }
+.scrub:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--paper); }
+.scrub:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--paper); }
+.tl-track:has(.scrub:focus-visible) { outline: 1px solid var(--haze); outline-offset: 2px; border-radius: 4px; }
+
+.still .ui { display: none !important; }
+
+@media (max-width: 700px) {
+  .chips .chip:not(:first-child) { display: none; }
+  .layers {
+    position: fixed; left: var(--gl); right: var(--gr); top: calc(var(--top) + 82px);
+    flex-direction: row; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0;
+  }
+  .layer label { white-space: nowrap; font-size: 12.5px; padding: 5px 10px 5px 9px; gap: 7px; }
+  .readouts { grid-template-columns: repeat(2, auto); gap: 0 18px; padding: 11px 14px 10px; }
+  .readout dd { font-size: 28px; }
+  .readout dd small { font-size: 14px; }
+  .readout.wide-only { display: none; }
+  .timeline { flex-wrap: wrap; gap: 6px 14px; padding-top: 10px; }
+  .tl-controls { width: 100%; gap: 10px; }
+  .time { margin-left: auto; min-width: 0; text-align: right; }
+  .tl-track { flex-basis: 100%; }
+  .ev .long { display: none; }
+  .ev .short { display: inline; }
+  .legend-toggle { display: inline-block; }
+  .legend[data-collapsed="true"] { display: none; }
+  .right { max-height: none; }
+  .detail {
+    position: fixed; left: var(--gl); right: var(--gr); bottom: calc(var(--tl-h) + 10px);
+    width: auto; max-height: min(56%, 460px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div id="app" data-still-hour="250">
+  <div id="stage" tabindex="0" aria-label="Live city view. Drag to orbit, scroll to zoom, select a home or a dark store for details. Press Space to play or pause."></div>
+
+  <div class="left ui">
+    <h1 class="wordmark">
+      <svg class="glyph" viewBox="0 0 26 22" aria-hidden="true">
+        <defs><clipPath id="glyph-a"><circle cx="9.5" cy="11" r="8"/></clipPath></defs>
+        <circle cx="9.5" cy="11" r="8" fill="#FFB547"/>
+        <circle cx="16.5" cy="11" r="8" fill="#A6F0DA"/>
+        <circle cx="16.5" cy="11" r="8" fill="#FFF3DC" clip-path="url(#glyph-a)"/>
+      </svg>
+      Twinlight
+    </h1>
+    <ul class="chips" aria-label="Scenario">
+      <li class="chip">Mango lassi, 200 ml, ₹49</li>
+      <li class="chip" id="chip-city">Ahmedabad, 48,000 residents</li>
+      <li class="chip">Two quick-commerce apps</li>
+    </ul>
+    <fieldset class="layers" aria-label="Layers">
+      <legend class="vh">Layers</legend>
+      <div class="layer"><input type="checkbox" id="layer-residents" checked><label for="layer-residents" style="--c: var(--lamp)"><span class="dot"></span>Residents</label></div>
+      <div class="layer"><input type="checkbox" id="layer-wom" checked><label for="layer-wom" style="--c: var(--chatter)"><span class="dot"></span>Word of mouth</label></div>
+      <div class="layer"><input type="checkbox" id="layer-stores" checked><label for="layer-stores" style="--c: var(--tube)"><span class="dot"></span>Dark stores</label></div>
+      <div class="layer"><input type="checkbox" id="layer-riders" checked><label for="layer-riders" style="--c: var(--tube)"><span class="dot"></span>Riders</label></div>
+      <div class="layer"><input type="checkbox" id="layer-weather" checked><label for="layer-weather" style="--c: var(--monsoon)"><span class="dot"></span>Weather</label></div>
+    </fieldset>
+  </div>
+
+  <div class="right ui">
+    <dl class="card readouts" aria-live="off">
+      <div class="readout"><dt>Have ordered</dt><dd id="r-adopt">0<small>0%</small></dd></div>
+      <div class="readout"><dt>Heard about it</dt><dd id="r-aware">0%</dd></div>
+      <div class="readout wide-only"><dt>Orders today</dt><dd id="r-orders">0</dd></div>
+      <div class="readout wide-only" id="r-out-wrap"><dt>Stores out of stock</dt><dd id="r-out">0<small>of 14</small></dd></div>
+    </dl>
+    <section class="card detail" id="detail" hidden aria-labelledby="detail-title">
+      <button class="close" id="detail-close" type="button" aria-label="Close details">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+      <div id="detail-body"></div>
+    </section>
+  </div>
+
+  <div class="legend-wrap ui">
+    <button class="legend-toggle" id="legend-toggle" type="button" aria-expanded="false" aria-controls="legend">Legend</button>
+    <ul class="legend" id="legend" data-collapsed="true">
+      <li><span class="sw" style="--c: var(--tube); opacity: .7"></span>Hasn't heard yet</li>
+      <li><span class="sw" style="--c: var(--chatter)"></span>Heard about it</li>
+      <li><span class="sw" style="--c: var(--lamp)"></span>Ordered</li>
+      <li><span class="sw beam" style="--c: var(--tube)"></span>Dark store</li>
+      <li><span class="sw beam" style="--c: var(--sindoor)"></span>Out of stock</li>
+    </ul>
+  </div>
+
+  <footer class="timeline ui" id="timeline">
+    <div class="tl-controls">
+      <button class="play" id="play" type="button" aria-label="Play">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>
+      </button>
+      <div class="speed" role="group" aria-label="Playback speed">
+        <button type="button" data-speed="6" aria-pressed="false" title="6 sim hours per second">1×</button>
+        <button type="button" data-speed="24" aria-pressed="true" title="24 sim hours per second">4×</button>
+        <button type="button" data-speed="96" aria-pressed="false" title="96 sim hours per second">16×</button>
+      </div>
+      <div class="time" id="time">Day 1, 12:00 am</div>
+    </div>
+    <div class="tl-track">
+      <div class="tl-inner">
+        <div class="tl-events" id="tl-events"></div>
+        <div class="tl-bar" id="tl-bar">
+          <svg class="spark" viewBox="0 0 720 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs><clipPath id="played"><rect id="played-rect" x="0" y="0" width="0" height="100"/></clipPath></defs>
+            <path id="spark-dim" fill="#FFB547" fill-opacity="0.13" d=""/>
+            <path id="spark-hot" fill="#FFB547" fill-opacity="0.42" d="" clip-path="url(#played)"/>
+          </svg>
+          <div class="baseline"></div>
+          <div class="playhead" id="playhead"></div>
+        </div>
+        <div class="tl-ticks" id="tl-ticks"></div>
+      </div>
+      <input class="scrub" id="scrub" type="range" min="0" max="720" step="1" value="0" aria-label="Launch timeline, hour of 30 days">
+    </div>
+  </footer>
+
+  <div class="overlay" id="loading">
+    <div class="loading-inner">
+      <svg class="glyph" viewBox="0 0 26 22" aria-hidden="true">
+        <circle cx="9.5" cy="11" r="8" fill="#FFB547"/><circle cx="16.5" cy="11" r="8" fill="#A6F0DA"/>
+        <circle cx="16.5" cy="11" r="8" fill="#FFF3DC" clip-path="url(#glyph-a)"/>
+      </svg>
+      <div>Building the city</div>
+      <div class="loading-line"></div>
+    </div>
+  </div>
+  <div class="overlay" id="fail" hidden>
+    <div class="card fail-card" role="alert">
+      <h1>Twinlight</h1>
+      <p>This view needs WebGL. Try a recent Chrome, Edge, Safari or Firefox.</p>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+const HOURS = 720;
+const RAIN_A = 264, RAIN_B = 336;
+const AD_HOUR = 9, CREATOR_HOUR = 186, RESTOCK_HOUR = 14;
+const DELIVERY_R = 900;
+const SPILL_R = 1500;
+const STORE_N = 14;
+const CITY = { cx: -250, cz: 0, rx: 3500, rz: 3200 };
+const OLD_C = [1400, 150], CBD_C = [-1500, -350];
+const DISTRICTS = [
+  ['Ellisbridge', -250, 300], ['Paldi', -350, 1450], ['Navrangpura', -950, -550],
+  ['Naranpura', -850, -1650], ['Chandkheda', -250, -2650], ['Ghatlodia', -1750, -2250],
+  ['Vastrapur', -2000, 350], ['Bodakdev', -2350, -900], ['Thaltej', -3050, -1500],
+  ['Satellite', -1750, 1500], ['Shahibaug', 1650, -1350], ['Maninagar', 1850, 1350],
+].map(([name, x, z], i) => ({ name, x, z, i, east: x > riverX(z) }));
+const CREATOR_DISTRICTS = ['Satellite', 'Bodakdev', 'Vastrapur'];
+const FIRST = ['Ritu', 'Aarav', 'Diya', 'Krish', 'Isha', 'Vihaan', 'Anaya', 'Kavya', 'Rohan', 'Priya', 'Neel', 'Hetal', 'Jignesh', 'Bhavna', 'Nirav', 'Foram', 'Dhruv', 'Mansi', 'Kunal', 'Pooja', 'Harsh', 'Riya', 'Yash', 'Nidhi', 'Parth', 'Khushi', 'Meet', 'Janvi', 'Tanvi', 'Chirag', 'Sneha', 'Aditya', 'Megha', 'Hemant', 'Komal', 'Rajesh', 'Sunita', 'Mahesh', 'Geeta', 'Darshan', 'Urvi', 'Ketan', 'Payal', 'Tejas', 'Avni', 'Mihir', 'Shruti', 'Bhavesh'];
+const LAST = ['Patel', 'Shah', 'Desai', 'Mehta', 'Joshi', 'Trivedi', 'Parikh', 'Bhatt', 'Modi', 'Pandya', 'Vyas', 'Thakkar', 'Chauhan', 'Rana', 'Solanki', 'Parmar', 'Dave', 'Raval', 'Panchal', 'Gandhi', 'Amin', 'Kapadia', 'Sheth', 'Dalal', 'Oza', 'Brahmbhatt', 'Soni', 'Contractor'];
+const AGE_BANDS = [[16, 24], [25, 34], [35, 49], [50, 64], [65, 80]];
+const AGE_P_WEST = [0.2, 0.27, 0.27, 0.16, 0.1];
+const AGE_P_EAST = [0.16, 0.22, 0.28, 0.21, 0.13];
+const AGE_AFF = [1.35, 1.2, 0.9, 0.6, 0.38];
+const AGE_AD = [1.0, 0.9, 0.62, 0.38, 0.2];
+const TOD = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6];
+const TALK = [0.35, 0.15, 0.06, 0.04, 0.04, 0.08, 0.25, 0.5, 0.7, 0.8, 0.85, 0.9, 1.0, 1.0, 0.9, 0.85, 0.9, 1.0, 1.15, 1.3, 1.35, 1.25, 1.0, 0.6];
+const P = {
+  adDay1: 0.14, adDrip: 0.003, creatorIn: 0.3, creatorOut: 0.03,
+  betaA: 0.04, betaW: 0.01, a0: 0.0051, r0: 0.0075,
+  stockInit: 0.036, stockPlan: 0.018, stockBase: 0.006, restockK: 1.05, capK: 0.04, capUntil: 240, safety: 1.3,
+};
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hash3(a, b, c) {
+  let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 1274126177)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1103515245);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function riverX(z) { return 520 + 230 * Math.sin(z / 1250 + 0.6) + 110 * Math.sin(z / 470 + 2.1); }
+function riverHW(z) { return 88 + 18 * Math.sin(z / 800 + 1.0); }
+function smooth(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+function cityF(x, z) {
+  const dx = (x - CITY.cx) / CITY.rx, dz = (z - CITY.cz) / CITY.rz;
+  const th = Math.atan2(dz, dx);
+  const r = 1 + 0.07 * Math.sin(3 * th + 1) + 0.05 * Math.sin(5 * th + 2) + 0.03 * Math.sin(9 * th);
+  return Math.hypot(dx, dz) / r;
+}
+function peakAt(x, z) {
+  const g = (cx, cz, s) => Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * s * s));
+  return Math.max(g(CBD_C[0], CBD_C[1], 850), 0.62 * g(OLD_C[0], OLD_C[1], 650), 0.5 * g(-2650, -1350, 520), 0.36 * g(-1750, 1500, 520));
+}
+const SIDE = [DISTRICTS.filter(d => !d.east), DISTRICTS.filter(d => d.east)];
+function districtAt(x, z) {
+  let best = -1, bd = Infinity;
+  for (const d of SIDE[x > riverX(z) ? 1 : 0]) {
+    const dd = (x - d.x) ** 2 + (z - d.z) ** 2;
+    if (dd < bd) { bd = dd; best = d.i; }
+  }
+  return best;
+}
+
+function arterialLines() {
+  const sample = (fn, a, b, n) => Array.from({ length: n + 1 }, (_, k) => fn(a + (b - a) * k / n));
+  const ring = sample(a => {
+    const w = 1 + 0.03 * Math.sin(a * 5 + 0.7);
+    return [-250 + 2700 * w * Math.cos(a), -50 + 2450 * w * Math.sin(a)];
+  }, 0, Math.PI * 2, 220);
+  const diag = (p, q) => sample(t => [p[0] + (q[0] - p[0]) * t + 70 * Math.sin(t * 5.5), p[1] + (q[1] - p[1]) * t], 0, 1, 70);
+  return [
+    ring,
+    sample(z => [-2750 + 180 * Math.sin(z / 1600), z], -3900, 3700, 130),
+    sample(z => [riverX(z) - riverHW(z) - 150, z], -3400, 3000, 130),
+    sample(x => [x, -400 + 120 * Math.sin(x / 900)], -4000, 3400, 130),
+    sample(x => [x, 1350 + 100 * Math.sin(x / 1100 + 1)], -3800, 3200, 130),
+    sample(x => [x, -1750 + 90 * Math.sin(x / 700)], -3700, 3100, 130),
+    diag(OLD_C, [3300, -2600]), diag(OLD_C, [3200, 2800]), diag(OLD_C, [1000, -3400]),
+    diag(CBD_C, [-3600, -3100]), diag(CBD_C, [-3500, 2700]),
+  ];
+}
+
+function buildCity(rand) {
+  const G = 20, GO = 4800, GN = 480;
+  const artMask = new Uint8Array(GN * GN);
+  const cellOf = (x, z) => {
+    const gx = Math.floor((x + GO) / G), gz = Math.floor((z + GO) / G);
+    return gx < 0 || gz < 0 || gx >= GN || gz >= GN ? -1 : gz * GN + gx;
+  };
+  const mark = (x, z) => {
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const c = cellOf(x + a * G, z + b * G);
+      if (c >= 0) artMask[c] = 1;
+    }
+  };
+  const onArt = (x, z) => { const c = cellOf(x, z); return c >= 0 && artMask[c] === 1; };
+  const inRiver = (x, z, pad) => Math.abs(x - riverX(z)) < riverHW(z) + pad;
+
+  const artSeg = [];
+  for (const line of arterialLines()) {
+    for (let k = 0; k < line.length - 1; k++) {
+      const [x1, z1] = line[k], [x2, z2] = line[k + 1];
+      if (cityF((x1 + x2) / 2, (z1 + z2) / 2) > 1.08) continue;
+      artSeg.push(x1, z1, x2, z2);
+      const n = Math.ceil(Math.hypot(x2 - x1, z2 - z1) / 10);
+      for (let q = 0; q <= n; q++) mark(x1 + (x2 - x1) * q / n, z1 + (z2 - z1) * q / n);
+    }
+  }
+
+  const B = { x: [], z: [], w: [], d: [], h: [], rot: [], dist: [] };
+  const roadSeg = [], corners = [];
+
+  const fillBlock = (c00, c10, c11, c01, s, f, di) => {
+    const bil = (u, v) => [
+      (1 - u) * (1 - v) * c00[0] + u * (1 - v) * c10[0] + u * v * c11[0] + (1 - u) * v * c01[0],
+      (1 - u) * (1 - v) * c00[1] + u * (1 - v) * c10[1] + u * v * c11[1] + (1 - u) * v * c01[1],
+    ];
+    const ux = (c10[0] - c00[0] + c11[0] - c01[0]) / 2, uz = (c10[1] - c00[1] + c11[1] - c01[1]) / 2;
+    const vx = (c01[0] - c00[0] + c11[0] - c10[0]) / 2, vz = (c01[1] - c00[1] + c11[1] - c10[1]) / 2;
+    const lenU = Math.hypot(ux, uz), lenV = Math.hypot(vx, vz);
+    const ang = Math.atan2(uz, ux);
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const [mx, mz] = bil(0.5, 0.5);
+    const old = Math.hypot(mx - OLD_C[0], mz - OLD_C[1]) < 950;
+    const r = rand();
+    let nx, ny;
+    if (old) { nx = r < 0.5 ? 3 : 4; ny = 3; }
+    else if (r < 0.13) { nx = 1; ny = 1; }
+    else if (r < 0.33) { nx = 2; ny = 1; }
+    else if (r < 0.5) { nx = 1; ny = 2; }
+    else if (r < 0.86) { nx = 2; ny = 2; }
+    else { nx = 3; ny = 2; }
+    const m = 8 / s;
+    const tall = peakAt(mx, mz) * (1 - smooth(0.6, 1.0, f));
+    for (let a = 0; a < nx; a++) for (let b = 0; b < ny; b++) {
+      if (rand() < 0.05) continue;
+      const u0 = m + (1 - 2 * m) * a / nx, u1 = m + (1 - 2 * m) * (a + 1) / nx;
+      const v0 = m + (1 - 2 * m) * b / ny, v1 = m + (1 - 2 * m) * (b + 1) / ny;
+      const [x, z] = bil((u0 + u1) / 2, (v0 + v1) / 2);
+      let w = (u1 - u0) * lenU * (0.58 + rand() * 0.34);
+      let d = (v1 - v0) * lenV * (0.58 + rand() * 0.34);
+      let h = 6 + rand() * (old ? 12 : 9);
+      h += 104 * tall * Math.pow(rand(), 1.7);
+      if (tall > 0.3 && rand() < 0.11 * tall) { h = 62 + rand() * 58 * Math.min(1, tall + 0.2); w *= 0.78; d *= 0.78; }
+      h = Math.min(120, Math.max(6, h));
+      let ok = true;
+      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
+        const px = x + ca * sx * w / 2 - sa * sz * d / 2, pz = z + sa * sx * w / 2 + ca * sz * d / 2;
+        if (onArt(px, pz) || inRiver(px, pz, 22)) { ok = false; break; }
+      }
+      if (!ok) continue;
+      B.x.push(x); B.z.push(z); B.w.push(w); B.d.push(d); B.h.push(h); B.rot.push(ang); B.dist.push(di);
+    }
+  };
+
+  for (const D of DISTRICTS) {
+    const di = D.i;
+    const s = D.east ? 98 + rand() * 8 : 110 + rand() * 14;
+    const rot = (rand() - 0.5) * 0.55;
+    const cs = Math.cos(rot), sn = Math.sin(rot);
+    const cache = new Map();
+    const corner = (i, j) => {
+      const key = (i + 2048) * 4096 + (j + 2048);
+      let c = cache.get(key);
+      if (!c) {
+        const lx = (i + (hash3(i, j, di) - 0.5) * 0.22) * s;
+        const lz = (j + (hash3(j, i, di + 17) - 0.5) * 0.22) * s;
+        c = [D.x + lx * cs - lz * sn, D.z + lx * sn + lz * cs];
+        cache.set(key, c);
+      }
+      return c;
+    };
+    const edges = new Set();
+    const span = Math.ceil(5000 / s);
+    for (let i = -span; i < span; i++) for (let j = -span; j < span; j++) {
+      const lx = (i + 0.5) * s, lz = (j + 0.5) * s;
+      const x = D.x + lx * cs - lz * sn, z = D.z + lx * sn + lz * cs;
+      if (Math.abs(x) > 4700 || Math.abs(z) > 4700) continue;
+      const f = cityF(x, z);
+      if (f > 1 || districtAt(x, z) !== di) continue;
+      const c00 = corner(i, j), c10 = corner(i + 1, j), c11 = corner(i + 1, j + 1), c01 = corner(i, j + 1);
+      if (inRiver(c00[0], c00[1], 18) || inRiver(c10[0], c10[1], 18) || inRiver(c11[0], c11[1], 18) || inRiver(c01[0], c01[1], 18)) continue;
+      const k0 = ((i + 2048) * 4096 + (j + 2048)) * 2;
+      edges.add(k0); edges.add(k0 + 1);
+      edges.add(((i + 2048) * 4096 + (j + 2049)) * 2);
+      edges.add(((i + 2049) * 4096 + (j + 2048)) * 2 + 1);
+      corners.push(c00[0], c00[1]);
+      if (rand() < 0.045 + 0.3 * smooth(0.82, 1.0, f)) continue;
+      fillBlock(c00, c10, c11, c01, s, f, di);
+    }
+    for (const key of edges) {
+      const dir = key % 2, ij = (key - dir) / 2;
+      const i = Math.floor(ij / 4096) - 2048, j = (ij % 4096) - 2048;
+      const p = corner(i, j), q = dir === 0 ? corner(i + 1, j) : corner(i, j + 1);
+      roadSeg.push(p[0], p[1], q[0], q[1]);
+    }
+  }
+
+  const bridges = [];
+  for (const z of [-2700, -2050, -1250, -400, 350, 950, 1600, 2350]) {
+    const x = riverX(z), hw = riverHW(z);
+    bridges.push(x - hw - 30, z, x + hw + 30, z + 8);
+  }
+
+  const n = B.x.length;
+  const buildings = {
+    count: n,
+    x: Float32Array.from(B.x), z: Float32Array.from(B.z), w: Float32Array.from(B.w), d: Float32Array.from(B.d),
+    h: Float32Array.from(B.h), rot: Float32Array.from(B.rot), dist: Uint8Array.from(B.dist),
+  };
+  return { buildings, roads: Float32Array.from(roadSeg), arterials: Float32Array.from(artSeg), bridges: Float32Array.from(bridges), corners: Float32Array.from(corners) };
+}
+
+function placeResidents(city, rand, N) {
+  const B = city.buildings;
+  const cum = new Float64Array(B.count);
+  let acc = 0;
+  for (let b = 0; b < B.count; b++) { acc += B.w[b] * B.d[b] * Math.pow(B.h[b], 0.85); cum[b] = acc; }
+  const R = {
+    count: N, x: new Float32Array(N), y: new Float32Array(N), z: new Float32Array(N),
+    b: new Int32Array(N), dist: new Uint8Array(N), band: new Uint8Array(N), age: new Uint8Array(N),
+    aff: new Float32Array(N), adW: new Float32Array(N), seed: new Float32Array(N), east: new Uint8Array(N),
+  };
+  for (let i = 0; i < N; i++) {
+    const r = rand() * acc;
+    let lo = 0, hi = B.count - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (cum[mid] < r) lo = mid + 1; else hi = mid; }
+    const b = lo, w = B.w[b], d = B.d[b], h = B.h[b];
+    const floors = Math.max(1, Math.floor((h - 2.5) / 3.3));
+    const y = Math.min(h - 1.2, 2.4 + Math.floor(rand() * floors) * 3.3);
+    const side = rand() < 0.5 ? -1 : 1;
+    let lx, lz;
+    if (rand() < d / (w + d)) { lx = side * (w / 2 + 0.8); lz = (rand() - 0.5) * 0.84 * d; }
+    else { lx = (rand() - 0.5) * 0.84 * w; lz = side * (d / 2 + 0.8); }
+    const ca = Math.cos(B.rot[b]), sa = Math.sin(B.rot[b]);
+    R.x[i] = B.x[b] + lx * ca - lz * sa;
+    R.z[i] = B.z[b] + lx * sa + lz * ca;
+    R.y[i] = y;
+    R.b[i] = b;
+    const di = B.dist[b];
+    R.dist[i] = di;
+    const east = DISTRICTS[di].east;
+    R.east[i] = east ? 1 : 0;
+    const probs = east ? AGE_P_EAST : AGE_P_WEST;
+    let pr = rand(), band = 0;
+    while (band < 4 && pr > probs[band]) { pr -= probs[band]; band++; }
+    R.band[i] = band;
+    const [a0, a1] = AGE_BANDS[band];
+    R.age[i] = a0 + Math.floor(rand() * (a1 - a0 + 1));
+    const creator = CREATOR_DISTRICTS.includes(DISTRICTS[di].name);
+    R.aff[i] = AGE_AFF[band] * (east ? 0.8 : 1.08) * (creator ? 1.22 : 1) * (0.45 + rand() * 1.1);
+    R.adW[i] = AGE_AD[band] * (east ? 0.72 : 1.0);
+    R.seed[i] = rand();
+  }
+  return R;
+}
+
+function placeStores(city, R, rand) {
+  const SAMPLE = 9000;
+  const idx = Array.from({ length: SAMPLE }, () => Math.floor(rand() * R.count));
+  const cx = new Float64Array(STORE_N), cz = new Float64Array(STORE_N);
+  for (let k = 0; k < STORE_N; k++) { const i = idx[Math.floor(k * SAMPLE / STORE_N)]; cx[k] = R.x[i]; cz[k] = R.z[i]; }
+  for (let it = 0; it < 14; it++) {
+    const sx = new Float64Array(STORE_N), sz = new Float64Array(STORE_N), sn = new Float64Array(STORE_N);
+    for (const i of idx) {
+      let best = 0, bd = Infinity;
+      for (let k = 0; k < STORE_N; k++) { const dd = (R.x[i] - cx[k]) ** 2 + (R.z[i] - cz[k]) ** 2; if (dd < bd) { bd = dd; best = k; } }
+      sx[best] += R.x[i]; sz[best] += R.z[i]; sn[best]++;
+    }
+    for (let k = 0; k < STORE_N; k++) if (sn[k]) { cx[k] = sx[k] / sn[k]; cz[k] = sz[k] / sn[k]; }
+  }
+  const C = city.corners;
+  const stores = [];
+  for (let k = 0; k < STORE_N; k++) {
+    let best = 0, bd = Infinity;
+    for (let c = 0; c < C.length; c += 2) { const dd = (C[c] - cx[k]) ** 2 + (C[c + 1] - cz[k]) ** 2; if (dd < bd) { bd = dd; best = c; } }
+    const x = C[best], z = C[best + 1];
+    stores.push({ x, z, district: districtAt(x, z) });
+  }
+  stores.sort((a, b) => a.x - b.x);
+  stores.forEach((s, k) => { s.id = k; s.label = 'Store ' + String(k + 1).padStart(2, '0'); s.name = s.label + ', ' + DISTRICTS[s.district].name; });
+  const near1 = new Uint8Array(R.count), near2 = new Uint8Array(R.count), d2 = new Float32Array(R.count);
+  const catchment = new Int32Array(STORE_N), inRange = new Int32Array(STORE_N);
+  for (let i = 0; i < R.count; i++) {
+    let b1 = 0, b2 = 1, e1 = Infinity, e2 = Infinity;
+    for (let k = 0; k < STORE_N; k++) {
+      const dd = Math.hypot(R.x[i] - stores[k].x, R.z[i] - stores[k].z);
+      if (dd < DELIVERY_R) inRange[k]++;
+      if (dd < e1) { b2 = b1; e2 = e1; b1 = k; e1 = dd; } else if (dd < e2) { b2 = k; e2 = dd; }
+    }
+    near1[i] = b1; near2[i] = b2; d2[i] = e2; catchment[b1]++;
+  }
+  stores.forEach((s, k) => { s.catchment = catchment[k]; s.inRange = inRange[k]; });
+  return { stores, near1, near2, d2 };
+}
+
+function buildTies(R, rand) {
+  const N = R.count, CS = 300, GO = 5000, GN = Math.ceil(2 * GO / CS);
+  const cell = new Int32Array(N), counts = new Int32Array(GN * GN + 1);
+  for (let i = 0; i < N; i++) {
+    const c = Math.floor((R.z[i] + GO) / CS) * GN + Math.floor((R.x[i] + GO) / CS);
+    cell[i] = c; counts[c + 1]++;
+  }
+  for (let c = 0; c < GN * GN; c++) counts[c + 1] += counts[c];
+  const fillPos = counts.slice(), members = new Int32Array(N);
+  for (let i = 0; i < N; i++) members[fillPos[cell[i]]++] = i;
+  const tieStart = new Int32Array(N + 1), list = [];
+  for (let i = 0; i < N; i++) {
+    tieStart[i] = list.length;
+    const k = 3 + Math.floor(rand() * 4);
+    const gx = cell[i] % GN, gz = (cell[i] - gx) / GN;
+    for (let t = 0; t < k; t++) {
+      if (rand() < 0.1) { let j = Math.floor(rand() * N); if (j === i) j = (j + 1) % N; list.push(j); continue; }
+      for (let tries = 0; tries < 8; tries++) {
+        const ox = Math.round((rand() + rand() - 1) * 2.2), oz = Math.round((rand() + rand() - 1) * 2.2);
+        const u = gx + ox, v = gz + oz;
+        if (u < 0 || v < 0 || u >= GN || v >= GN) continue;
+        const c = v * GN + u, n = counts[c + 1] - counts[c];
+        if (!n) continue;
+        const j = members[counts[c] + Math.floor(rand() * n)];
+        if (j === i || (R.x[j] - R.x[i]) ** 2 + (R.z[j] - R.z[i]) ** 2 > 360000) continue;
+        list.push(j); break;
+      }
+    }
+  }
+  tieStart[N] = list.length;
+  return { tieStart, ties: Int32Array.from(list) };
+}
+
+function simulate(R, S, T, rand) {
+  const N = R.count, SC = S.stores.length, H = HOURS;
+  const { near1, near2, d2 } = S, { ties, tieStart } = T;
+  const awareT = new Float32Array(N).fill(1e9), adoptT = new Float32Array(N).fill(1e9);
+  const awareSrc = new Int32Array(N).fill(-9), adoptStore = new Int8Array(N).fill(-1);
+  const waitUntil = new Int16Array(N).fill(-1), cooldown = new Int16Array(N).fill(-1);
+  const soH = new Float32Array(N).fill(-1), soStore = new Int8Array(N).fill(-1), soOutcome = new Uint8Array(N), soAlt = new Int8Array(N).fill(-1);
+  const affS = R.aff.map(Math.sqrt);
+  const awareList = new Int32Array(N);
+  let awareN = 0, adoptN = 0;
+  const stock = new Float32Array(SC), planned = new Float32Array(SC), base = new Float32Array(SC), demand = new Float32Array(SC);
+  const cap = new Float32Array(SC);
+  S.stores.forEach((s, k) => {
+    stock[k] = Math.round(s.catchment * P.stockInit); planned[k] = Math.round(s.catchment * P.stockPlan);
+    base[k] = s.catchment * P.stockBase; cap[k] = s.catchment * P.capK;
+  });
+  const stockH = new Float32Array(SC * H), servedH = new Uint16Array(SC * H);
+  const awareCount = new Int32Array(H), adoptCount = new Int32Array(H), ordersH = new Int32Array(H), outH = new Uint8Array(H);
+  const CAP = 120000;
+  const dRes = new Int32Array(CAP), dStore = new Uint8Array(CAP), dT0 = new Float32Array(CAP), dT1 = new Float32Array(CAP);
+  let dN = 0;
+  const wFrom = new Int32Array(CAP), wTo = new Int32Array(CAP), wT = new Float32Array(CAP);
+  let wN = 0;
+  const DEC48 = new Float32Array(H + 1).map((_, k) => Math.exp(-k / 48));
+  const DEC96 = new Float32Array(H + 1).map((_, k) => Math.exp(-k / 96));
+  const TOD_MEAN = TOD.reduce((a, b) => a + b, 0) / 24;
+  const adShape = TOD.slice(AD_HOUR, 24); const adSum = adShape.reduce((a, b) => a + b, 0);
+  const crShape = Array.from({ length: 30 }, (_, k) => Math.exp(-k / 6) * (0.4 + TALK[(CREATOR_HOUR + k) % 24]));
+  const crSum = crShape.reduce((a, b) => a + b, 0);
+  const creatorIdx = new Set(CREATOR_DISTRICTS.map(n => DISTRICTS.find(d => d.name === n).i));
+  const creatorPool = [];
+  for (let i = 0; i < N; i++) if (creatorIdx.has(R.dist[i])) creatorPool.push(i);
+
+  const makeAware = (i, t, src) => {
+    awareT[i] = t; awareSrc[i] = src; awareList[awareN++] = i;
+    if (src >= 0 && wN < CAP) { wFrom[wN] = src; wTo[wN] = i; wT[wN] = t; wN++; }
+  };
+  const expose = (count, pool, src, h) => {
+    let n = Math.floor(count) + (rand() < count % 1 ? 1 : 0);
+    let attempts = n * 10;
+    while (n > 0 && attempts-- > 0) {
+      const i = pool ? pool[Math.floor(rand() * pool.length)] : Math.floor(rand() * N);
+      if (awareT[i] < 1e9) { n--; continue; }
+      if (rand() < R.adW[i]) { makeAware(i, h + rand(), src); n--; }
+    }
+  };
+  const placeOrder = (i, s, first, h, rain) => {
+    stock[s] -= 1; servedH[s * H + h]++; ordersH[h]++;
+    const t0 = Math.max(h + rand() * 0.97, awareT[i] + 0.04);
+    const dur = (0.15 + rand() * 0.2) * (rain ? 1.35 : 1);
+    if (dN < CAP) { dRes[dN] = i; dStore[dN] = s; dT0[dN] = t0; dT1[dN] = t0 + dur; dN++; }
+    if (first) { adoptT[i] = t0; adoptStore[i] = s; adoptN++; }
+  };
+  const tryOrder = (i, first, h, rain) => {
+    const s1 = near1[i];
+    demand[s1]++;
+    if (stock[s1] >= 1) { placeOrder(i, s1, first, h, rain); return; }
+    const roll = rand(), s2 = near2[i];
+    const spill = d2[i] < SPILL_R && stock[s2] >= 1;
+    let outcome;
+    if (roll < 0.42 && spill) { outcome = 1; placeOrder(i, s2, first, h, rain); }
+    else if (roll < 0.8) { outcome = 2; waitUntil[i] = h + 24; }
+    else { outcome = 3; if (first) cooldown[i] = h + 96; }
+    if (soH[i] < 0) { soH[i] = h + rand() * 0.9; soStore[i] = s1; soOutcome[i] = outcome; soAlt[i] = outcome === 1 ? s2 : -1; }
+  };
+
+  for (let h = 0; h < H; h++) {
+    const hod = h % 24, tod = TOD[hod], talk = TALK[hod];
+    const rain = h >= RAIN_A && h < RAIN_B;
+    const eve = rain && hod >= 17 ? 1.12 : 1;
+    for (let s = 0; s < SC; s++) {
+      if (h % 48 !== RESTOCK_HOUR + (s % 2) * 24) continue;
+      {
+        const launch = h < P.capUntil;
+        stock[s] += launch ? planned[s] : Math.max(planned[s], Math.round(base[s] + P.safety * demand[s]));
+        planned[s] = Math.round(launch ? Math.min(cap[s], base[s] + P.restockK * demand[s]) : base[s] + P.safety * demand[s]);
+        demand[s] = 0;
+      }
+    }
+    if (h >= AD_HOUR && h < 24) expose(N * P.adDay1 * adShape[h - AD_HOUR] / adSum, null, -1, h);
+    else if (h >= 24) expose(N * P.adDrip / 24 * tod / TOD_MEAN, null, -3, h);
+    if (h >= CREATOR_HOUR && h < CREATOR_HOUR + 30) {
+      const k = crShape[h - CREATOR_HOUR] / crSum;
+      expose(creatorPool.length * P.creatorIn * k, creatorPool, -2, h);
+      expose(N * P.creatorOut * k, null, -2, h);
+    }
+    const n0 = awareN;
+    for (let q = 0; q < n0; q++) {
+      const i = awareList[q];
+      const adopted = adoptT[i] < 1e9;
+      const since = Math.min(H, h - Math.floor(awareT[i]));
+      const pt = adopted ? P.betaA * (h - adoptT[i] < 72 ? 1 : 0.35) : P.betaW * DEC48[since];
+      if (rand() < pt * talk) {
+        const a = tieStart[i], n = tieStart[i + 1] - a;
+        if (n > 0) {
+          const j = ties[a + Math.floor(rand() * n)];
+          if (awareT[j] >= 1e9) makeAware(j, Math.max(h + rand(), awareT[i] + 0.1), i);
+        }
+      }
+      if (waitUntil[i] === h) { waitUntil[i] = -1; tryOrder(i, !adopted, h, rain); continue; }
+      if (adopted) {
+        if (rand() < P.r0 * tod * affS[i] * eve) tryOrder(i, false, h, rain);
+      } else if (cooldown[i] <= h && waitUntil[i] < h) {
+        if (rand() < P.a0 * R.aff[i] * tod * eve * (0.15 + 0.85 * DEC96[since])) tryOrder(i, true, h, rain);
+      }
+    }
+    let out = 0;
+    for (let s = 0; s < SC; s++) {
+      stockH[s * H + h] = Math.max(0, stock[s]);
+      if (stock[s] < 1) out++;
+    }
+    outH[h] = out; awareCount[h] = awareN; adoptCount[h] = adoptN;
+  }
+
+  const outIntervals = S.stores.map((_, s) => {
+    const list = [];
+    let start = -1;
+    for (let h = 0; h <= H; h++) {
+      const isOut = h < H && stockH[s * H + h] < 1;
+      if (isOut && start < 0) start = h;
+      if (!isOut && start >= 0) { list.push([start, h]); start = -1; }
+    }
+    return list;
+  });
+
+  return {
+    awareT, adoptT, awareSrc, adoptStore, soH, soStore, soOutcome, soAlt,
+    stockH, servedH, awareCount, adoptCount, ordersH, outH, outIntervals,
+    deliveries: { n: dN, res: dRes.subarray(0, dN), store: dStore.subarray(0, dN), t0: dT0.subarray(0, dN), t1: dT1.subarray(0, dN) },
+    wom: { n: wN, from: wFrom.subarray(0, wN), to: wTo.subarray(0, wN), t: wT.subarray(0, wN) },
+  };
+}
+
+function buildWorld(N) {
+  const rand = mulberry32(49);
+  const t0 = performance.now();
+  const city = buildCity(rand);
+  const res = placeResidents(city, rand, N);
+  const S = placeStores(city, res, rand);
+  const T = buildTies(res, rand);
+  const t1 = performance.now();
+  const sim = simulate(res, S, T, rand);
+  const t2 = performance.now();
+  return { city, res, stores: S.stores, near1: S.near1, ties: T, sim, timing: { city: t1 - t0, sim: t2 - t1 } };
+}
+
+const $ = (id) => document.getElementById(id);
+const app = $('app');
+const stageEl = $('stage');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SMALL = innerWidth < 700;
+const N_RES = SMALL ? 24000 : 48000;
+const STILL_HOURS = { 'still-day1': 20, 'still-day6': 140, 'still-day13': 308 };
+const SPEEDS = [6, 24, 96];
+const fmt = new Intl.NumberFormat('en-IN');
+
+const COL = {
+  dusk: new THREE.Color('#0F1330'), dusk2: new THREE.Color('#171C42'), haze: new THREE.Color('#2A3166'),
+  mist: new THREE.Color('#9AA3CF'), paper: new THREE.Color('#EEF0FB'), lamp: new THREE.Color('#FFB547'),
+  tube: new THREE.Color('#A6F0DA'), chatter: new THREE.Color('#C8B6FF'), sindoor: new THREE.Color('#FF5468'),
+  monsoon: new THREE.Color('#6F8CC9'),
+};
+
+const POSES = {
+  intro: { target: [-300, 0, -150], r: 15500, polar: 0.28, az: -1.15 },
+  home: { target: [-560, 0, -260], r: 6200, polar: 1.3, az: -0.5 },
+  hero: { target: [-600, 0, -300], r: 5900, polar: 1.33, az: -0.48 },
+  phone: { target: [-800, 0, -300], r: 6400, polar: 1.02, az: -0.42 },
+};
+
+const state = {
+  t: 0, playing: false, speed: 24, scrubbing: false, clock: 0,
+  intro: reduceMotion ? 99 : 0, introActive: !reduceMotion, still: null,
+  lastInput: performance.now(), selected: null, lastCardHour: -1,
+  frameMs: [],
+};
+
+function webglAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch (e) { return false; }
+}
+
+function showFailure() {
+  $('loading').hidden = true;
+  $('fail').hidden = false;
+  document.querySelectorAll('.ui').forEach((el) => { el.hidden = true; });
+}
+
+const HAZE = new THREE.Color('#231F4E');
+const FOG = {
+  uFogColor: { value: COL.dusk.clone() }, uHaze: { value: HAZE.clone() },
+  uFogDensity: { value: 0.0001 }, uFogStart: { value: 4000 },
+};
+const FOG_GLSL = `
+uniform float uFogDensity, uFogStart;
+float fogFactor(float depth) { float f = max(0.0, depth - uFogStart) * uFogDensity; return 1.0 - exp(-f * f); }`;
+const FOGMIX_GLSL = `
+uniform vec3 uFogColor, uHaze;
+vec3 fogMix(vec3 c, float f) { return mix(c, mix(uFogColor, uHaze, smoothstep(0.3, 1.0, f)), f); }`;
+
+function skyMesh() {
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: {
+      uTop: { value: new THREE.Color('#04061A') }, uMid: { value: new THREE.Color('#0B0F2E') },
+      uHorizon: { value: HAZE.clone() }, uBand: { value: new THREE.Color('#4A3C7E') }, uBandGain: { value: 1 },
+    },
+    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.); gl_Position = p.xyww; }`,
+    fragmentShader: `
+      uniform vec3 uTop, uMid, uHorizon, uBand; uniform float uBandGain; varying vec3 vDir;
+      void main(){
+        float y = normalize(vDir).y;
+        vec3 c = mix(uMid, uTop, smoothstep(0.06, 0.45, y));
+        c = mix(uHorizon, c, smoothstep(0.0, 0.12, y));
+        float bd = (y - 0.006) / 0.014;
+        c += uBand * uBandGain * exp(-bd * bd) * 0.3;
+        c = mix(uHorizon, c, smoothstep(-0.015, 0.0, y));
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
+  const m = new THREE.Mesh(new THREE.SphereGeometry(40000, 48, 24), mat);
+  m.renderOrder = -10;
+  m.frustumCulled = false;
+  return m;
+}
+
+function groundMesh(uniforms) {
+  const mat = new THREE.ShaderMaterial({
+    depthWrite: false,
+    uniforms: { ...FOG, ...uniforms, uBase: { value: new THREE.Color('#10133A') } },
+    vertexShader: `${FOG_GLSL}
+      varying vec3 vW; varying float vFog;
+      void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vec4 mv = viewMatrix * w; vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `
+      ${FOGMIX_GLSL}
+      uniform vec3 uBase, uGlowCool, uGlowWarm; uniform float uWarm;
+      varying vec3 vW; varying float vFog;
+      void main(){
+        vec2 p = vW.xz - vec2(-250.0, 0.0);
+        float r = length(p * vec2(1.0, 1.08));
+        float gr = r / 3600.0;
+        float glow = exp(-gr * gr);
+        vec3 c = uBase * (0.78 + 0.3 * glow) + mix(uGlowCool, uGlowWarm, uWarm) * glow * 0.06;
+        gl_FragColor = vec4(fogMix(c, vFog), 1.0);
+      }`,
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(60000, 60000).rotateX(-Math.PI / 2), mat);
+  m.renderOrder = -5;
+  return m;
+}
+
+function riverMesh(uniforms) {
+  const pos = [], uv = [], idx = [];
+  const STEP = 30;
+  let row = 0;
+  for (let z = -6000; z <= 6000; z += STEP, row++) {
+    const x = riverX(z), hw = riverHW(z);
+    pos.push(x - hw, 0, z, x + hw, 0, z);
+    uv.push(0, z, 1, z);
+    if (row > 0) { const a = (row - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  const mat = new THREE.ShaderMaterial({
+    depthWrite: false,
+    uniforms: { ...FOG, ...uniforms, uDeep: { value: new THREE.Color('#080B22') }, uSheen: { value: new THREE.Color('#4A579E') }, uBand: { value: new THREE.Color('#3B2F66') } },
+    vertexShader: `${FOG_GLSL}
+      varying vec3 vW; varying vec2 vUv; varying float vFog;
+      void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vec4 mv = viewMatrix * w; vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `
+      ${FOGMIX_GLSL}
+      uniform vec3 uDeep, uSheen, uBand, uGlowCool, uGlowWarm; uniform float uClock, uRain, uWarm;
+      varying vec3 vW; varying vec2 vUv; varying float vFog;
+      void main(){
+        float edge = smoothstep(0.0, 0.22, vUv.x) * smoothstep(1.0, 0.78, vUv.x);
+        float n = sin(vW.z * 0.018 + uClock * 0.5 + sin(vW.x * 0.04) * 1.5) * sin(vW.z * 0.0061 - uClock * 0.23);
+        vec3 v = normalize(cameraPosition - vW);
+        float fres = pow(clamp(1.0 - abs(v.y), 0.0, 1.0), 3.0);
+        vec3 c = uDeep;
+        c += uSheen * (0.5 + 0.5 * n) * 0.16 * edge * (1.0 - vFog);
+        c += uBand * fres * 0.3 * (1.0 - vFog) * (1.0 - vFog);
+        c += mix(uGlowCool, uGlowWarm, uWarm) * 0.035 * edge;
+        float sp = pow(max(0.0, sin(vW.z * 0.35 + uClock * 9.0 + sin(vW.x * 0.9 + uClock) * 4.0)), 14.0);
+        c += uSheen * uRain * sp * 0.7 * edge;
+        gl_FragColor = vec4(fogMix(c, vFog), 1.0);
+      }`,
+  });
+  const m = new THREE.Mesh(g, mat);
+  m.renderOrder = -4;
+  return m;
+}
+
+function lineMesh(arr, color, opacity, y) {
+  const n = arr.length / 4, pos = new Float32Array(n * 6);
+  for (let k = 0; k < n; k++) {
+    pos.set([arr[k * 4], y, arr[k * 4 + 1], arr[k * 4 + 2], y, arr[k * 4 + 3]], k * 6);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { ...FOG, uColor: { value: color }, uOpacity: { value: opacity } },
+    vertexShader: `${FOG_GLSL} varying float vFog; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uColor, uFogColor; uniform float uOpacity; varying float vFog; void main(){ gl_FragColor = vec4(uColor, uOpacity * (1.0 - vFog)); }`,
+  });
+  const m = new THREE.LineSegments(g, mat);
+  m.renderOrder = -3;
+  return m;
+}
+
+function buildingMesh(B, uniforms) {
+  const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+  geo.deleteAttribute('uv');
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      ...FOG, ...uniforms,
+      uWall: { value: new THREE.Color('#141A40') }, uRoof: { value: new THREE.Color('#1C2352') }, uEdge: { value: new THREE.Color('#2F3874') },
+      uSkyLight: { value: new THREE.Color('#2E2858') },
+    },
+    vertexShader: `${FOG_GLSL}
+      attribute float aH; attribute float aSeed;
+      varying vec3 vN; varying float vY; varying float vH; varying float vSeed; varying float vFog;
+      void main(){
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal);
+        vY = w.y; vH = aH; vSeed = aSeed;
+        vec4 mv = viewMatrix * w; vFog = fogFactor(-mv.z);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      ${FOGMIX_GLSL}
+      uniform vec3 uWall, uRoof, uEdge, uSkyLight, uGlowCool, uGlowWarm; uniform float uWarm;
+      varying vec3 vN; varying float vY; varying float vH; varying float vSeed; varying float vFog;
+      void main(){
+        vec3 n = vN / max(length(vN), 1e-3);
+        float roof = step(0.5, n.y);
+        float side = dot(n, normalize(vec3(-0.35, 0.0, -0.94)));
+        vec3 wall = uWall * (0.78 + 0.3 * vSeed) * (0.8 + 0.2 * n.x);
+        wall += uSkyLight * max(side, 0.0) * 0.08;
+        wall *= mix(0.55, 1.0, smoothstep(0.0, 30.0, vY));
+        float lip = smoothstep(vH - 1.4, vH - 0.1, vY) * (1.0 - roof);
+        wall += uEdge * lip * 0.45;
+        wall += mix(uGlowCool, uGlowWarm, uWarm) * exp(-vY / 8.0) * 0.05;
+        vec3 c = mix(wall, uRoof * (0.86 + 0.24 * vSeed), roof);
+        c = fogMix(c, vFog);
+        gl_FragColor = vec4(c == c ? clamp(c, 0.0, 1.0) : uFogColor, 1.0);
+      }`,
+  });
+  const mesh = new THREE.InstancedMesh(geo, mat, B.count);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const p = new THREE.Vector3(), s = new THREE.Vector3();
+  const aH = new Float32Array(B.count), aSeed = new Float32Array(B.count);
+  for (let b = 0; b < B.count; b++) {
+    q.setFromAxisAngle(up, -B.rot[b]);
+    m4.compose(p.set(B.x[b], 0, B.z[b]), q, s.set(B.w[b], B.h[b], B.d[b]));
+    mesh.setMatrixAt(b, m4);
+    aH[b] = B.h[b];
+    aSeed[b] = hash3(b, 7, 3);
+  }
+  geo.setAttribute('aH', new THREE.InstancedBufferAttribute(aH, 1));
+  geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(aSeed, 1));
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+function residentPoints(W, uniforms) {
+  const R = W.res, S = W.sim, n = R.count;
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { pos[i * 3] = R.x[i]; pos[i * 3 + 1] = R.y[i]; pos[i * 3 + 2] = R.z[i]; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aAware', new THREE.BufferAttribute(S.awareT, 1));
+  g.setAttribute('aAdopt', new THREE.BufferAttribute(S.adoptT, 1));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(R.seed, 1));
+  g.setAttribute('aDist', new THREE.BufferAttribute(Float32Array.from(R.dist), 1));
+  const onset = new Float32Array(12);
+  [...DISTRICTS].sort((a, b) => (a.x - a.z * 0.4) - (b.x - b.z * 0.4)).forEach((d, rank) => { onset[d.i] = 0.35 + rank * 0.15; });
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: {
+      ...FOG, ...uniforms, uOnset: { value: onset }, uSize: { value: 9.5 },
+      uTube: { value: COL.tube }, uChat: { value: COL.chatter }, uLamp: { value: COL.lamp },
+    },
+    vertexShader: `${FOG_GLSL}
+      uniform float uTime, uIntro, uScale, uSize, uPR, uOnset[12];
+      uniform vec3 uTube, uChat, uLamp;
+      attribute float aAware, aAdopt, aSeed, aDist;
+      varying vec3 vCol;
+      void main(){
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float aware = clamp((uTime - aAware) / 0.6, 0.0, 1.0);
+        float adopt = clamp((uTime - aAdopt) / 0.25, 0.0, 1.0);
+        float flare = adopt * (1.0 - smoothstep(0.0, 6.0, uTime - aAdopt));
+        vec3 c = uTube * (0.15 + 0.11 * aSeed);
+        c = mix(c, uChat * (0.34 + 0.12 * aSeed), aware);
+        c = mix(c, uLamp * (0.86 + 0.14 * aSeed), adopt);
+        c *= 1.0 + 1.2 * flare;
+        float size = mix(mix(1.0, 1.2, aware), 2.2, adopt) * (1.0 + 1.6 * flare);
+        float on = uOnset[int(aDist + 0.5)] + aSeed * 0.22;
+        float flash = (uIntro - on - 0.07) / 0.05;
+        float lit = smoothstep(on, on + 0.12, uIntro) + 1.6 * exp(-flash * flash);
+        float px = uSize * size * (0.82 + 0.36 * aSeed) * uScale / -mv.z;
+        float minPx = 1.3 * uPR;
+        float sub = clamp(px / minPx, 0.25, 1.0);
+        gl_PointSize = clamp(px, minPx, 7.5 * uPR * size);
+        vCol = c * sub * lit * (1.0 - fogFactor(-mv.z));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      varying vec3 vCol;
+      void main(){
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        float a = smoothstep(1.0, 0.0, d);
+        gl_FragColor = vec4(vCol * (a * a * 0.85 + a * 0.35), 1.0);
+      }`,
+  });
+  const pts = new THREE.Points(g, mat);
+  pts.frustumCulled = false;
+  return pts;
+}
+
+function sampleArcs(W, cap) {
+  const S = W.sim, w = S.wom, picks = [];
+  const keep = Math.min(1, cap / Math.max(1, w.n));
+  const rnd = mulberry32(4949);
+  for (let e = 0; e < w.n; e++) if (rnd() < keep) picks.push(e);
+  return picks.slice(0, cap);
+}
+
+function arcMeshes(W, uniforms) {
+  const R = W.res, S = W.sim, w = S.wom;
+  const picks = sampleArcs(W, 6000), SEG = 18, n = picks.length;
+  const vCount = n * SEG * 2;
+  const aFrom = new Float32Array(vCount * 3), aTo = new Float32Array(vCount * 3);
+  const aT = new Float32Array(vCount * 2), aU = new Float32Array(vCount);
+  const hFrom = new Float32Array(n * 3), hTo = new Float32Array(n * 3), hT = new Float32Array(n * 2);
+  picks.forEach((e, k) => {
+    const i = w.from[e], j = w.to[e], t1 = w.t[e];
+    const t0 = Math.max(t1 - 3, S.awareT[i] + 0.05);
+    const f = [R.x[i], R.y[i], R.z[i]], to = [R.x[j], R.y[j], R.z[j]], tt = [t0, Math.max(0.4, t1 - t0)];
+    hFrom.set(f, k * 3); hTo.set(to, k * 3); hT.set(tt, k * 2);
+    for (let s = 0; s < SEG; s++) for (let v = 0; v < 2; v++) {
+      const vi = (k * SEG + s) * 2 + v;
+      aFrom.set(f, vi * 3); aTo.set(to, vi * 3); aT.set(tt, vi * 2);
+      aU[vi] = (s + v) / SEG;
+    }
+  });
+  const bez = `
+    vec3 bez(vec3 a, vec3 b, float u){
+      float L = distance(a.xz, b.xz);
+      vec3 ctl = (a + b) * 0.5 + vec3(0.0, L * 0.34 + 50.0, 0.0);
+      return mix(mix(a, ctl, u), mix(ctl, b, u), u);
+    }`;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vCount * 3), 3));
+  g.setAttribute('aFrom', new THREE.BufferAttribute(aFrom, 3));
+  g.setAttribute('aTo', new THREE.BufferAttribute(aTo, 3));
+  g.setAttribute('aT', new THREE.BufferAttribute(aT, 2));
+  g.setAttribute('aU', new THREE.BufferAttribute(aU, 1));
+  const lines = new THREE.LineSegments(g, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { ...FOG, ...uniforms, uColor: { value: COL.chatter }, uTail: { value: 0.55 } },
+    vertexShader: `${FOG_GLSL}${bez}
+      uniform float uTime, uTail; attribute vec3 aFrom, aTo; attribute vec2 aT; attribute float aU;
+      varying float vA;
+      void main(){
+        float h = (uTime - aT.x) / aT.y;
+        if (h < 0.0 || h > 1.0 + uTail) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vA = 0.0; return; }
+        float behind = h - aU;
+        float a = step(0.0, behind) * (1.0 - clamp(behind / uTail, 0.0, 1.0));
+        vec4 mv = modelViewMatrix * vec4(bez(aFrom, aTo, aU), 1.0);
+        vA = a * a * (1.0 - fogFactor(-mv.z));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ gl_FragColor = vec4(uColor * vA * 0.55, 1.0); }`,
+  }));
+  lines.frustumCulled = false;
+
+  const hg = new THREE.BufferGeometry();
+  hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  hg.setAttribute('aFrom', new THREE.BufferAttribute(hFrom, 3));
+  hg.setAttribute('aTo', new THREE.BufferAttribute(hTo, 3));
+  hg.setAttribute('aT', new THREE.BufferAttribute(hT, 2));
+  const heads = new THREE.Points(hg, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { ...FOG, ...uniforms, uColor: { value: COL.chatter } },
+    vertexShader: `${FOG_GLSL}${bez}
+      uniform float uTime, uPR; attribute vec3 aFrom, aTo; attribute vec2 aT; varying float vA;
+      void main(){
+        float h = (uTime - aT.x) / aT.y;
+        if (h < 0.0 || h > 1.15) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vA = 0.0; return; }
+        vec4 mv = modelViewMatrix * vec4(bez(aFrom, aTo, min(h, 1.0)), 1.0);
+        vA = (1.0 - smoothstep(1.0, 1.15, h)) * (1.0 - fogFactor(-mv.z));
+        gl_PointSize = 4.5 * uPR;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.0, d); gl_FragColor = vec4(uColor * vA * a * 1.4, 1.0); }`,
+  }));
+  heads.frustumCulled = false;
+  return [lines, heads];
+}
+
+function riderMeshes(W, uniforms) {
+  const R = W.res, D = W.sim.deliveries, n = D.n, SEG = 5;
+  const vCount = n * SEG * 2;
+  const aTo = new Float32Array(vCount * 2), aInfo = new Float32Array(vCount * 4);
+  const hTo = new Float32Array(n * 2), hInfo = new Float32Array(n * 4);
+  for (let k = 0; k < n; k++) {
+    const i = D.res[k], to = [R.x[i], R.z[i]], info = [D.store[k], D.t0[k], D.t1[k], 0];
+    hTo.set(to, k * 2); hInfo.set(info, k * 4);
+    for (let s = 0; s < SEG; s++) for (let v = 0; v < 2; v++) {
+      const vi = (k * SEG + s) * 2 + v;
+      aTo.set(to, vi * 2);
+      info[3] = (s + v) / SEG;
+      aInfo.set(info, vi * 4);
+    }
+  }
+  const storeVecs = W.stores.map((s) => new THREE.Vector3(s.x, 0, s.z));
+  const path = `
+    uniform vec3 uStores[14];
+    vec3 riderAt(float sid, vec2 to, float s){
+      vec3 st = uStores[int(sid + 0.5)];
+      vec2 d = to - st.xz;
+      float lx = abs(d.x), lz = abs(d.y), dist = s * (lx + lz);
+      vec2 p = dist < lx ? vec2(st.x + sign(d.x) * dist, st.z) : vec2(to.x, st.z + sign(d.y) * (dist - lx));
+      return vec3(p.x, 5.0, p.y);
+    }`;
+  const common = { ...FOG, ...uniforms, uStores: { value: storeVecs }, uColor: { value: COL.tube } };
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vCount * 3), 3));
+  g.setAttribute('aTo', new THREE.BufferAttribute(aTo, 2));
+  g.setAttribute('aInfo', new THREE.BufferAttribute(aInfo, 4));
+  const trails = new THREE.LineSegments(g, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: common,
+    vertexShader: `${FOG_GLSL}${path}
+      uniform float uTime; attribute vec2 aTo; attribute vec4 aInfo; varying float vA;
+      void main(){
+        float head = (uTime - aInfo.y) / (aInfo.z - aInfo.y);
+        if (head < 0.0 || head > 1.3) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vA = 0.0; return; }
+        float s = head - aInfo.w * 0.3;
+        vec4 mv = modelViewMatrix * vec4(riderAt(aInfo.x, aTo, clamp(s, 0.0, 1.0)), 1.0);
+        vA = (1.0 - aInfo.w) * step(0.0, s) * step(s, 1.0) * (1.0 - fogFactor(-mv.z));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ gl_FragColor = vec4(uColor * vA * 0.7, 1.0); }`,
+  }));
+  trails.frustumCulled = false;
+  const hg = new THREE.BufferGeometry();
+  hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  hg.setAttribute('aTo', new THREE.BufferAttribute(hTo, 2));
+  hg.setAttribute('aInfo', new THREE.BufferAttribute(hInfo, 4));
+  const heads = new THREE.Points(hg, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: common,
+    vertexShader: `${FOG_GLSL}${path}
+      uniform float uTime, uPR; attribute vec2 aTo; attribute vec4 aInfo; varying float vA;
+      void main(){
+        float s = (uTime - aInfo.y) / (aInfo.z - aInfo.y);
+        if (s < 0.0 || s > 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vA = 0.0; return; }
+        vec4 mv = modelViewMatrix * vec4(riderAt(aInfo.x, aTo, s), 1.0);
+        vA = 1.0 - fogFactor(-mv.z);
+        gl_PointSize = 4.0 * uPR;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.0, d); gl_FragColor = vec4(uColor * vA * a * 1.6, 1.0); }`,
+  }));
+  heads.frustumCulled = false;
+  return [trails, heads];
+}
+
+function storeGroup(W) {
+  const group = new THREE.Group();
+  const beamGeo = new THREE.CylinderGeometry(7, 7, 520, 20, 1, true).translate(0, 260, 0);
+  const baseGeo = new THREE.PlaneGeometry(260, 260).rotateX(-Math.PI / 2);
+  const ringPts = [];
+  for (let a = 0; a <= 128; a++) ringPts.push(new THREE.Vector3(Math.cos(a / 128 * Math.PI * 2) * DELIVERY_R, 1.5, Math.sin(a / 128 * Math.PI * 2) * DELIVERY_R));
+  const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+  const items = W.stores.map((s) => {
+    const color = { value: COL.tube.clone() }, gain = { value: 1 };
+    const beam = new THREE.Mesh(beamGeo, new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { ...FOG, uColor: color, uGain: gain },
+      vertexShader: `${FOG_GLSL} varying float vY; varying vec3 vN; varying vec3 vV; varying float vFog;
+        void main(){ vY = position.y / 520.0; vec4 w = modelMatrix * vec4(position,1.); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - w.xyz); vec4 mv = viewMatrix * w; vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uGain; varying float vY; varying vec3 vN; varying vec3 vV; varying float vFog;
+        void main(){ float f = abs(dot(normalize(vN), normalize(vV))); float a = pow(clamp(1.0 - vY, 0.0, 1.0), 2.2) * (pow(clamp(f, 0.0, 1.0), 2.5) * 0.85 + 0.08) + exp(-vY * 30.0) * 0.6; gl_FragColor = vec4(uColor * a * uGain * 0.95 * (1.0 - vFog * 0.8), 1.0); }`,
+    }));
+    const base = new THREE.Mesh(baseGeo, new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { ...FOG, uColor: color, uGain: gain },
+      vertexShader: `${FOG_GLSL} varying vec2 vUv; varying float vFog; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.); vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uGain; varying vec2 vUv; varying float vFog;
+        void main(){ float r = length(vUv - 0.5) * 2.0; float a = exp(-r * r * 9.0) * 0.55 + exp(-r * r * 160.0) * 1.2; gl_FragColor = vec4(uColor * a * uGain * (1.0 - vFog), 1.0); }`,
+    }));
+    base.position.y = 2;
+    const ring = new THREE.Line(ringGeo, new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: { ...FOG, uColor: color },
+      vertexShader: `${FOG_GLSL} varying float vFog; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vFog = fogFactor(-mv.z); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; varying float vFog; void main(){ gl_FragColor = vec4(uColor * 0.085 * (1.0 - vFog), 1.0); }`,
+    }));
+    for (const m of [beam, base, ring]) { m.position.x = s.x; m.position.z = s.z; m.frustumCulled = false; group.add(m); }
+    beam.renderOrder = 2;
+    return { color, gain };
+  });
+  return { group, items };
+}
+
+function rainMesh(uniforms) {
+  const n = SMALL ? 3000 : 6000;
+  const base = new Float32Array(n * 2 * 4);
+  const rnd = mulberry32(1214);
+  for (let k = 0; k < n; k++) {
+    const b = [rnd(), rnd(), rnd(), rnd()];
+    for (let v = 0; v < 2; v++) base.set([b[0], b[1], b[2], v], (k * 2 + v) * 4);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 6), 3));
+  g.setAttribute('aB', new THREE.BufferAttribute(base, 4));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { ...uniforms, uCenter: { value: new THREE.Vector3() }, uBox: { value: new THREE.Vector3(2600, 1500, 2600) }, uColor: { value: COL.monsoon } },
+    vertexShader: `
+      uniform vec3 uCenter, uBox; uniform float uClock; attribute vec4 aB; varying float vA;
+      void main(){
+        vec3 o = uCenter - uBox * 0.5;
+        vec3 p;
+        p.xz = o.xz + mod(aB.xz * uBox.xz - o.xz, uBox.xz);
+        p.y = o.y + mod(aB.y * uBox.y - uClock * 420.0 - o.y, uBox.y);
+        p.y -= aB.w * 34.0; p.x += aB.w * 4.0;
+        float dc = distance(p, cameraPosition);
+        vA = (1.0 - aB.w * 0.9) * smoothstep(0.0, 120.0, p.y) * smoothstep(350.0, 1100.0, dc) * (0.5 + 0.5 * fract(aB.x * 91.7));
+        gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+      }`,
+    fragmentShader: `uniform vec3 uColor; uniform float uRain; varying float vA; void main(){ gl_FragColor = vec4(uColor * vA * uRain * 0.1, 1.0); }`,
+  });
+  const m = new THREE.LineSegments(g, mat);
+  m.frustumCulled = false;
+  return m;
+}
+
+function outskirtsPoints(uniforms) {
+  const rnd = mulberry32(777), pos = [], seed = [];
+  const wob = (th) => 1 + 0.07 * Math.sin(3 * th + 1) + 0.05 * Math.sin(5 * th + 2) + 0.03 * Math.sin(9 * th);
+  const at = (th, f) => [CITY.cx + Math.cos(th) * CITY.rx * f * wob(th), CITY.cz + Math.sin(th) * CITY.rz * f * wob(th)];
+  const push = (x, z) => {
+    if (cityF(x, z) < 0.97 || Math.abs(x - riverX(z)) < riverHW(z) + 20) return;
+    pos.push(x, 2 + rnd() * 9, z); seed.push(rnd());
+  };
+  const n = SMALL ? 9000 : 18000;
+  for (let k = 0; k < n * 0.45; k++) {
+    const th = rnd() * Math.PI * 2, f = 0.97 - Math.log(1 - rnd() * 0.97) * 0.32;
+    const [x, z] = at(th, f);
+    push(x, z);
+  }
+  const villages = 150;
+  for (let v = 0; v < villages; v++) {
+    const th = rnd() * Math.PI * 2, f = 1.08 + Math.pow(rnd(), 1.4) * 1.5;
+    const [vx, vz] = at(th, f), size = 60 + rnd() * 160, count = Math.round((n * 0.55) / villages * (0.4 + rnd() * 1.2));
+    for (let k = 0; k < count; k++) push(vx + (rnd() + rnd() - 1) * size, vz + (rnd() + rnd() - 1) * size);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aSeed', new THREE.Float32BufferAttribute(seed, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { ...FOG, ...uniforms, uTube: { value: COL.tube }, uMist: { value: COL.mist } },
+    vertexShader: `${FOG_GLSL}
+      uniform float uScale, uPR, uIntro; uniform vec3 uTube, uMist; attribute float aSeed; varying vec3 vCol;
+      void main(){
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float px = 8.0 * (0.8 + 0.4 * aSeed) * uScale / -mv.z;
+        float minPx = 1.2 * uPR;
+        gl_PointSize = clamp(px, minPx, 5.0 * uPR);
+        float lit = smoothstep(1.9 + aSeed * 0.4, 2.3 + aSeed * 0.4, uIntro);
+        vCol = mix(uTube, uMist, aSeed) * (0.1 + 0.08 * aSeed) * clamp(px / minPx, 0.25, 1.0) * lit * (1.0 - fogFactor(-mv.z));
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `varying vec3 vCol; void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; float a = smoothstep(1.0, 0.0, d); gl_FragColor = vec4(vCol * (a * a * 0.85 + a * 0.35), 1.0); }`,
+  });
+  const m = new THREE.Points(g, mat);
+  m.frustumCulled = false;
+  return m;
+}
+
+function selectionMarker() {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+  const m = new THREE.Points(g, new THREE.ShaderMaterial({
+    transparent: true, depthTest: false, depthWrite: false,
+    uniforms: { uColor: { value: COL.paper }, uSize: { value: 30 }, uClock: { value: 0 } },
+    vertexShader: `uniform float uSize; void main(){ gl_PointSize = uSize; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
+    fragmentShader: `uniform vec3 uColor; uniform float uSize; void main(){ float d = length(gl_PointCoord - 0.5) * uSize; float ring = smoothstep(1.4, 0.4, abs(d - uSize * 0.36)); float dot = smoothstep(2.6, 1.4, d); gl_FragColor = vec4(uColor, max(ring * 0.95, dot)); }`,
+  }));
+  m.renderOrder = 20;
+  m.frustumCulled = false;
+  m.visible = false;
+  return m;
+}
+
+function buildSpatialHash(R) {
+  const CS = 120, GO = 5200, GN = Math.ceil(2 * GO / CS);
+  const cell = new Int32Array(R.count), start = new Int32Array(GN * GN + 1);
+  for (let i = 0; i < R.count; i++) {
+    const c = Math.floor((R.z[i] + GO) / CS) * GN + Math.floor((R.x[i] + GO) / CS);
+    cell[i] = c; start[c + 1]++;
+  }
+  for (let c = 0; c < GN * GN; c++) start[c + 1] += start[c];
+  const fill = start.slice(), items = new Int32Array(R.count);
+  for (let i = 0; i < R.count; i++) items[fill[cell[i]]++] = i;
+  return { CS, GO, GN, start, items };
+}
+
+function fmtClock(t) {
+  const tt = Math.min(Math.max(t, 0), 719.99);
+  const day = Math.floor(tt / 24) + 1;
+  let mins = Math.floor(((tt % 24) * 60) / 10) * 10;
+  const h24 = Math.floor(mins / 60), m = mins % 60;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return { day, text: `${h12}:${String(m).padStart(2, '0')} ${h24 < 12 ? 'am' : 'pm'}` };
+}
+const dayTime = (t) => { const c = fmtClock(t); return `Day ${c.day}, ${c.text}`; };
+const dayOf = (t) => Math.floor(Math.min(t, 719.99) / 24) + 1;
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+function personName(i) {
+  const r = mulberry32(i * 7919 + 49);
+  return { first: FIRST[Math.floor(r() * FIRST.length)], last: LAST[Math.floor(r() * LAST.length)] };
+}
+
+function poseToCamera(pose, camera, controls) {
+  const [tx, ty, tz] = pose.target;
+  controls.target.set(tx, ty, tz);
+  camera.position.set(
+    tx + pose.r * Math.sin(pose.polar) * Math.sin(pose.az),
+    ty + pose.r * Math.cos(pose.polar),
+    tz + pose.r * Math.sin(pose.polar) * Math.cos(pose.az),
+  );
+  camera.lookAt(controls.target);
+}
+const homePose = () => (SMALL ? POSES.phone : POSES.home);
+function lerpPose(a, b, k) {
+  return {
+    target: a.target.map((v, i) => v + (b.target[i] - v) * k),
+    r: a.r * Math.pow(b.r / a.r, k), polar: a.polar + (b.polar - a.polar) * k, az: a.az + (b.az - a.az) * k,
+  };
+}
+
+function start() {
+  if (!webglAvailable()) { showFailure(); return; }
+  const hash = location.hash.replace('#', '');
+  if (hash === 'still' || STILL_HOURS[hash] !== undefined) {
+    state.still = hash;
+    app.classList.add('still');
+    state.introActive = false;
+    state.intro = 99;
+    $('loading').classList.add('gone');
+  }
+  requestAnimationFrame(() => setTimeout(init, 30));
+}
+
+function init() {
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+  } catch (e) { showFailure(); return; }
+  const W = buildWorld(N_RES);
+  app.dataset.cityMs = W.timing.city.toFixed(0);
+  app.dataset.simMs = W.timing.sim.toFixed(0);
+  $('chip-city').textContent = `Ahmedabad, ${fmt.format(N_RES)} residents`;
+
+  const maxPR = state.still ? 2 : SMALL ? 1.25 : 1.75;
+  const pr = Math.min(devicePixelRatio || 1, maxPR);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.toneMapping = THREE.NoToneMapping;
+  stageEl.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(SMALL ? 46 : 40, innerWidth / innerHeight, 20, 90000);
+  const U = {
+    uTime: { value: 0 }, uIntro: { value: state.intro }, uScale: { value: 1 }, uPR: { value: pr }, uClock: { value: 0 },
+    uRain: { value: 0 }, uWarm: { value: 0 },
+    uGlowCool: { value: COL.tube.clone().multiplyScalar(0.5) }, uGlowWarm: { value: COL.lamp.clone() },
+  };
+
+  const sky = skyMesh();
+  scene.add(sky);
+  scene.add(groundMesh(U));
+  scene.add(riverMesh(U));
+  const C = W.city;
+  scene.add(lineMesh(C.roads, COL.haze.clone().multiplyScalar(1.25), 0.32, 0.6));
+  scene.add(lineMesh(C.arterials, new THREE.Color('#5361A8'), 0.42, 0.9));
+  scene.add(lineMesh(C.bridges, new THREE.Color('#6A77BD'), 0.6, 2.0));
+  scene.add(buildingMesh(C.buildings, U));
+  scene.add(outskirtsPoints(U));
+  const residents = residentPoints(W, U);
+  scene.add(residents);
+  const arcs = arcMeshes(W, U);
+  arcs.forEach((m) => scene.add(m));
+  const riders = riderMeshes(W, U);
+  riders.forEach((m) => scene.add(m));
+  const stores = storeGroup(W);
+  scene.add(stores.group);
+  const rain = rainMesh(U);
+  scene.add(rain);
+  const marker = selectionMarker();
+  scene.add(marker);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+  controls.minDistance = 700;
+  controls.maxDistance = 16000;
+  controls.minPolarAngle = 0.12;
+  controls.maxPolarAngle = 1.38;
+  controls.screenSpacePanning = false;
+  controls.autoRotateSpeed = 0.22;
+  controls.zoomSpeed = 0.8;
+
+  const stillPose = state.still ? POSES.hero : null;
+  poseToCamera(stillPose || (state.introActive ? POSES.intro : homePose()), camera, controls);
+  controls.enabled = !state.introActive;
+  controls.update();
+
+  const rtSize = renderer.getDrawingBufferSize(new THREE.Vector2());
+  const target = new THREE.WebGLRenderTarget(rtSize.x, rtSize.y, { type: THREE.HalfFloatType, samples: 4 });
+  const composer = new EffectComposer(renderer, target);
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c = texture2D(tDiffuse, vUv); bool bad = any(isnan(c)) || any(isinf(c)); gl_FragColor = bad ? vec4(0.0, 0.0, 0.0, 1.0) : min(c, vec4(64.0)); }',
+  }));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.55, 0.2);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    composer.setSize(w, h);
+    bloom.resolution.set(w, h);
+    U.uScale.value = (h * pr * 0.5) / Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+    $('timeline') && document.documentElement.style.setProperty('--tl-h', `${$('timeline').offsetHeight}px`);
+  }
+  resize();
+  addEventListener('resize', resize);
+
+  const ui = buildUI(W);
+  const hashGrid = buildSpatialHash(W.res);
+  const layers = {
+    residents: [residents], wom: arcs, stores: [stores.group], riders, weather: [rain],
+  };
+  const weatherOn = () => $('layer-weather').checked;
+  for (const key of Object.keys(layers)) {
+    const id = { residents: 'layer-residents', wom: 'layer-wom', stores: 'layer-stores', riders: 'layer-riders', weather: 'layer-weather' }[key];
+    $(id).addEventListener('change', (e) => { layers[key].forEach((m) => { m.visible = e.target.checked; }); });
+  }
+
+  if (state.still) {
+    state.t = STILL_HOURS[state.still] ?? Number(app.dataset.stillHour || 250);
+  }
+
+  const picker = makePicker(W, camera, renderer, hashGrid, ui, marker);
+  state.picker = picker;
+  wireInput(controls, picker, ui);
+
+  const fogDusk = COL.dusk.clone(), fogRain = new THREE.Color('#0A0D25');
+  const introStart = performance.now();
+  let last = performance.now();
+  let frames = 0;
+  ui.setTime(state.t, true);
+
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    state.frameMs.push(now - last);
+    if (state.frameMs.length > 120) state.frameMs.shift();
+    last = now;
+    state.clock += reduceMotion ? 0 : dt;
+
+    if (state.introActive) {
+      const k = Math.min(1, (now - introStart) / 2800);
+      state.intro = (now - introStart) / 1000;
+      poseToCamera(lerpPose(POSES.intro, homePose(), ease(k)), camera, controls);
+      if (k >= 1) endIntro(controls);
+    } else if (!state.still) {
+      controls.autoRotate = !reduceMotion && !state.selected && now - state.lastInput > 8000;
+      controls.update();
+      clampTarget(controls);
+    }
+
+    if (state.playing && !state.scrubbing) {
+      state.t += dt * state.speed;
+      if (state.t >= 720) { state.t = 720; ui.setPlaying(false); }
+      ui.setTime(state.t);
+    }
+
+    const t = state.t;
+    U.uTime.value = t;
+    U.uIntro.value = state.intro;
+    U.uClock.value = state.clock;
+    const h = Math.min(719, Math.max(0, Math.floor(t)));
+    const rainK = smooth(RAIN_A - 3, RAIN_A, t) * (1 - smooth(RAIN_B, RAIN_B + 3, t)) * (weatherOn() ? 1 : 0);
+    U.uRain.value = rainK;
+    U.uWarm.value = Math.min(1, W.sim.adoptCount[h] / (W.res.count * 0.2));
+    const camDist = camera.position.distanceTo(controls.target);
+    FOG.uFogStart.value = camDist * 0.62 * (1 - 0.18 * rainK);
+    FOG.uFogDensity.value = (1.15 / camDist) * (1 + 0.3 * rainK);
+    FOG.uFogColor.value.copy(fogDusk).lerp(fogRain, rainK);
+    FOG.uHaze.value.copy(HAZE).lerp(fogRain, rainK * 0.6);
+    sky.material.uniforms.uBandGain.value = 1 - 0.6 * rainK;
+    sky.material.uniforms.uHorizon.value.copy(FOG.uHaze.value);
+    sky.position.copy(camera.position);
+    rain.visible = rainK > 0.001;
+    rain.material.uniforms.uCenter.value.copy(camera.position).lerp(controls.target, 0.3);
+
+    const introK = smooth(1.6, 2.4, state.intro);
+    stores.items.forEach((s, k) => {
+      const out = W.sim.stockH[k * HOURS + h] < 1;
+      s.color.value.copy(out ? COL.sindoor : COL.tube);
+      const flick = out && !reduceMotion ? 0.72 + 0.28 * Math.sin(state.clock * 5 + k * 1.7) : 1;
+      s.gain.value = flick * introK * (out ? 1.15 : 1);
+    });
+    marker.material.uniforms.uSize.value = 30 * pr;
+
+    composer.render();
+    frames++;
+    if (frames === 3) app.dataset.ready = '1';
+    requestAnimationFrame(frame);
+  }
+
+  $('loading').classList.add('gone');
+  setTimeout(() => { $('loading').hidden = true; }, 700);
+  if (!state.still && !state.introActive) ui.setPlaying(false);
+  requestAnimationFrame(frame);
+  app.__perf = () => {
+    const a = state.frameMs.slice(-60);
+    return a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+  };
+  app.__debug = { W, camera, controls, state, ui, picker, scene, composer, renderer };
+}
+
+function endIntro(controls) {
+  state.introActive = false;
+  state.intro = 99;
+  controls.enabled = true;
+  poseToCamera(homePose(), controls.object, controls);
+  controls.update();
+  state.lastInput = performance.now();
+  if (!reduceMotion && !state.still && !state.userPaused) state.ui.setPlaying(true);
+}
+
+function clampTarget(controls) {
+  const t = controls.target;
+  const x = Math.min(3200, Math.max(-4200, t.x)), z = Math.min(3800, Math.max(-3800, t.z));
+  if (x !== t.x || z !== t.z || t.y !== 0) {
+    const d = new THREE.Vector3(x - t.x, -t.y, z - t.z);
+    t.add(d);
+    controls.object.position.add(d);
+  }
+}
+
+function wireInput(controls, picker, ui) {
+  const bump = () => { state.lastInput = performance.now(); };
+  let down = null;
+  stageEl.addEventListener('pointerdown', (e) => {
+    bump();
+    if (state.introActive) endIntro(controls);
+    stageEl.focus({ preventScroll: true });
+    down = { x: e.clientX, y: e.clientY, t: performance.now() };
+  });
+  stageEl.addEventListener('pointerup', (e) => {
+    bump();
+    if (!down) return;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    if (moved < 6 && performance.now() - down.t < 600) picker.pick(e.clientX, e.clientY);
+    down = null;
+  });
+  stageEl.addEventListener('wheel', () => { bump(); if (state.introActive) endIntro(controls); }, { passive: true });
+  app.addEventListener('keydown', (e) => {
+    bump();
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'LABEL') return;
+    e.preventDefault();
+    ui.togglePlay();
+  });
+  app.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.selected) ui.closeDetail();
+  });
+}
+
+function makePicker(W, camera, renderer, G, ui, marker) {
+  const R = W.res;
+  const ray = new THREE.Raycaster();
+  const v = new THREE.Vector3(), ndc = new THREE.Vector2();
+  const toScreen = (x, y, z) => {
+    v.set(x, y, z).project(camera);
+    return [(v.x * 0.5 + 0.5) * innerWidth, (-v.y * 0.5 + 0.5) * innerHeight, v.z];
+  };
+  function pickStore(px, py) {
+    if (!$('layer-stores').checked) return -1;
+    let best = -1, bd = 14;
+    W.stores.forEach((s, k) => {
+      const a = toScreen(s.x, 0, s.z), b = toScreen(s.x, 320, s.z);
+      if (a[2] > 1 || b[2] > 1) return;
+      const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1;
+      const u = Math.min(1, Math.max(0, ((px - a[0]) * dx + (py - a[1]) * dy) / L2));
+      const d = Math.hypot(px - a[0] - u * dx, py - a[1] - u * dy);
+      if (d < bd) { bd = d; best = k; }
+    });
+    return best;
+  }
+  function pickResident(px, py) {
+    if (!$('layer-residents').checked) return -1;
+    ndc.set((px / innerWidth) * 2 - 1, -(py / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const o = ray.ray.origin, d = ray.ray.direction;
+    if (d.y > -0.01) return -1;
+    const tTop = Math.max(0, (125 - o.y) / d.y), tBot = (0 - o.y) / d.y;
+    const ax = o.x + d.x * tTop, az = o.z + d.z * tTop, bx = o.x + d.x * tBot, bz = o.z + d.z * tBot;
+    const L = Math.min(3000, Math.hypot(bx - ax, bz - az));
+    const steps = Math.max(1, Math.ceil(L / (G.CS * 0.5)));
+    const seen = new Set();
+    let best = -1, bd = 10, bz2 = Infinity;
+    for (let s = 0; s <= steps; s++) {
+      const x = ax + (bx - ax) * (s / steps), z = az + (bz - az) * (s / steps);
+      const gx = Math.floor((x + G.GO) / G.CS), gz = Math.floor((z + G.GO) / G.CS);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+        const u = gx + a, w = gz + b;
+        if (u < 0 || w < 0 || u >= G.GN || w >= G.GN) continue;
+        const c = w * G.GN + u;
+        if (seen.has(c)) continue;
+        seen.add(c);
+        for (let q = G.start[c]; q < G.start[c + 1]; q++) {
+          const i = G.items[q];
+          const p = toScreen(R.x[i], R.y[i], R.z[i]);
+          const dd = Math.hypot(p[0] - px, p[1] - py);
+          if (dd < bd - 1.5 || (dd < bd + 1.5 && p[2] < bz2)) { bd = Math.min(bd, dd); bz2 = p[2]; best = i; }
+        }
+      }
+    }
+    return best;
+  }
+  function placeMarker(x, y, z) {
+    marker.geometry.attributes.position.array.set([x, y, z]);
+    marker.geometry.attributes.position.needsUpdate = true;
+    marker.visible = true;
+  }
+  return {
+    pick(px, py) {
+      const s = pickStore(px, py);
+      if (s >= 0) { placeMarker(W.stores[s].x, 3, W.stores[s].z); ui.openStore(s); return; }
+      const i = pickResident(px, py);
+      if (i >= 0) { placeMarker(R.x[i], R.y[i], R.z[i]); ui.openResident(i); return; }
+      ui.closeDetail();
+    },
+    hide() { marker.visible = false; },
+    selectResident(i) { placeMarker(R.x[i], R.y[i], R.z[i]); ui.openResident(i); },
+    selectStore(s) { placeMarker(W.stores[s].x, 3, W.stores[s].z); ui.openStore(s); },
+  };
+}
+
+function buildUI(W) {
+  const S = W.sim, R = W.res, N = R.count;
+  const scrub = $('scrub'), playBtn = $('play');
+  const el = {
+    adopt: $('r-adopt'), aware: $('r-aware'), orders: $('r-orders'), out: $('r-out'), outWrap: $('r-out-wrap'),
+    time: $('time'), playhead: $('playhead'), played: $('played-rect'),
+  };
+  const pct = (h) => `${(h / HOURS) * 100}%`;
+
+  let maxA = 1;
+  for (let h = 0; h < HOURS; h++) maxA = Math.max(maxA, S.adoptCount[h]);
+  let d = 'M0 100';
+  for (let h = 0; h < HOURS; h += 2) d += ` L${h} ${(100 - (S.adoptCount[h] / maxA) * 92).toFixed(1)}`;
+  d += ` L720 ${(100 - (S.adoptCount[HOURS - 1] / maxA) * 92).toFixed(1)} L720 100 Z`;
+  $('spark-dim').setAttribute('d', d);
+  $('spark-hot').setAttribute('d', d);
+
+  const bar = $('tl-bar');
+  const band = document.createElement('div');
+  band.className = 'rain-band';
+  band.style.left = pct(RAIN_A);
+  band.style.width = pct(RAIN_B - RAIN_A);
+  bar.prepend(band);
+  let runStart = -1;
+  for (let h = 0; h <= HOURS; h++) {
+    const out = h < HOURS && S.outH[h] > 0;
+    if (out && runStart < 0) runStart = h;
+    if (!out && runStart >= 0) {
+      const n = document.createElement('div');
+      n.className = 'notch';
+      n.style.left = pct(runStart);
+      n.style.width = pct(h - runStart);
+      bar.appendChild(n);
+      runStart = -1;
+    }
+  }
+  const events = $('tl-events');
+  events.innerHTML = `
+    <div class="ev" style="left:${pct(AD_HOUR)}"><span class="long">Instagram ad</span><span class="short">Ad</span></div>
+    <div class="ev" style="left:${pct(CREATOR_HOUR)}"><span class="long">Creator campaign</span><span class="short">Creator</span></div>
+    <div class="ev rain" style="left:${pct(RAIN_A)};width:${pct(RAIN_B - RAIN_A)}"><span class="long">Monsoon</span><span class="short">Rain</span></div>`;
+  $('tl-ticks').innerHTML = [5, 10, 15, 20, 25, 30].map((dd) => `<div class="tick" style="left:${pct((dd - 1) * 24)}">Day ${dd}</div>`).join('');
+
+  let lastH = -2, lastDetailRender = 0;
+  const api = {
+    setTime(t, force) {
+      state.t = t;
+      if (!state.scrubbing) scrub.value = String(Math.round(t));
+      el.time.textContent = dayTime(t);
+      el.playhead.style.left = pct(t);
+      el.played.setAttribute('width', String(t));
+      scrub.setAttribute('aria-valuetext', dayTime(t));
+      const h = Math.floor(t) - 1;
+      if (h === lastH && !force) return;
+      lastH = h;
+      const idx = Math.min(HOURS - 1, h);
+      const adopted = idx < 0 ? 0 : S.adoptCount[idx], aware = idx < 0 ? 0 : S.awareCount[idx];
+      el.adopt.innerHTML = `${fmt.format(adopted)}<small>${((adopted / N) * 100).toFixed(1)}%</small>`;
+      el.aware.textContent = `${Math.round((aware / N) * 100)}%`;
+      let today = 0;
+      const d0 = Math.floor(Math.min(Math.max(t, 0), 719.99) / 24) * 24;
+      for (let k = d0; k <= idx; k++) today += S.ordersH[k];
+      el.orders.textContent = fmt.format(today);
+      const out = idx < 0 ? 0 : S.outH[idx];
+      el.out.innerHTML = `${out}<small>of ${STORE_N}</small>`;
+      el.outWrap.classList.toggle('alert', out > 0);
+      const now = performance.now();
+      if (state.selected && (force || now - lastDetailRender > 180)) { lastDetailRender = now; renderDetail(); }
+    },
+    setPlaying(p) {
+      if (p && state.t >= 720) api.setTime(0, true);
+      state.playing = p;
+      playBtn.setAttribute('aria-label', p ? 'Pause' : 'Play');
+      $('play-icon').setAttribute('d', p ? 'M4 2.5h3v11H4zM9 2.5h3v11H9z' : 'M4 2.5v11l9.5-5.5z');
+    },
+    togglePlay() { state.userPaused = state.playing; api.setPlaying(!state.playing); },
+    openResident(i) { state.selected = { kind: 'res', i }; renderDetail(true); },
+    openStore(k) { state.selected = { kind: 'store', k }; renderDetail(true); },
+    closeDetail() { state.selected = null; $('detail').hidden = true; state.picker && state.picker.hide(); },
+  };
+  state.ui = api;
+
+  playBtn.addEventListener('click', () => api.togglePlay());
+  document.querySelectorAll('.speed button').forEach((b) => b.addEventListener('click', () => {
+    state.speed = Number(b.dataset.speed);
+    document.querySelectorAll('.speed button').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+  }));
+  scrub.addEventListener('pointerdown', () => { state.scrubbing = true; });
+  addEventListener('pointerup', () => { state.scrubbing = false; });
+  scrub.addEventListener('input', () => { api.setTime(Number(scrub.value)); });
+  scrub.addEventListener('change', () => { state.scrubbing = false; });
+  $('detail-close').addEventListener('click', () => api.closeDetail());
+  const lt = $('legend-toggle'), lg = $('legend');
+  lt.addEventListener('click', () => {
+    const open = lg.dataset.collapsed === 'true';
+    lg.dataset.collapsed = open ? 'false' : 'true';
+    lt.setAttribute('aria-expanded', String(open));
+    lt.textContent = open ? 'Hide legend' : 'Legend';
+  });
+
+  const deliveriesOf = (i) => {
+    const D = S.deliveries, list = [];
+    for (let k = 0; k < D.n; k++) if (D.res[k] === i) list.push(k);
+    return list;
+  };
+  const tieLabel = (i, j) => {
+    const dist = Math.hypot(R.x[i] - R.x[j], R.z[i] - R.z[j]);
+    if (R.b[i] === R.b[j]) return 'who lives in the same building';
+    if (dist < 650) return 'a neighbour';
+    const dn = DISTRICTS[R.dist[j]].name;
+    return R.east[i] !== R.east[j] ? `family in ${dn}, across the river` : `a colleague in ${dn}`;
+  };
+
+  function residentHTML(i) {
+    const t = state.t, nm = personName(i);
+    const at = S.awareT[i], ad = S.adoptT[i];
+    const status = ad <= t ? ['Ordered', 'var(--lamp)'] : at <= t ? ['Heard about it', 'var(--chatter)'] : ["Hasn't heard yet", 'var(--tube)'];
+    const items = [];
+    const push = (when, text, color) => items.push({ when, text, color });
+    if (at < 1e9) {
+      const src = S.awareSrc[i];
+      let text;
+      if (src === -1 || src === -3) text = `Heard about it on day ${dayOf(at)} from an Instagram ad`;
+      else if (src === -2) text = `Heard about it on day ${dayOf(at)} from the creator campaign`;
+      else text = `Heard about it on day ${dayOf(at)} from ${personName(src).first}, ${tieLabel(i, src)}`;
+      push(at, text, 'var(--chatter)');
+    }
+    if (S.soH[i] >= 0) {
+      const so = S.soH[i], st = W.stores[S.soStore[i]].label;
+      const out = S.soOutcome[i];
+      const text = out === 1 ? `Day ${dayOf(so)}: ${st} out of stock, ordered from ${W.stores[S.soAlt[i]].label} instead`
+        : out === 2 ? `Day ${dayOf(so)}: store out of stock, waited a day` : `Day ${dayOf(so)}: store out of stock, gave up for now`;
+      push(so, text, 'var(--sindoor)');
+    }
+    if (ad < 1e9) {
+      const c = fmtClock(ad);
+      push(ad, `Ordered on day ${c.day} at ${c.text} from ${W.stores[S.adoptStore[i]].name}`, 'var(--lamp)');
+    }
+    const dl = deliveriesOf(i);
+    const soFar = dl.filter((k) => S.deliveries.t0[k] <= t).length;
+    items.sort((a, b) => a.when - b.when);
+    if (dl.length > 1) {
+      const lastT = S.deliveries.t0[dl[dl.length - 1]];
+      if (soFar > 1) push(Math.min(t, lastT), `Has ordered ${soFar} times`, 'var(--lamp)');
+      if (dl.length > soFar && soFar > 0) push(lastT, `Orders ${dl.length} times by day 30`, 'var(--lamp)');
+      else if (soFar === 0) push(lastT, `Orders ${dl.length} times by day 30`, 'var(--lamp)');
+    }
+    if (!items.length) items.push({ when: 1e9, text: 'Never hears about it in these 30 days', color: 'var(--mist)', never: true });
+    const li = items.map((it) => `<li class="${it.when > t ? 'later' : ''}" style="--c:${it.color}">${it.when > t && !it.never ? 'Later: ' : ''}${it.text}</li>`).join('');
+    return `
+      <p class="kicker">Resident</p>
+      <h2 id="detail-title">${nm.first} ${nm.last}</h2>
+      <p class="meta">${R.age[i]}, ${DISTRICTS[R.dist[i]].name}</p>
+      <div class="state" style="--c:${status[1]}"><span class="dot"></span>${status[0]}</div>
+      <ul class="story">${li}</ul>
+      <div class="voice">
+        <button class="btn-secondary" type="button" aria-disabled="true">Interview by voice</button>
+        <p class="helper">Coming with the voice milestone</p>
+      </div>`;
+  }
+
+  function storeHTML(k) {
+    const s = W.stores[k], t = state.t, h = Math.min(HOURS - 1, Math.max(0, Math.floor(t)));
+    const row = S.stockH.subarray(k * HOURS, (k + 1) * HOURS);
+    let max = 1;
+    for (let q = 0; q < HOURS; q++) max = Math.max(max, row[q]);
+    const y = (v) => (56 - (v / max) * 50).toFixed(1);
+    let line = '', red = '';
+    for (let q = 0; q < HOURS; q += 2) line += `${q ? 'L' : 'M'}${q} ${y(row[q])}`;
+    for (const [a, b] of S.outIntervals[k]) red += `M${a} 56.5L${Math.max(b, a + 3)} 56.5`;
+    const iv = S.outIntervals[k];
+    const totalOut = iv.reduce((acc, [a, b]) => acc + b - a, 0);
+    let note;
+    if (!iv.length) note = '<li class="note">Never ran out in these 30 days</li>';
+    else {
+      const d0 = dayOf(iv[0][0]), d1 = dayOf(iv[iv.length - 1][1] - 0.01);
+      note = `<li class="note bad">Out of stock for ${totalOut} hours ${d0 === d1 ? `on day ${d0}` : `across days ${d0}–${d1}`}</li>`;
+    }
+    let served = 0, total = 0;
+    for (let q = 0; q < HOURS; q++) { const v = S.servedH[k * HOURS + q]; total += v; if (q <= h && q < t) served += v; }
+    const out = row[h] < 1;
+    const status = out ? ['Out of stock', 'var(--sindoor)'] : [`In stock, ${fmt.format(Math.round(row[h]))} units`, 'var(--tube)'];
+    return `
+      <p class="kicker">Dark store</p>
+      <h2 id="detail-title">${s.name}</h2>
+      <p class="meta">${fmt.format(s.inRange)} homes within delivery range</p>
+      <div class="state" style="--c:${status[1]}"><span class="dot"></span>${status[0]}</div>
+      <div class="stock-head"><span>Stock over 30 days</span><span class="num">Peak ${fmt.format(Math.round(max))}</span></div>
+      <svg class="stock-svg" viewBox="0 0 720 60" preserveAspectRatio="none" role="img" aria-label="Stock level over 30 days">
+        <rect x="${RAIN_A}" y="0" width="${RAIN_B - RAIN_A}" height="60" fill="#6F8CC9" fill-opacity="0.12"/>
+        <path d="${line}" fill="none" stroke="#A6F0DA" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+        <path d="${red}" fill="none" stroke="#FF5468" stroke-width="3" vector-effect="non-scaling-stroke"/>
+        <line x1="${t}" x2="${t}" y1="0" y2="60" stroke="#EEF0FB" stroke-opacity="0.7" vector-effect="non-scaling-stroke"/>
+      </svg>
+      <ul class="facts">
+        ${note}
+        <li><span>Restocks</span><span>Every 48 hours</span></li>
+        <li><span>Orders served so far</span><span class="num">${fmt.format(served)}</span></li>
+        <li><span>Orders served by day 30</span><span class="num">${fmt.format(total)}</span></li>
+      </ul>`;
+  }
+
+  function renderDetail(open) {
+    const sel = state.selected;
+    if (!sel) return;
+    $('detail-body').innerHTML = sel.kind === 'res' ? residentHTML(sel.i) : storeHTML(sel.k);
+    if (open) { $('detail').hidden = false; $('detail').scrollTop = 0; }
+  }
+  return api;
+}
+
+start();
+</script>

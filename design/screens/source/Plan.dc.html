@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Twinlight plan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@300;500;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&display=swap">
+<style>
+body{margin:0;background:#0F1330}
+a{color:#A6F0DA}a:hover{color:#EEF0FB}
+button:focus-visible,a:focus-visible{outline:2px solid #FFB547;outline-offset:3px}
+</style>
+</helmet>
+<div style="min-height: 2000px; background: #0F1330; color: #EEF0FB; font-family: 'Atkinson Hyperlegible Next', 'Segoe UI', system-ui, sans-serif">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 32px; padding: 20px max(24px, 4vw); border-bottom: 1px solid #2A3166">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px">
+      <a href="Landing.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #EEF0FB">
+        <svg aria-hidden="true" width="28" height="20" viewBox="0 0 28 20"><circle cx="10" cy="10" r="8" fill="#A6F0DA" opacity="0.9"></circle><circle cx="18" cy="10" r="8" fill="#FFB547" opacity="0.9"></circle><path d="M14 3.1a8 8 0 0 1 0 13.8a8 8 0 0 1 0-13.8z" fill="#FFF3DC"></path></svg>
+        <span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 24px">Twinlight</span>
+      </a>
+      <span style="color: #9AA3CF; font-size: 15px">Mango lassi, 200 ml, ₹49 in Ahmedabad</span>
+    </div>
+    <nav aria-label="Rehearsal views" style="display: flex; gap: 6px; padding: 4px; background: #171C42; border: 1px solid #2A3166; border-radius: 999px">
+      <a href="City.dc.html" style="padding: 9px 18px; border-radius: 999px; color: #9AA3CF; text-decoration: none; font-size: 15px">City</a>
+      <a href="#" aria-current="page" style="padding: 9px 18px; border-radius: 999px; background: #2A3166; color: #EEF0FB; text-decoration: none; font-size: 15px">Plan</a>
+      <a href="#" style="padding: 9px 18px; border-radius: 999px; color: #9AA3CF; text-decoration: none; font-size: 15px">Compare</a>
+    </nav>
+    <div style="display: flex; align-items: center; gap: 16px; font-size: 14px; color: #9AA3CF">
+      <span>50 rehearsals, finished today at 2:14 pm</span>
+      <button style="height: 40px; padding: 0 18px; border: 1px solid #2A3166; border-radius: 999px; background: transparent; color: #EEF0FB; font: inherit; cursor: pointer">Download CSV</button>
+    </div>
+  </header>
+
+  <main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 48px max(24px, 4vw) 80px; display: flex; flex-direction: column; gap: 56px">
+    <section style="display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start">
+      <div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+        <h1 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 50px; line-height: 1.1; letter-spacing: 0.005em; text-wrap: balance; max-width: 820px">The west side takes to it first, and four stores run dry around day 10.</h1>
+        <p style="margin: 0; font-size: 18px; line-height: 1.7; color: #D9DCF0; max-width: 720px">
+          The Instagram ad mostly reaches 18 to 30 year olds in Satellite, Bodakdev and Vastrapur
+          <a href="City.dc.html" style="{{eventChip}}">Day 1, 8 pm</a>.
+          After day 5, most first orders come from friends and neighbours rather than the ad
+          <a href="City.dc.html" style="{{eventChip}}">Day 6 onward</a>.
+          The creator campaign doubles daily orders in three western districts, and stores 03, 07, 09 and 11 run out for 9 to 16 hours between days 9 and 11
+          <a href="City.dc.html" style="{{eventChipRed}}">Day 10, 9 pm</a>.
+          Rain on days 12 to 14 stretches deliveries by about a third
+          <a href="City.dc.html" style="{{eventChipBlue}}">Day 13</a>.
+        </p>
+      </div>
+
+      <aside aria-label="Calibration" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px; background: #171C42; border: 1px solid #2A3166; border-radius: 14px; box-shadow: 0 12px 40px rgba(5,7,20,0.45)">
+        <h2 style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 24px">Checked against your real sales</h2>
+        <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #9AA3CF">Kesar lassi launch in Surat, Diwali 2025. We rehearsed it from the first 10 days and compared the next 20 with what you sold.</p>
+        <div role="img" aria-label="80% ranges held on 17 of 20 test days" style="display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 4px; align-items: end; height: 34px">
+          <sc-for list="{{testDays}}" as="d" hint-placeholder-count="20">
+            <span style="{{d.style}}"></span>
+          </sc-for>
+        </div>
+        <p style="margin: 0; font-size: 15px; line-height: 1.5"><span style="font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-size: 30px; font-weight: 500; color: #A6F0DA">17 of 20</span><br>days landed inside the 80% range. A typical miss was 11% of daily units.</p>
+        <a href="#" style="font-size: 14px">Change calibration</a>
+      </aside>
+    </section>
+
+    <section aria-label="Key outcomes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 20px">
+      <sc-for list="{{outcomes}}" as="o" hint-placeholder-count="3">
+        <div style="display: flex; flex-direction: column; gap: 12px; padding: 22px 24px; border: 1px solid #2A3166; border-radius: 14px">
+          <h3 style="margin: 0; font-size: 15px; font-weight: 500; color: #9AA3CF">{{o.label}}</h3>
+          <p style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 300; font-size: 52px; line-height: 1; font-variant-numeric: tabular-nums; color: {{o.color}}">{{o.likely}}</p>
+          <p style="margin: 0; font-size: 15px; color: #D9DCF0">likely between {{o.low}} and {{o.high}}</p>
+          <svg role="img" aria-label="{{o.aria}}" viewBox="0 0 300 18" style="width: 100%; height: 18px">
+            <rect x="0" y="7" width="300" height="4" rx="2" fill="#2A3166"></rect>
+            <rect x="{{o.bandX}}" y="5" width="{{o.bandW}}" height="8" rx="4" fill="{{o.color}}" opacity="0.35"></rect>
+            <rect x="{{o.tickX}}" y="1" width="3" height="16" rx="1.5" fill="{{o.color}}"></rect>
+          </svg>
+        </div>
+      </sc-for>
+    </section>
+
+    <section aria-labelledby="curve-title" style="display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px">
+        <h2 id="curve-title" style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 30px">People who have ordered at least once</h2>
+        <p style="margin: 0; font-size: 14px; color: #9AA3CF">Across 50 rehearsals. The band holds 8 in 10 of them.</p>
+      </div>
+      <div style="overflow-x: auto">
+        <svg role="img" aria-label="Cumulative people who ordered over 30 days: most likely 2.9 lakh by day 30, range 2.4 to 3.5 lakh" viewBox="0 0 880 350" style="width: 100%; min-width: 640px; height: auto; display: block">
+          <rect x="{{chart.rainX}}" y="24" width="{{chart.rainW}}" height="276" fill="#6F8CC9" opacity="0.12"></rect>
+          <rect x="{{chart.stockX}}" y="300" width="{{chart.stockW}}" height="6" fill="#FF5468"></rect>
+          <sc-for list="{{chart.grid}}" as="g" hint-placeholder-count="4">
+            <line x1="56" x2="800" y1="{{g.y}}" y2="{{g.y}}" stroke="#2A3166" stroke-width="1"></line>
+            <text x="48" y="{{g.ty}}" text-anchor="end" fill="#9AA3CF" font-size="12" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">{{g.label}}</text>
+          </sc-for>
+          <line x1="56" x2="800" y1="300" y2="300" stroke="#9AA3CF" stroke-width="1"></line>
+          <sc-for list="{{chart.days}}" as="d" hint-placeholder-count="7">
+            <line x1="{{d.x}}" x2="{{d.x}}" y1="300" y2="306" stroke="#9AA3CF" stroke-width="1"></line>
+            <text x="{{d.x}}" y="326" text-anchor="middle" fill="#9AA3CF" font-size="12" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">{{d.label}}</text>
+          </sc-for>
+          <path d="{{chart.band}}" fill="#FFB547" opacity="0.2"></path>
+          <path d="{{chart.p50}}" fill="none" stroke="#FFB547" stroke-width="2.5" stroke-linejoin="round"></path>
+          <sc-for list="{{chart.markers}}" as="m" hint-placeholder-count="2">
+            <line x1="{{m.x}}" x2="{{m.x}}" y1="24" y2="300" stroke="#C8B6FF" stroke-width="1" stroke-dasharray="3 4"></line>
+            <text x="{{m.tx}}" y="16" fill="#C8B6FF" font-size="12" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">{{m.label}}</text>
+          </sc-for>
+          <sc-for list="{{chart.ends}}" as="e" hint-placeholder-count="3">
+            <circle cx="800" cy="{{e.y}}" r="3" fill="#FFB547" opacity="{{e.o}}"></circle>
+            <text x="810" y="{{e.ty}}" fill="{{e.fill}}" font-size="13" font-family="Atkinson Hyperlegible Next, system-ui, sans-serif">{{e.label}}</text>
+          </sc-for>
+        </svg>
+      </div>
+      <ul aria-label="Chart legend" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 28px; font-size: 14px; color: #9AA3CF">
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 22px; height: 10px; border-radius: 3px; background: rgba(255,181,71,0.35)"></span>Likely range</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 22px; height: 3px; border-radius: 2px; background: #FFB547"></span>Most likely</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 22px; height: 6px; background: #FF5468"></span>Stores empty</li>
+        <li style="display: flex; align-items: center; gap: 8px"><span style="width: 22px; height: 10px; border-radius: 3px; background: rgba(111,140,201,0.35)"></span>Rain</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="stock-title" style="display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px">
+        <h2 id="stock-title" style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 30px">How much to stock, store by store</h2>
+        <p style="margin: 0; font-size: 14px; color: #9AA3CF">Units of 200 ml. Set for 95% of rehearsals to never run out.</p>
+      </div>
+      <div style="overflow-x: auto; border: 1px solid #2A3166; border-radius: 14px">
+        <table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums">
+          <thead>
+            <tr style="text-align: left; color: #9AA3CF; font-size: 13px">
+              <th scope="col" style="padding: 14px 20px; font-weight: 500">Store</th>
+              <th scope="col" style="padding: 14px 12px; font-weight: 500">Likely orders in 30 days</th>
+              <th scope="col" style="padding: 14px 12px; font-weight: 500">Hours empty</th>
+              <th scope="col" style="padding: 14px 12px; font-weight: 500">Reorder at</th>
+              <th scope="col" style="padding: 14px 12px; font-weight: 500">Order up to</th>
+              <th scope="col" style="padding: 14px 20px; font-weight: 500">Suggested change</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{stores}}" as="s" hint-placeholder-count="8">
+              <tr style="border-top: 1px solid #2A3166">
+                <th scope="row" style="padding: 14px 20px; text-align: left; font-weight: 400"><span style="color: #EEF0FB">Store {{s.id}}</span> <span style="color: #9AA3CF">{{s.area}}</span></th>
+                <td style="padding: 14px 12px">{{s.orders}}</td>
+                <td style="padding: 14px 12px; color: {{s.emptyColor}}">{{s.empty}}</td>
+                <td style="padding: 14px 12px">{{s.reorder}}</td>
+                <td style="padding: 14px 12px">{{s.upto}}</td>
+                <td style="padding: 14px 20px"><span style="{{s.chip}}">{{s.change}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <a href="#" style="font-size: 14px">Show all 14 stores</a>
+    </section>
+
+    <section aria-labelledby="next-title" style="display: flex; flex-direction: column; gap: 18px; max-width: 900px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h2 id="next-title" style="margin: 0; font-family: 'Big Shoulders', 'Arial Narrow', sans-serif; font-weight: 500; font-size: 30px">Where to launch next</h2>
+        <p style="margin: 0; font-size: 15px; color: #9AA3CF">People who order per 10,000 shoppers by day 30, same brief in each city. Surat and Ahmedabad overlap a lot; treat them as level.</p>
+      </div>
+      <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px">
+        <sc-for list="{{ranking}}" as="r" hint-placeholder-count="5">
+          <li style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; gap: 16px; align-items: center">
+            <span style="font-size: 16px; color: {{r.nameColor}}">{{r.city}}</span>
+            <svg role="img" aria-label="{{r.aria}}" viewBox="0 0 500 14" preserveAspectRatio="none" style="width: 100%; height: 14px">
+              <rect x="0" y="5" width="500" height="4" rx="2" fill="#2A3166"></rect>
+              <rect x="{{r.bandX}}" y="3" width="{{r.bandW}}" height="8" rx="4" fill="#FFB547" opacity="0.35"></rect>
+              <rect x="{{r.tickX}}" y="0" width="3" height="14" rx="1.5" fill="#FFB547"></rect>
+            </svg>
+            <span style="font-size: 15px; font-variant-numeric: tabular-nums; color: #D9DCF0">{{r.likely}} <span style="color: #9AA3CF">({{r.range}})</span></span>
+          </li>
+        </sc-for>
+      </ol>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const x0 = 56, x1 = 800, yTop = 24, yBot = 300, vMax = 4;
+    const xs = (d) => x0 + (d / 30) * (x1 - x0);
+    const ys = (v) => yBot - (v / vMax) * (yBot - yTop);
+    const pts = [];
+    let F = 0, t = 0;
+    const M = 3.6, q = 0.2, dt = 0.25;
+    pts.push([0, 0]);
+    while (t < 30 - 1e-9) {
+      let p = 0.003;
+      if (t >= 1 && t < 4) p += 0.008;
+      if (t >= 8 && t < 11) p += 0.012;
+      let mult = 1;
+      if (t >= 9 && t < 12) mult *= 0.8;
+      if (t >= 12 && t < 15) mult *= 0.72;
+      F += (p + q * F / M) * (M - F) * dt * mult;
+      t += dt;
+      pts.push([t, F * 0.88]);
+    }
+    const line = (k) => pts.map(([d, v], i) => (i ? 'L' : 'M') + xs(d).toFixed(1) + ' ' + ys(v * k).toFixed(1)).join(' ');
+    const upper = pts.map(([d, v]) => xs(d).toFixed(1) + ' ' + ys(v * 1.195).toFixed(1));
+    const lower = pts.slice().reverse().map(([d, v]) => xs(d).toFixed(1) + ' ' + ys(v * 0.83).toFixed(1));
+    const band = 'M' + upper.join(' L') + ' L' + lower.join(' L') + ' Z';
+    const last = pts[pts.length - 1][1];
+    const ends = [
+      { v: last * 1.195, label: '3.5 lakh', fill: '#9AA3CF', o: 0.6 },
+      { v: last, label: '2.9 lakh', fill: '#FFB547', o: 1 },
+      { v: last * 0.83, label: '2.4 lakh', fill: '#9AA3CF', o: 0.6 }
+    ].map((e) => ({ ...e, y: ys(e.v).toFixed(1), ty: (ys(e.v) + 4).toFixed(1) }));
+    const chart = {
+      band,
+      p50: line(1),
+      grid: [1, 2, 3, 4].map((v) => ({ y: ys(v), ty: ys(v) + 4, label: v + ' lakh' })),
+      days: [0, 5, 10, 15, 20, 25, 30].map((d) => ({ x: xs(d), label: d === 0 ? 'Launch' : 'Day ' + d })),
+      markers: [
+        { x: xs(1), tx: xs(1) + 6, label: 'Instagram ad' },
+        { x: xs(8), tx: xs(8) + 6, label: 'Creator campaign' }
+      ],
+      ends,
+      rainX: xs(12), rainW: xs(15) - xs(12),
+      stockX: xs(9), stockW: xs(12) - xs(9)
+    };
+
+    const outcome = (label, low, likely, high, max, color, fmt) => {
+      const sx = (v) => (v / max) * 297;
+      return { label, likely: fmt(likely), low: fmt(low), high: fmt(high), color, bandX: sx(low), bandW: sx(high) - sx(low), tickX: sx(likely), aria: label + ': likely ' + fmt(likely) + ', between ' + fmt(low) + ' and ' + fmt(high) };
+    };
+    const inr = (n) => n.toLocaleString('en-IN');
+    const outcomes = [
+      outcome('People who order at least once', 242000, 291000, 348000, 400000, '#FFB547', inr),
+      outcome('Orders in 30 days', 610000, 720000, 840000, 1000000, '#FFB547', inr),
+      outcome('Orders lost to empty stores', 29000, 41000, 56000, 80000, '#FF5468', inr)
+    ];
+
+    const missed = [6, 13, 18];
+    const testDays = Array.from({ length: 20 }, (_, i) => {
+      const miss = missed.includes(i);
+      return { style: 'display: block; border-radius: 3px; ' + (miss ? 'height: 14px; background: transparent; border: 2px solid #FF5468; box-sizing: border-box' : 'height: 30px; background: #A6F0DA; opacity: 0.85') };
+    });
+
+    const chipBase = 'display: inline-block; padding: 1px 10px; border-radius: 999px; font-size: 14px; text-decoration: none; white-space: nowrap; vertical-align: 1px; ';
+    const changeChip = (c) => 'display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 13px; ' + (c === 'Raise stock' ? 'background: rgba(255,181,71,0.16); color: #FFB547; border: 1px solid rgba(255,181,71,0.5)' : c === 'Keep' ? 'color: #A6F0DA; border: 1px solid rgba(166,240,218,0.4)' : 'color: #9AA3CF; border: 1px solid #2A3166');
+    const rows = [
+      ['07', 'Navrangpura', '61,000 to 74,000', 14, '480 to 560', '1,050', 'Raise stock'],
+      ['03', 'Satellite', '58,000 to 70,000', 11, '450 to 530', '980', 'Raise stock'],
+      ['09', 'Bodakdev', '52,000 to 66,000', 16, '430 to 520', '940', 'Raise stock'],
+      ['11', 'Vastrapur', '47,000 to 59,000', 9, '380 to 450', '820', 'Raise stock'],
+      ['01', 'Paldi', '39,000 to 48,000', 0, '300 to 350', '640', 'Keep'],
+      ['05', 'Maninagar', '33,000 to 42,000', 0, '260 to 310', '560', 'Keep'],
+      ['14', 'Naranpura', '25,000 to 33,000', 2, '200 to 250', '450', 'Keep'],
+      ['12', 'Chandkheda', '21,000 to 29,000', 0, '170 to 210', '380', 'Lower']
+    ];
+    const stores = rows.map(([id, area, orders, empty, reorder, upto, change]) => ({
+      id, area, orders, reorder, upto, change,
+      empty: empty === 0 ? 'None' : empty + ' hours',
+      emptyColor: empty >= 5 ? '#FF5468' : '#D9DCF0',
+      chip: changeChip(change)
+    }));
+
+    const rx = (v) => (v / 600) * 497;
+    const ranking = [
+      ['Surat', 330, 410, 480, false],
+      ['Ahmedabad (this rehearsal)', 300, 365, 430, true],
+      ['Vadodara', 230, 300, 360, false],
+      ['Rajkot', 180, 240, 300, false],
+      ['Pune', 170, 210, 260, false]
+    ].map(([city, lo, mid, hi, here]) => ({
+      city, likely: String(mid), range: lo + ' to ' + hi,
+      nameColor: here ? '#FFB547' : '#EEF0FB',
+      bandX: rx(lo), bandW: rx(hi) - rx(lo), tickX: rx(mid),
+      aria: city + ': likely ' + mid + ' per 10,000 shoppers, between ' + lo + ' and ' + hi
+    }));
+
+    return {
+      chart, outcomes, testDays, stores, ranking,
+      eventChip: chipBase + 'background: rgba(200,182,255,0.14); color: #C8B6FF; border: 1px solid rgba(200,182,255,0.35)',
+      eventChipRed: chipBase + 'background: rgba(255,84,104,0.14); color: #FF8A97; border: 1px solid rgba(255,84,104,0.4)',
+      eventChipBlue: chipBase + 'background: rgba(111,140,201,0.18); color: #A9BDE6; border: 1px solid rgba(111,140,201,0.45)'
+    };
+  }
+}
+</script>
+</body>
+</html>

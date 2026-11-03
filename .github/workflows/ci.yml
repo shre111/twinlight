@@ -1,0 +1,126 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      engine: ${{ steps.filter.outputs.engine }}
+      python: ${{ steps.filter.outputs.python }}
+      formats: ${{ steps.filter.outputs.formats }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/**'
+              - 'packages/**'
+              - 'design/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'turbo.json'
+              - 'biome.json'
+            engine:
+              - 'py/**'
+              - 'services/runner/**'
+              - 'fixtures/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            python:
+              - 'services/minds/**'
+              - 'tools/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+            formats:
+              - 'py/tape/**'
+              - 'packages/tape/**'
+              - 'fixtures/tape/**'
+              - 'fixtures/pack/**'
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm biome ci .
+      - run: pnpm turbo run typecheck test --filter="...[origin/main]"
+
+  engine:
+    needs: changes
+    if: needs.changes.outputs.engine == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      TWL_GOLDEN_STRICT: '1'
+      NUMBA_CACHE_DIR: .numba-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/cache@v4
+        with:
+          path: .numba-cache
+          key: numba-${{ runner.os }}-${{ hashFiles('uv.lock', 'py/engine/**/*.py') }}
+      - run: uv sync --frozen
+      - run: uv run ruff format --check py services/runner
+      - run: uv run ruff check py services/runner
+      - run: uv run pyright py services/runner
+      - run: uv run pytest -q py services/runner -m "not golden"
+      - name: Determinism across worker counts
+        run: |
+          for w in 1 4 8; do TWL_WORKERS=$w uv run pytest -q py/engine -m golden; done
+
+  python:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [services/minds, tools/citybake]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff format --check ${{ matrix.project }}
+      - run: uv run ruff check ${{ matrix.project }}
+      - run: uv run pyright ${{ matrix.project }}
+      - run: uv run pytest -q ${{ matrix.project }}
+
+  cross-language-goldens:
+    needs: changes
+    if: needs.changes.outputs.formats == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: uv sync --frozen
+      - run: pnpm install --frozen-lockfile
+      - run: uv run python -m twl_tape.fixtures --check
+      - run: pnpm -F @twinlight/tape test

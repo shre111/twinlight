@@ -1,0 +1,30 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-03T09:05:00Z" },
+  "title": "Twinlight",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Landing.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 2200, "title": "Landing", "expand": "fill" },
+    "Main.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Brief", "expand": "fill", "is_interactive": true },
+    "City.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 900, "title": "City", "expand": "fill", "is_interactive": true },
+    "Plan.dc.html": { "x": 4560, "y": 0, "w": 1440, "h": 2000, "title": "Plan", "expand": "fill" },
+    "PhoneCity.dc.html": { "x": 0, "y": 2600, "w": 390, "h": 844, "title": "Phone, city" },
+    "PhoneResident.dc.html": { "x": 470, "y": 2600, "w": 390, "h": 844, "title": "Phone, resident" },
+    "PhoneInterview.dc.html": { "x": 940, "y": 2600, "w": 390, "h": 844, "title": "Phone, interview", "is_interactive": true }
+  },
+  "order": [
+    "Landing.dc.html",
+    "Main.dc.html",
+    "City.dc.html",
+    "Plan.dc.html",
+    "PhoneCity.dc.html",
+    "PhoneResident.dc.html",
+    "PhoneInterview.dc.html"
+  ],
+  "notes": {
+    "webTitle": { "x": 0, "y": -320, "text": "Twinlight on the web: land, brief, watch the city, read the plan", "kind": "title1", "maxW": 6000 },
+    "phoneTitle": { "x": 0, "y": 2300, "text": "Twinlight on a phone", "kind": "title1", "maxW": 1330 }
+  },
+  "designSystems": []
+}
