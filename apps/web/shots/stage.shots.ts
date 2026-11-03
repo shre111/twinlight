@@ -15,12 +15,15 @@ async function openStage(page: Page, query: string) {
   await page.waitForFunction(() => (window.__twinlightStage?.perf().frames ?? 0) > 2)
 }
 
-test('city', async ({ page }, testInfo) => {
-  await openStage(page, 'hud=0')
-  const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-city.png`)
-  await page.screenshot({ path: still })
-  await expect(page).toHaveScreenshot('city.png')
-})
+for (const day of [1, 6, 13]) {
+  test(`city day ${day}`, async ({ page }, testInfo) => {
+    await openStage(page, `hud=0&day=${day}`)
+    const name = `city-day${day}`
+    const still = path.join(testInfo.project.outputDir, `${testInfo.project.name}-${name}.png`)
+    await page.screenshot({ path: still })
+    await expect(page).toHaveScreenshot(`${name}.png`)
+  })
+}
 
 test('frame report', async ({ page }, testInfo) => {
   const report: Partial<Record<TierName, FrameReport>> = {}
