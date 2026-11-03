@@ -1,3 +1,4 @@
+import math
 import os
 import re
 import tomllib
@@ -82,6 +83,7 @@ class PopulationConfig:
 
     min_floor_m2_per_person: float = 4.0
     adult_share: float = 0.69
+    adult_share_source: str = ""
     residents: int = 100_000
     shopper_share: float = 0.27
     residential_share: Mapping[str, float] = field(
@@ -105,11 +107,14 @@ class PopulationConfig:
 
 @dataclass(frozen=True)
 class HouseholdConfig:
-    """Census households by size: `sizes` are the representative sizes of the bins."""
+    """Census households by size: `sizes` are the representative sizes of the bins.
+    `size_shrink` scales the mean household size for a census older than the population it is
+    applied to (1.0 keeps the census)."""
 
     source: str
     sizes: tuple[int, ...]
     counts: tuple[int, ...]
+    size_shrink: float = 1.0
 
     def __post_init__(self) -> None:
         if len(self.sizes) != len(self.counts) or not self.sizes:
@@ -118,11 +123,40 @@ class HouseholdConfig:
             raise ValueError("household sizes must be positive and increasing")
         if self.sizes[-1] > 255 or min(self.counts) < 0 or sum(self.counts) == 0:
             raise ValueError("household sizes must fit u8, counts be non-negative and not all 0")
+        if not 0 < self.size_shrink <= 1 or self.mean_size * self.size_shrink < self.sizes[0]:
+            raise ValueError(
+                "size_shrink must be in (0, 1] and keep the mean above the smallest size"
+            )
 
     @property
     def mean_size(self) -> float:
         persons = sum(s * n for s, n in zip(self.sizes, self.counts, strict=True))
         return persons / sum(self.counts)
+
+    def shrunk_counts(self) -> tuple[float, ...]:
+        """Counts exponentially tilted towards small households, w_k = n_k exp(theta s_k), with
+        theta set by bisection so the mean size is `size_shrink` times the census mean; the
+        least-informative reweighting that hits the new mean."""
+        if self.size_shrink == 1.0:
+            return tuple(float(n) for n in self.counts)
+        sizes = [float(s) for s in self.sizes]
+        goal = self.mean_size * self.size_shrink
+
+        def weights(theta: float) -> list[float]:
+            top = max(sizes)
+            return [
+                n * math.exp(theta * (s - top)) for s, n in zip(sizes, self.counts, strict=True)
+            ]
+
+        def mean(theta: float) -> float:
+            w = weights(theta)
+            return sum(wk * s for wk, s in zip(w, sizes, strict=True)) / sum(w)
+
+        lo, hi = -50.0, 0.0
+        for _ in range(200):
+            mid = (lo + hi) / 2
+            lo, hi = (mid, hi) if mean(mid) < goal else (lo, mid)
+        return tuple(weights((lo + hi) / 2))
 
 
 @dataclass(frozen=True)
@@ -192,7 +226,10 @@ def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
     if raw is None:
         return None
     return HouseholdConfig(
-        source=raw["source"], sizes=tuple(raw["sizes"]), counts=tuple(raw["counts"])
+        source=raw["source"],
+        sizes=tuple(raw["sizes"]),
+        counts=tuple(raw["counts"]),
+        size_shrink=float(raw.get("size_shrink", 1.0)),
     )
 
 
