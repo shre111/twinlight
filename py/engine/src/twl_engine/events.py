@@ -25,9 +25,18 @@ class Events:
         return self.minute.shape[0]
 
 
+def _no_events() -> Events:
+    empty = np.zeros((FIELDS, 0), dtype=np.int64)
+    return Events(minute=empty[MINUTE], seq=empty[SEQ], kind=empty[KIND], a=empty[A], b=empty[B])
+
+
+NO_EVENTS = _no_events()
+
+
 class EventQueue:
     def __init__(self, capacity: int = INITIAL_CAPACITY) -> None:
         self.heap = np.zeros((max(capacity, 1), FIELDS), dtype=np.int64)
+        self.scratch = np.empty_like(self.heap)
         self.count = 0
         self.next_seq = 0
 
@@ -38,31 +47,67 @@ class EventQueue:
         """Queue an event; returns its seq, which breaks ties between events at one minute."""
         if minute < 0:
             raise ValueError("event minutes are never negative")
-        if self.count == self.heap.shape[0]:
-            self._grow()
+        self._reserve(self.count + 1)
         seq = self.next_seq
         self.next_seq += 1
         heap_push(self.heap, self.count, minute, seq, kind, a, b)
         self.count += 1
         return seq
 
+    def push_many(
+        self,
+        minutes: NDArray[np.int64],
+        kinds: NDArray[np.int64],
+        a: NDArray[np.int64],
+        b: NDArray[np.int64],
+    ) -> NDArray[np.int64]:
+        """Queue events in array order with one kernel call; returns their seqs."""
+        n = minutes.shape[0]
+        if kinds.shape != (n,) or a.shape != (n,) or b.shape != (n,):
+            raise ValueError("push_many needs minutes, kinds, a and b of one length")
+        if n == 0:
+            return np.zeros(0, dtype=np.int64)
+        if minutes.min() < 0:
+            raise ValueError("event minutes are never negative")
+        self._reserve(self.count + n)
+        first_seq = self.next_seq
+        heap_push_many(
+            self.heap,
+            self.count,
+            first_seq,
+            np.ascontiguousarray(minutes, dtype=np.int64),
+            np.ascontiguousarray(kinds, dtype=np.int64),
+            np.ascontiguousarray(a, dtype=np.int64),
+            np.ascontiguousarray(b, dtype=np.int64),
+        )
+        self.count += n
+        self.next_seq += n
+        return np.arange(first_seq, first_seq + n, dtype=np.int64)
+
     def peek_minute(self) -> int | None:
         return int(self.heap[0, MINUTE]) if self.count else None
 
     def pop_until(self, minute: int) -> Events:
         """Remove and return every event with `event.minute <= minute`, ordered by (minute, seq)."""
-        out = np.empty((self.count, FIELDS), dtype=np.int64)
-        popped = heap_pop_until(self.heap, self.count, minute, out)
+        if self.count == 0 or self.heap[0, MINUTE] > minute:
+            return NO_EVENTS
+        popped = heap_pop_until(self.heap, self.count, minute, self.scratch)
         self.count -= popped
-        taken = np.ascontiguousarray(out[:popped].T)
+        taken = np.ascontiguousarray(self.scratch[:popped].T)
         return Events(
             minute=taken[MINUTE], seq=taken[SEQ], kind=taken[KIND], a=taken[A], b=taken[B]
         )
 
-    def _grow(self) -> None:
-        bigger = np.zeros((self.heap.shape[0] * 2, FIELDS), dtype=np.int64)
+    def _reserve(self, needed: int) -> None:
+        capacity = self.heap.shape[0]
+        if needed <= capacity:
+            return
+        while capacity < needed:
+            capacity *= 2
+        bigger = np.zeros((capacity, FIELDS), dtype=np.int64)
         bigger[: self.count] = self.heap[: self.count]
         self.heap = bigger
+        self.scratch = np.empty_like(bigger)
 
 
 @njit(cache=True)
@@ -96,6 +141,20 @@ def heap_push(
             break
         _swap(heap, i, parent)
         i = parent
+
+
+@njit(cache=True)
+def heap_push_many(
+    heap: NDArray[np.int64],
+    count: int,
+    first_seq: int,
+    minutes: NDArray[np.int64],
+    kinds: NDArray[np.int64],
+    a: NDArray[np.int64],
+    b: NDArray[np.int64],
+) -> None:
+    for i in range(minutes.shape[0]):
+        heap_push(heap, count + i, minutes[i], first_seq + i, kinds[i], a[i], b[i])
 
 
 @njit(cache=True)
