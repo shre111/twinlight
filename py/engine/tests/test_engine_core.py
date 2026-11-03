@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from twl_engine.clock import Clock
-from twl_engine.events import EventQueue
+from twl_engine.events import EventQueue, Events
 from twl_engine.fixtures import ToyCity, build_toy_city
 from twl_engine.run import ENGINE_VERSION, RunInputs, run_seed, run_seed_bytes
 from twl_engine.scenario import EMPTY, Params, Scenario
@@ -51,15 +51,9 @@ def empty_tape(empty_bytes: bytes) -> Tape:
     return read_tape(empty_bytes)
 
 
-def rows(popped: object) -> list[tuple[int, ...]]:
-    """Normalise pop_until output (2-D array, five column arrays, or row tuples) to row tuples."""
-    if isinstance(popped, np.ndarray) and popped.ndim == 2:
-        table = popped if popped.shape[1] == 5 else popped.T
-        return [tuple(int(v) for v in r) for r in table]
-    assert isinstance(popped, tuple | list)
-    if len(popped) == 5 and all(isinstance(c, np.ndarray) and c.ndim == 1 for c in popped):
-        return [tuple(int(v) for v in r) for r in zip(*popped, strict=True)]
-    return [tuple(int(v) for v in r) for r in popped]
+def rows(popped: Events) -> list[tuple[int, ...]]:
+    columns = (popped.minute, popped.seq, popped.kind, popped.a, popped.b)
+    return [tuple(int(v) for v in r) for r in zip(*columns, strict=True)]
 
 
 def test_clock_counts_ticks_and_tick_start_minutes() -> None:
