@@ -21,7 +21,7 @@ const cssPrefixByGroup: Record<string, string> = {
   shadow: 'shadow',
   motion: 'motion',
 }
-const tsOnlyGroups = new Set(['city'])
+const tsOnlyGroups = new Set(['city', 'sky'])
 
 const genericFontFamilies = new Set([
   'serif',
