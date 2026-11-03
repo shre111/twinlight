@@ -1,0 +1,24 @@
+import { type DynamicModule, Module } from '@nestjs/common'
+import { LoggerModule } from 'nestjs-pino'
+import { BUILD_INFO, readBuildInfo } from './build-info.js'
+import type { Config } from './config.js'
+import { HealthController } from './health/health.controller.js'
+
+@Module({})
+export class AppModule {
+  static forRoot(config: Config): DynamicModule {
+    return {
+      module: AppModule,
+      imports: [
+        LoggerModule.forRoot({
+          pinoHttp: {
+            level: config.LOG_LEVEL,
+            transport: config.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
+          },
+        }),
+      ],
+      controllers: [HealthController],
+      providers: [{ provide: BUILD_INFO, useValue: readBuildInfo(config.GIT_SHA) }],
+    }
+  }
+}
