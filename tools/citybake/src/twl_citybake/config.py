@@ -1,7 +1,7 @@
 import os
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
@@ -36,11 +36,27 @@ class OsmSource:
 
 
 @dataclass(frozen=True)
+class RiverConfig:
+    """Names of the `waterway=river` centrelines that split the city into banks."""
+
+    names: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class DistrictConfig:
+    """`place` values whose named nodes and areas seed districts."""
+
+    place_kinds: tuple[str, ...] = ("suburb", "neighbourhood", "quarter", "village", "town")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
     bbox: BBox
     osm: OsmSource
+    river: RiverConfig = field(default_factory=RiverConfig)
+    districts: DistrictConfig = field(default_factory=DistrictConfig)
 
 
 def load_city(slug: str) -> CityConfig:
@@ -53,6 +69,12 @@ def load_city(slug: str) -> CityConfig:
         name=raw["name"],
         bbox=BBox(*raw["bbox"]),
         osm=OsmSource(url=raw["osm"]["url"], md5=raw["osm"]["md5"]),
+        river=RiverConfig(names=tuple(raw.get("river", {}).get("names", ()))),
+        districts=DistrictConfig(
+            place_kinds=tuple(
+                raw.get("districts", {}).get("place_kinds", DistrictConfig.place_kinds)
+            )
+        ),
     )
 
 
