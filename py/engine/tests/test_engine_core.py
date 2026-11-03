@@ -21,7 +21,7 @@ GOLDEN = Path(__file__).resolve().parents[3] / "fixtures" / "golden" / "hashes.t
 RESIDENTS = 5_000
 STORES = 14
 TICKS_30D = 2_880
-HEADER_END = 136 + 6 * 32
+HEADER_END = 160 + 6 * 32
 FOOTER_SIZE = 40
 
 
@@ -216,6 +216,13 @@ def test_empty_run_header_pins_inputs_and_clock(empty_tape: Tape) -> None:
     assert h.city_pack_hash == pack_hash()
     assert h.run_id == derive_run_id(pack_hash(), EMPTY.hash(), Params().hash(), 1)
     assert h.flags & 1 == 1
+    assert (h.residents, h.stores, h.chatter_rows, h.delivery_rows, h.stockout_pairs) == (
+        RESIDENTS,
+        STORES,
+        0,
+        0,
+        0,
+    )
 
 
 def test_empty_run_has_every_resident_unaware_and_unordered(empty_tape: Tape) -> None:
@@ -283,3 +290,4 @@ def test_ten_day_scenario_gives_960_ticks(city: ToyCity) -> None:
     assert len(tape.aggregates.aware) == 960
     assert len(tape.stores.stock) == STORES * 960
     assert len(tape.residents.aware_at) == RESIDENTS
+    assert (tape.header.residents, tape.header.stores) == (RESIDENTS, STORES)
