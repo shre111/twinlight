@@ -27,7 +27,7 @@ from twl_tape.format import (
 from twl_tape.reader import read_tape
 from twl_tape.writer import tape_hash, write_tape
 
-HEADER_FIXED = struct.Struct("<4sHH16sQ32s32s32sII")
+HEADER_FIXED = struct.Struct("<4sHH16sQ32s32s32sIIIIIIII")
 ROW = struct.Struct("<IQQQI")
 TABLE_ROWS = 6
 TABLE_START = HEADER_FIXED.size
@@ -85,8 +85,24 @@ def arr(values: list[float] | list[int], dtype: str) -> NDArray[np.generic]:
     return np.array(values, dtype=dtype)
 
 
+COUNT_FIELDS = ["residents", "stores", "chatter_rows", "delivery_rows", "stockout_pairs"]
+COUNTS_AT = HEADER_FIXED.size - 6 * 4
+SMALL_COUNTS = {
+    "residents": 5,
+    "stores": 2,
+    "chatter_rows": 2,
+    "delivery_rows": 1,
+    "stockout_pairs": 1,
+}
+EMPTY_COUNTS = dict.fromkeys(COUNT_FIELDS, 0)
+
+
 def make_header(
-    sim_minutes: int = 60, seed: int = 7, run_id: bytes | None = None, flags: int = 0
+    sim_minutes: int = 60,
+    seed: int = 7,
+    run_id: bytes | None = None,
+    flags: int = 0,
+    counts: dict[str, int] = SMALL_COUNTS,
 ) -> TapeHeader:
     return TapeHeader(
         run_id=run_id or derive_run_id(PACK_HASH, SCENARIO_HASH, PARAMS_HASH, seed),
@@ -97,6 +113,7 @@ def make_header(
         sim_minutes=sim_minutes,
         tick_minutes=15,
         flags=flags,
+        **counts,
     )
 
 
@@ -140,7 +157,7 @@ def small_tape() -> Tape:
 
 def empty_tape() -> Tape:
     return Tape(
-        header=make_header(sim_minutes=0),
+        header=make_header(sim_minutes=0, counts=EMPTY_COUNTS),
         residents=ResidentsSection(
             aware_at=arr([], "<u4"),
             first_order_at=arr([], "<u4"),
@@ -218,15 +235,18 @@ class Parsed:
     scenario_hash: bytes
     sim_minutes: int
     tick_minutes: int
+    counts: dict[str, int]
+    reserved: int
     rows: list[Row]
     total_length: int
     footer_hash: bytes
 
 
 def parse(data: bytes) -> Parsed:
-    magic, version, flags, run_id, seed, engine, city, scenario, sim, tick = (
+    magic, version, flags, run_id, seed, engine, city, scenario, sim, tick, *tail = (
         HEADER_FIXED.unpack_from(data, 0)
     )
+    counts = dict(zip(COUNT_FIELDS, tail[:5], strict=True))
     rows = [Row(*ROW.unpack_from(data, TABLE_START + i * ROW.size)) for i in range(TABLE_ROWS)]
     total_length = struct.unpack_from("<Q", data, len(data) - FOOTER_SIZE)[0]
     return Parsed(
@@ -240,6 +260,8 @@ def parse(data: bytes) -> Parsed:
         scenario,
         sim,
         tick,
+        counts,
+        tail[5],
         rows,
         total_length,
         data[-32:],
@@ -319,6 +341,8 @@ def test_file_header_matches_an_independent_parse(tape: Tape, data: bytes) -> No
     assert p.city_pack_hash == h.city_pack_hash
     assert p.scenario_hash == h.scenario_hash
     assert (p.sim_minutes, p.tick_minutes) == (h.sim_minutes, h.tick_minutes)
+    assert p.counts == SMALL_COUNTS
+    assert p.reserved == 0
 
 
 def test_section_table_has_six_rows_in_kind_order_with_aligned_offsets(data: bytes) -> None:
@@ -338,9 +362,41 @@ def test_section_crc32_covers_the_compressed_bytes(data: bytes) -> None:
         assert zlib.crc32(data[r.offset : r.offset + r.length]) == r.crc32
 
 
-def test_raw_lengths_equal_the_padded_column_totals(tape: Tape, data: bytes) -> None:
-    for r in parse(data).rows:
-        assert r.raw_length == len(expected_raw(tape, SectionKind(r.kind))), r.kind
+def padded_total(widths_and_counts: list[tuple[int, int]]) -> int:
+    return sum((w * n + 7) // 8 * 8 for w, n in widths_and_counts)
+
+
+def raw_length_from_counts(p: Parsed, kind: SectionKind) -> int:
+    c = p.counts
+    ticks = p.sim_minutes // p.tick_minutes
+    cells = c["stores"] * ticks
+    n = c["residents"]
+    match kind:
+        case SectionKind.RESIDENTS:
+            return padded_total([(4, n), (4, n), (2, n), (4, n), (1, n), (1, n)])
+        case SectionKind.CHATTER:
+            return padded_total([(4, c["chatter_rows"])] * 3)
+        case SectionKind.DELIVERIES:
+            d = c["delivery_rows"]
+            return padded_total([(2, d), (4, d), (4, d), (4, d), (4, d), (1, d)])
+        case SectionKind.STORES:
+            return padded_total(
+                [(4, cells), (2, cells), (4, c["stores"] + 1), (4, 2 * c["stockout_pairs"])]
+            )
+        case SectionKind.AGGREGATES:
+            return padded_total([(4, ticks)] * 3 + [(2, ticks), (4, ticks)])
+        case _:
+            return 0
+
+
+def test_raw_lengths_equal_the_padded_column_totals_from_the_header_counts(
+    tape: Tape, data: bytes
+) -> None:
+    p = parse(data)
+    for r in p.rows:
+        kind = SectionKind(r.kind)
+        assert r.raw_length == raw_length_from_counts(p, kind), kind
+        assert r.raw_length == len(expected_raw(tape, kind)), kind
 
 
 def test_decompressed_sections_equal_the_padded_little_endian_columns(
@@ -406,6 +462,36 @@ def test_wrong_raw_length_raises_even_when_the_footer_is_recomputed(data: bytes)
     struct.pack_into("<Q", body, at, row.raw_length + 8)
     with pytest.raises(TapeError):
         read_tape(refooted(bytes(body)))
+
+
+@pytest.mark.parametrize("index", range(5), ids=COUNT_FIELDS)
+def test_header_count_off_by_a_padding_unit_raises_when_footer_recomputed(
+    data: bytes, index: int
+) -> None:
+    body = bytearray(body_of(data))
+    at = COUNTS_AT + 4 * index
+    (value,) = struct.unpack_from("<I", body, at)
+    struct.pack_into("<I", body, at, value + 8)
+    with pytest.raises(TapeError):
+        read_tape(refooted(bytes(body)))
+
+
+@pytest.mark.parametrize("field", COUNT_FIELDS)
+def test_write_rejects_header_counts_that_disagree_with_array_lengths(
+    tape: Tape, field: str
+) -> None:
+    bad = dataclasses.replace(
+        tape, header=dataclasses.replace(tape.header, **{field: getattr(tape.header, field) + 1})
+    )
+    with pytest.raises(ValueError):
+        write_tape(bad)
+
+
+def test_write_rejects_nonzero_counts_on_an_empty_tape() -> None:
+    tape = empty_tape()
+    bad = dataclasses.replace(tape, header=dataclasses.replace(tape.header, residents=1))
+    with pytest.raises(ValueError):
+        write_tape(bad)
 
 
 def test_wrong_magic_raises_tape_error(data: bytes) -> None:
