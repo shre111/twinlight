@@ -70,6 +70,7 @@ Development runs through Claude Code with the agents, skills and hooks in `.clau
 
 ## Data and attribution
 - Map data © OpenStreetMap contributors, ODbL.
+- Building footprints where OSM has gaps: VIDA's combined dataset of Google Open Buildings and Microsoft Global ML Building Footprints.
 - Population: WorldPop, CC BY 4.0.
 - Synthetic personas: NVIDIA Nemotron-Personas-India, CC BY 4.0.
 All residents are synthetic. No real customer data is used.
