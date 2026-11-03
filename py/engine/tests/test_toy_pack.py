@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import subprocess
 import sys
@@ -150,6 +151,14 @@ def test_different_seed_writes_a_different_pack_hash(
         build_toy_city(seed=7, residents=SMALL), tmp_path_factory.mktemp("pack_seed7")
     )
     assert other != pack[1]
+
+
+def test_changing_one_column_changes_the_pack_hash(
+    city: ToyCity, pack: tuple[Path, str], tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    taller = dataclasses.replace(city.buildings, height=city.buildings.height + np.float32(1))
+    changed = dataclasses.replace(city, buildings=taller)
+    assert write_pack(changed, tmp_path_factory.mktemp("pack_taller")) != pack[1]
 
 
 def test_pack_directory_holds_the_spec_files(pack: tuple[Path, str]) -> None:
