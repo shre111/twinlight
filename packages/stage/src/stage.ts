@@ -132,6 +132,7 @@ export class Stage {
     const layer = new CityLayer(city)
     this.#city = layer
     this.#scene.add(layer.group)
+    this.#rig.fit(layer.extent)
     if (city.stores.count > 0) {
       this.#stores = new StoresLayer(city.stores, layer.fog, this.#clock, this.#reducedMotion)
       this.#scene.add(this.#stores.object)

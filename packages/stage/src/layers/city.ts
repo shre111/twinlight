@@ -1,5 +1,6 @@
 import { uniform } from 'three/tsl'
 import { type Camera, Group } from 'three/webgpu'
+import { type CityExtent, cityBounds, extentOf } from '../extent'
 import type { StageCity } from '../inputs'
 import { createBuildings } from './buildings'
 import { Fog } from './fog'
@@ -14,15 +15,17 @@ export class CityLayer {
   /** 0 is the cool launch-day city, 1 fully warmed by orders. */
   readonly warm = uniform(0)
   readonly residents: StageCity['residents']
+  readonly extent: CityExtent
   readonly #sky: Layer
   readonly #layers: Layer[]
 
   constructor(city: StageCity) {
     this.residents = city.residents
-    this.#sky = createSky(this.fog)
+    this.extent = extentOf(cityBounds(city))
+    this.#sky = createSky(this.fog, this.extent.scale)
     this.#layers = [
       this.#sky,
-      createGround(this.fog, this.warm),
+      createGround(this.fog, this.warm, this.extent),
       ...createRoads(city.roads, this.fog),
       createBuildings(city.buildings, this.fog, this.warm),
     ]
