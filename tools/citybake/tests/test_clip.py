@@ -73,3 +73,14 @@ def test_clip_drops_untouched_objects(tmp_path: Path) -> None:
     found = ids(dest)
     assert 12 not in found["w"]
     assert found["n"].isdisjoint({5, 6})
+
+
+def test_clip_is_byte_identical_across_runs(tmp_path: Path) -> None:
+    src = tmp_path / "region.osm"
+    src.write_text(OSM_XML)
+    first, second = tmp_path / "a.osm.pbf", tmp_path / "b.osm.pbf"
+
+    clip_extract(src, first, BBOX)
+    clip_extract(src, second, BBOX)
+
+    assert first.read_bytes() == second.read_bytes()

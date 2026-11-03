@@ -29,13 +29,12 @@ def clip_extract(src: Path, dest: Path, bbox: BBox) -> None:
                 keep = tracker.contains_any_references(obj)
                 if keep:
                     tracker.add_way(obj.id)
-            elif isinstance(obj, Relation):
+            else:
+                assert isinstance(obj, Relation)
                 keep = obj.tags.get("type") in AREA_RELATION_TYPES and (
                     tracker.contains_any_references(obj)
                 )
                 if keep:
                     tracker.add_relation(obj.id)
-            else:
-                keep = False
             if keep:
                 writer.add(obj)
