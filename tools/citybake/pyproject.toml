@@ -6,7 +6,6 @@ dependencies = [
     "numpy>=2.5,<3",
     "osmium>=4.3,<5",
     "pyproj>=3.8,<4",
-    "shapely>=2.2,<3",
 ]
 
 [project.scripts]
