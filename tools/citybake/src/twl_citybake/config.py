@@ -1,9 +1,14 @@
 import os
 import re
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from importlib.resources import files
+from itertools import pairwise
 from pathlib import Path
+from typing import Any
+
+from twl_citybake.osm.tags import BuildingKind
 
 
 @dataclass(frozen=True)
@@ -26,13 +31,23 @@ class BBox:
 
 
 @dataclass(frozen=True)
-class OsmSource:
+class PinnedDownload:
     url: str
     md5: str
 
     @property
     def filename(self) -> str:
         return self.url.rsplit("/", 1)[-1]
+
+
+@dataclass(frozen=True)
+class OsmSource(PinnedDownload):
+    pass
+
+
+@dataclass(frozen=True)
+class WorldPopSource(PinnedDownload):
+    pass
 
 
 @dataclass(frozen=True)
@@ -49,6 +64,67 @@ class DistrictConfig:
     place_kinds: tuple[str, ...] = ("suburb", "neighbourhood", "quarter", "village", "town")
 
 
+DEFAULT_RESIDENTIAL_SHARE = {
+    "unknown": 0.9,
+    "residential": 1.0,
+    "commercial": 0.2,
+    "industrial": 0.05,
+    "civic": 0.1,
+    "religious": 0.0,
+    "other": 0.0,
+}
+
+
+@dataclass(frozen=True)
+class PopulationConfig:
+    """`residential_share` is the share of floor area that is housing, keyed by lowercase
+    BuildingKind name."""
+
+    min_floor_m2_per_person: float = 4.0
+    adult_share: float = 0.69
+    residents: int = 100_000
+    shopper_share: float = 0.27
+    residential_share: Mapping[str, float] = field(
+        default_factory=lambda: dict(DEFAULT_RESIDENTIAL_SHARE)
+    )
+
+    def __post_init__(self) -> None:
+        names = sorted(kind.name.lower() for kind in BuildingKind)
+        if sorted(self.residential_share) != names:
+            raise ValueError(f"residential_share needs exactly the kinds {names}")
+        if not all(0 <= v <= 1 for v in self.residential_share.values()):
+            raise ValueError("residential shares must be in [0, 1]")
+        if not (0 < self.adult_share <= 1 and 0 < self.shopper_share <= 1):
+            raise ValueError("adult_share and shopper_share must be in (0, 1]")
+        if self.min_floor_m2_per_person <= 0 or self.residents < 0:
+            raise ValueError("min_floor_m2_per_person must be positive, residents non-negative")
+
+    def share_by_kind(self) -> dict[BuildingKind, float]:
+        return {kind: float(self.residential_share[kind.name.lower()]) for kind in BuildingKind}
+
+
+@dataclass(frozen=True)
+class HouseholdConfig:
+    """Census households by size: `sizes` are the representative sizes of the bins."""
+
+    source: str
+    sizes: tuple[int, ...]
+    counts: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.sizes) != len(self.counts) or not self.sizes:
+            raise ValueError("household sizes and counts must be non-empty and the same length")
+        if self.sizes[0] < 1 or any(a >= b for a, b in pairwise(self.sizes)):
+            raise ValueError("household sizes must be positive and increasing")
+        if self.sizes[-1] > 255 or min(self.counts) < 0 or sum(self.counts) == 0:
+            raise ValueError("household sizes must fit u8, counts be non-negative and not all 0")
+
+    @property
+    def mean_size(self) -> float:
+        persons = sum(s * n for s, n in zip(self.sizes, self.counts, strict=True))
+        return persons / sum(self.counts)
+
+
 @dataclass(frozen=True)
 class CityConfig:
     slug: str
@@ -57,6 +133,10 @@ class CityConfig:
     osm: OsmSource
     river: RiverConfig = field(default_factory=RiverConfig)
     districts: DistrictConfig = field(default_factory=DistrictConfig)
+    seed: int = 0
+    worldpop: WorldPopSource | None = None
+    population: PopulationConfig = field(default_factory=PopulationConfig)
+    households: HouseholdConfig | None = None
 
 
 def load_city(slug: str) -> CityConfig:
@@ -75,6 +155,22 @@ def load_city(slug: str) -> CityConfig:
                 raw.get("districts", {}).get("place_kinds", DistrictConfig.place_kinds)
             )
         ),
+        seed=int(raw.get("seed", 0)),
+        worldpop=_worldpop(raw.get("worldpop")),
+        population=PopulationConfig(**raw.get("population", {})),
+        households=_households(raw.get("households")),
+    )
+
+
+def _worldpop(raw: dict[str, Any] | None) -> WorldPopSource | None:
+    return None if raw is None else WorldPopSource(url=raw["url"], md5=raw["md5"])
+
+
+def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
+    if raw is None:
+        return None
+    return HouseholdConfig(
+        source=raw["source"], sizes=tuple(raw["sizes"]), counts=tuple(raw["counts"])
     )
 
 
