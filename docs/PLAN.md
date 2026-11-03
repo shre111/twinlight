@@ -22,7 +22,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
   AC: health returns version and git sha.
 - [ ] **P-005 Dev infrastructure** Lane A. `infra/compose/dev.yml`: Postgres 17 with PostGIS + h3, MinIO with buckets `packs` and `tapes`, Redis, Temporal dev server, otel-lgtm. `just dev` brings it up.
   AC: all containers healthy; gateway connects to Postgres and MinIO.
-- [ ] **P-006 CI** Lane A. Path-filtered jobs: web (biome, tsc, vitest), engine (ruff, pyright, pytest, determinism across worker counts), python services (ruff, pyright, pytest), cross-language goldens, PR title check. Cache pnpm and uv.
+- [x] **P-006 CI** Lane A. Path-filtered jobs: web (biome, tsc, vitest), engine (ruff, pyright, pytest, determinism across worker counts), python services (ruff, pyright, pytest), cross-language goldens, PR title check. Cache pnpm and uv.
   AC: a docs-only PR runs only the title check; an engine PR runs only engine + title.
 - [x] **P-007 Tokens package** Lane B. `design/tokens.json` -> `packages/ui` CSS variables + TS constants; fonts loaded with `next/font`.
   AC: web app uses only token variables; a lint rule or test fails on hex literals in components.
