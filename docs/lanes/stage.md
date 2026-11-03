@@ -3,17 +3,22 @@
 Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
-- P-010's "pack loads in the stage" holds (#36): `/dev/stage?pack=<name>` with `TWL_PACK_DIR` set to the parent folder of generated packs.
-- Lane C's `ahmedabad-osm` pack (P-020) decodes and passes the pack tests (sizes, road offsets, all 100,488 residents on their footprints). The render check in `/dev/stage` is next; the camera poses, target clamp and ground glow are tuned to the toy city and need fitting to a 27.6 x 24.4 km pack.
-- This PR: a residents legibility pass on the lead's day 13 notes. A glow quad per resident stands in for bloom, so lilac and mint read as a field over the city. M4 WebGPU at day 13: 48k residents read like the render at full view; 100k has no blobs or rims and holds 16.7 ms p50 and 17.7 p95 in 8 draw calls.
-- Next: P-018 timeline and readouts (stage clock with play, pause and speed in the render loop; docked timeline; readouts card; 390 px layout).
+- This PR: a residents legibility pass on the lead's day 13 notes. A glow quad per resident stands in for bloom, so lilac and mint read as a field over the city. Lead-lane observation on the M4 with WebGPU: at day 13, 48k residents read like the render at full view; 100k shows no blobs or rims at 16.7 ms p50 and 17.7 p95 in 8 draw calls; the WebGL 2 fallback looks the same; the low tier draws no glow (DESIGN.md: low has no bloom).
+- Lane C's `ahmedabad-osm` pack (P-020) renders in `/dev/stage?pack=ahmedabad-osm` at 16.7 ms p50 and 17.5 p95 (100k buildings, about 238k road segments, 100k residents). The camera poses, target clamp, max distance and ground glow are toy-city values and need fitting to a pack's extent.
+- Next: P-018 timeline and readouts.
 
 ## For P-045 (post-processing)
-- Remove the resident glow quad when bloom lands: the second quad in `pointAndGlowQuads()`, the `glow` attribute, the glow branch of the size, position and colour nodes, the `GLOW_*` constants and `glowDensity`. Then decide whether the flare halo stays. If bloom lands at reduced strength, lower `GLOW_ENERGY` before deleting it. Keep `MIN_PHYSICAL_PX`.
-- The glow quads sit on each resident's view ray at 1.5 x near, so a resident hidden behind a building adds faint haze over the face in front of it. Real bloom only spreads visible light, so expect the city to read slightly less hazy after the swap.
+When bloom lands, remove the resident glow from `packages/stage/src/layers/residents.ts`:
+- the second quad in `pointAndGlowQuads()` and its `withGlow` parameter, the `glow` attribute and `isGlow`, and the `glow` argument of the `ResidentsLayer` constructor (and `TIERS[tier].bloomScale > 0` at its call in `stage.ts`);
+- the glow branches of `sizeNode`, `positionNode` (including `offAxisCos` and the `cameraNear` import) and `colorNode`;
+- `GLOW_SIGMA_PX`, `GLOW_QUAD_SIGMAS`, `GLOW_ENERGY`, `GLOW_REFERENCE_RESIDENTS`, `GLOW_PEAK_PER_ENERGY`, `glowDensity`, `settledGrowth`, `settledRadius`, `glowEnergy` and `glowPeak`;
+- the `density` parameter of `#createMaterial`, which also scales the flare halo (`flareGain`), so decide then whether the halo stays at all;
+- the tests for `glowDensity` and for the two-quad layout in `test/residents.test.ts`.
+This pass also softened the flare (`FLARE_SPAN` 2 to 2.5, flare growth 1.6 to 1.2, halo falloff 0.9 to 0.5); retune those with bloom on. Keep `MIN_PHYSICAL_PX`, which is independent of bloom. If bloom lands at reduced strength, lower `GLOW_ENERGY` before deleting.
 
 ## Gotchas
-- Building faces measured slightly darker than the render, not brighter. What made the skyline compete in the day 13 still was the missing warm haze over lit districts, which the glow now supplies.
-- The resident point floor is physical: 1.3 logical px at DPR 1.75 or more, otherwise 2.3 physical px. The prototype tuned it at DPR 1.75, and its stills render at DPR 2 from `POSES.hero`, while `/dev/stage` uses `POSES.home`. Pixel comparisons by region are approximate.
-- `toHaveScreenshot` at a 1% pixel ratio passed a clearly visible light-only change. Tighten it for stage stills when P-046 wires CI.
-- SwiftShader frame times did not move with twice the vertices and the extra glow fill; they say nothing about GPU fill cost.
+- The glow quads sit on each resident's view ray just past the near plane, so a resident hidden behind a building adds faint haze over the face in front of it; real bloom only spreads visible light. The step along the ray is divided by the off-axis cosine because the near plane clips on view depth, not ray length.
+- Flare halos also scale with `glowDensity`, so flares are dimmer at 100k than at 48k. That is deliberate: dense fresh-order blocks went hot without it.
+- Building faces measured slightly darker than the render, not brighter. What made the skyline compete was the missing warm haze over lit districts.
+- The resident point floor is physical: 1.3 logical px at DPR 1.75 or more, otherwise 2.3 physical px. The design renders use `POSES.hero` at DPR 2; `/dev/stage` uses `POSES.home`, so pixel comparisons by region are approximate.
+- The shots baselines are SwiftShader stills at DPR 1 (desktop) and 3 (phone); they show the look, not GPU fill cost. `toHaveScreenshot` at a 1% pixel ratio passed a clearly visible light-only change; tighten it for stage stills in P-046.
