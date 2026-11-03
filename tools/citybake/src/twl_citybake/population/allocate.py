@@ -33,8 +33,12 @@ def allocate(
     then spill what a building cannot hold onto spare capacity across its district."""
     cap = np.asarray(capacity, np.float64)
     district = np.asarray(district, np.intp)
-    if len(district) and district.max() >= n_districts:
-        raise ValueError(f"district ids must be below {n_districts}")
+    if not (len(np.asarray(lon)) == len(np.asarray(lat)) == len(cap) == len(district)):
+        raise ValueError("lon, lat, capacity and district must have one value per building")
+    if (cap < 0).any() or not np.isfinite(cap).all():
+        raise ValueError("capacity must be finite and non-negative")
+    if len(district) and (district.min() < 0 or district.max() >= n_districts):
+        raise ValueError(f"district ids must be in [0, {n_districts})")
     row, col = grid.cell_of(lon, lat)
     b = np.flatnonzero(row >= 0)
     cell = row[b] * grid.values.shape[1] + col[b]

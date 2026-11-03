@@ -139,3 +139,20 @@ def test_allocation_conserves_mass_and_respects_capacity(
     assert out.placed.sum() + out.shortfall.sum() == pytest.approx(out.target.sum(), abs=1e-6)
     by_district = np.bincount(np.asarray(district), weights=out.target, minlength=n_districts)
     assert out.marginal.tolist() == pytest.approx(by_district.tolist(), abs=1e-6)
+
+
+@pytest.mark.parametrize(
+    ("lon", "capacity", "district"),
+    [
+        ([0.5], [10, 10], [0, 0]),
+        ([0.5, 0.5], [10, -1], [0, 0]),
+        ([0.5, 0.5], [10, np.nan], [0, 0]),
+        ([0.5, 0.5], [10, 10], [0, -1]),
+    ],
+)
+def test_misaligned_or_negative_inputs_are_rejected(
+    lon: list[float], capacity: list[float], district: list[int]
+) -> None:
+    grid = PopGrid(np.ones((1, 1)), west=0.0, north=1.0, dlon=1.0, dlat=1.0)
+    with pytest.raises(ValueError):
+        allocate(grid, lon, [0.5, 0.5], capacity, district, 1)
