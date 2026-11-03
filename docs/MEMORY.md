@@ -4,12 +4,13 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M1 First light (Lane A, B); Lane C on M2.
-- Point: P-010 code merged (#20, #21, #23, #29); stays unticked until Lane B's toy-pack loader renders `data/cache/toy-48k`. Next Lane A point: P-011 engine core (`[deep]`: the owner switches to Fable first). Lane B: P-016 (sky, ground, fog, camera, roads, instanced buildings merged; residents layer, scrubber and day stills next, then the toy-pack loader). P-015 Firefox still unchecked (owner approved the WebKit download only). Lane C: P-020 code complete; P-021 next with D-021 footprints; P-024 per D-022.
+- Point: P-010 code merged (#20, #21, #23, #29); stays unticked until Lane B's toy-pack loader renders `data/cache/toy-48k`. Next Lane A point: P-011 engine core (`[deep]`: the owner switches to Fable first). Lane B: P-016 done (20k residents 16.7 ms p50 on the M4, scrub at most 0.3 ms); toy-pack loader next, then P-017 and P-018. Visual notes sent to Lane B: buildings too saturated, lilac and unaware lights too faint versus the prototype. P-015 Firefox still unchecked (owner approved the WebKit download only). Lane C: P-020 code complete; P-021 next with D-021 footprints; P-024 per D-022.
 - Branch: none
 - Next: P-011 on Fable; meanwhile P-013 supply v0 or P-014 tape v1 can be prepared.
 
 ## Recent changes
 - 2026-11-03 P-010 code: `twl_engine.rng` streams; toy city port (7,210 buildings, 4.50 ties per resident at 48k, 36 ms); v1 pack writer + CLI; independent tests from test-author; golden in `fixtures/golden/hashes.toml` (#20, #21, #23, #29). D-021 (VIDA footprints) and D-022 (graph travel times) recorded (#28).
+- 2026-11-03 P-016 done (Lane B): residents layer from tape event times (#31), dev route with day 1, 6 and 13 stills (#32).
 - 2026-11-03 Lane B: stage sky tokens (#19), sky, ground, fog, camera (#24), roads and instanced buildings, 7 draw calls at 16.7 ms p50 on the M4 (#26), `just shots` (#13). Lane C: OSM fetch, clip and layers for Ahmedabad (#16, #18, #22), height defaults by footprint band (#27).
 - 2026-11-03 P-005 done: `infra/compose/dev.yml` (Postgres 17 + PostGIS 3.7 + h3 4.2, Chainguard MinIO with packs and tapes, Redis 8.8, Temporal dev, otel-lgtm), `just infra`/`down` (#15); gateway `/v1/health/ready` probes Postgres and MinIO (#17).
 - 2026-11-03 P-006 done: path-filtered CI with shared lockfile/workflow filters, a `ci-ok` gate, actions on their Node 24 majors (#10). Lane B merged stage core (#9) and the perf HUD (#11).
@@ -34,6 +35,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 - Compose: `up --wait` exits 1 if any started container exits (even with 0), so the bucket one-shot sits behind `profiles: [init]` and `just infra` runs it after. Images pulled while the disk was full can be silently corrupt (zero-byte files) and Docker reuses the layers; switch tags rather than prune others' images.
 - Toy city: pin seed 49 in count checks (the prototype's own building count varies about 2.7% across seeds). Toy ties are one-way, so a few residents have under 3. The toy keeps the prototype origin; its bbox excludes the river ring (±6 km). Regenerate `data/cache/toy-48k` and `toy-5k` after any pack change (`uv run python -m twl_engine.fixtures --seed 49 --residents N --out DIR`).
 - Goldens: the 5k toy pack hash matched on macOS arm64 and CI Linux x86_64. CI checks hashes (`TWL_GOLDEN_STRICT=1`); elsewhere probes are compared with tolerance.
+- Stage residents (Lane B): WebGPU draws `Points` at 1 px, so residents are one instanced `Sprite` with `PointsNodeMaterial`. Event times upload as float32 and NEVER rounds to 2^32, which keeps ramps at zero. Halos are flare-only until P-045 bloom (remove them then). Sprites on walls need a depth nudge toward the camera (capped at 60 m). SwiftShader costs about 10 µs per instance per frame; judge performance on a real GPU.
 - Stage shaders (Lane B): use TSL `colorNode`/`opacityNode`, never `fragmentNode` (skips the sRGB output transform); mix shades on sRGB values, then convert. P-045 needs a sanitize pass before bloom (no per-fragment NaN guard exists) and output dither (dark gradients band on the real GPU). The colour guard also matches hex inside comments. three/webgpu and three/tsl load in Node, so vitest can test layers.
 - Citybake (Lane C): data in `data/raw` and `data/cache/citybake/<city>/<stage>` (`TWL_DATA_DIR` overrides). `uv add --package <member>` uninstalls other members' deps; run `uv sync` after. WorldPop R2025A India is 778 MB with no range requests. pyosmium skips self-intersecting closed ways as invalid. `shapely.voronoi_polygons(ordered=True)` needs GEOS 3.12+.
 - Ahmedabad data (Lane C): 100,488 OSM buildings, 81% with default heights, 37% of 1 km cells empty (hence D-021); 105 districts from OSM place Voronoi split at the Sabarmati; v1 water drops one lake island. Persona pool: 6,604 Ahmadabad-district personas in Nemotron-Personas-India, all 18+. Census HH-01 mean household 4.7.
@@ -55,6 +57,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 ## Open questions
 - License: the repo is public with no license (owner accepted public; licence still to pick).
 - Golden platform pinning (a new decision at P-011, when Numba kernels enter the hashed path): `NUMBA_CPU_NAME=generic` plus NumPy CPU feature limits, and `just goldens` via a CI workflow. The toy pack already matches across platforms.
+- Building budget (decide at P-025 with Lane B): D-021 brings Ahmedabad to about 1.0 to 1.1M buildings against the 6 MB pack and 60 fps budgets. Options: confidence floor (0.75 keeps about 688k), minimum area, block-level boxes for far LOD. Residents must keep stable building ids through any reduction.
 - Voice provider for Hindi and Gujarati streaming (spike at P-066).
 - Whether to keep 15-minute ticks once real occasion profiles exist (revisit after P-031 benchmarks).
 
