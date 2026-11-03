@@ -18,7 +18,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
   AC: `just test-engine` runs; ruff and pyright clean; the Numba smoke test passes on Linux and macOS.
 - [x] **P-003 Minds and citybake** Lane C. `services/minds` (FastAPI `/health`) and `tools/citybake` (CLI `citybake --help`) as members of the uv workspace, with ruff, pyright and pytest.
   AC: `uv run pytest` green in both.
-- [ ] **P-004 Gateway skeleton** Lane A. NestJS app with `/v1/health`, config validation, OpenAPI at `/docs`, pino logging.
+- [x] **P-004 Gateway skeleton** Lane A. NestJS app with `/v1/health`, config validation, OpenAPI at `/docs`, pino logging.
   AC: health returns version and git sha.
 - [ ] **P-005 Dev infrastructure** Lane A. `infra/compose/dev.yml`: Postgres 17 with PostGIS + h3, MinIO with buckets `packs` and `tapes`, Redis, Temporal dev server, otel-lgtm. `just dev` brings it up.
   AC: all containers healthy; gateway connects to Postgres and MinIO.
