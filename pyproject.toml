@@ -24,7 +24,7 @@ pythonVersion = "3.13"
 typeCheckingMode = "basic"
 venvPath = "."
 venv = ".venv"
-include = ["py", "services"]
+include = ["py", "services", "tools"]
 
 [tool.pytest.ini_options]
 addopts = ["-ra", "--import-mode=importlib"]
