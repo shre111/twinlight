@@ -1,8 +1,10 @@
 import { type Camera, Group } from 'three/webgpu'
 import type { StageCity } from '../inputs'
+import { createBuildings } from './buildings'
 import { Fog } from './fog'
 import { createGround } from './ground'
 import type { Layer } from './layer'
+import { createRoads } from './roads'
 import { createSky } from './sky'
 
 export class CityLayer {
@@ -11,9 +13,14 @@ export class CityLayer {
   readonly #sky: Layer
   readonly #layers: Layer[]
 
-  constructor(_city: StageCity) {
+  constructor(city: StageCity) {
     this.#sky = createSky(this.#fog)
-    this.#layers = [this.#sky, createGround(this.#fog)]
+    this.#layers = [
+      this.#sky,
+      createGround(this.#fog),
+      ...createRoads(city.roads, this.#fog),
+      createBuildings(city.buildings, this.#fog),
+    ]
     this.group.add(...this.#layers.map((layer) => layer.object))
   }
 
