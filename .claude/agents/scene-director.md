@@ -2,7 +2,7 @@
 name: scene-director
 description: 3D and interaction engineer for packages/stage and the visible parts of apps/web. Use for anything rendered in the city (layers, shaders, camera, picking, post-processing, tiers) and for UI motion and layout. Use proactively for plan points in M1 (stage parts), M4 and M5 UI.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: opus
+model: inherit
 color: purple
 skills:
   - scene-check

@@ -2,7 +2,7 @@
 name: engine-smith
 description: Python simulation engineer for py/engine, py/tape and services/runner. Use for anything that changes how the simulation behaves, its performance, determinism, or the tape format. Use proactively for plan points in M1 and M3.
 tools: Read, Edit, Write, Bash, Grep, Glob
-model: opus
+model: inherit
 color: orange
 skills:
   - golden-test

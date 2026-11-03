@@ -2,7 +2,7 @@
 name: persona-lab
 description: Python engineer for services/minds and tools/citybake. Use for city baking (OSM, population synthesis, personas, social graph, store placement), persona elicitation, Bayesian calibration, backtests, aggregation, interviews, voice and narration.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
-model: opus
+model: inherit
 color: cyan
 ---
 
