@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
 
-from twl_citybake.config import DataDirs, load_city
+from twl_citybake.config import CityConfig, DataDirs, load_city
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
 from twl_citybake.sources import fetch
@@ -21,7 +21,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="raw downloads and stage outputs (default $TWL_DATA_DIR or ./data)",
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    fetch_cmd = commands.add_parser("fetch", help="download the pinned OSM extract and clip it")
+    fetch_cmd = commands.add_parser(
+        "fetch", help="download the pinned OSM extract and clip it, and the WorldPop raster"
+    )
     fetch_cmd.add_argument("city")
     osm_cmd = commands.add_parser("osm", help="extract buildings, roads, water and districts")
     osm_cmd.add_argument("city")
@@ -34,6 +36,15 @@ def run_fetch(city: str, dirs: DataDirs) -> None:
     clipped = dirs.stage(city, "osm") / f"{city}.osm.pbf"
     clip_extract(region, clipped, config.bbox)
     print(f"{clipped} ({clipped.stat().st_size / 1e6:.1f} MB)")
+    if config.worldpop is not None:
+        raster = fetch(config.worldpop.url, config.worldpop.md5, worldpop_raster(config, dirs))
+        print(f"{raster} ({raster.stat().st_size / 1e6:.1f} MB)")
+
+
+def worldpop_raster(config: CityConfig, dirs: DataDirs) -> Path:
+    if config.worldpop is None:
+        raise SystemExit(f"{config.slug} has no [worldpop] source")
+    return dirs.raw / "worldpop" / config.worldpop.filename
 
 
 def run_osm(city: str, dirs: DataDirs) -> None:
