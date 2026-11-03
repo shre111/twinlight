@@ -1,25 +1,49 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { buildWorld } from '../../../design/prototype/toy-sim.mjs'
+import { buildWorld, DISTRICTS } from '../../../design/prototype/toy-sim.mjs'
 import { NEVER, ROAD_KIND, type StageCity, type StageTape } from '../src/inputs'
 import { synthesizeToyRun } from '../src/synthetic'
 
 const RESIDENTS = 3000
 let city: StageCity
 let tape: StageTape
+let world: ReturnType<typeof buildWorld>
 
 beforeAll(() => {
   ;({ city, tape } = synthesizeToyRun(RESIDENTS))
+  world = buildWorld(RESIDENTS)
 })
 
+function residentCentre(district: string): { x: number; y: number } {
+  const index = DISTRICTS.findIndex((d) => d.name === district)
+  let x = 0
+  let y = 0
+  let n = 0
+  for (let i = 0; i < city.residents.count; i++) {
+    if (world.res.dist[i] !== index) continue
+    x += city.residents.x[i] ?? 0
+    y += city.residents.y[i] ?? 0
+    n++
+  }
+  expect(n, `${district} residents`).toBeGreaterThan(20)
+  return { x: x / n, y: y / n }
+}
+
 describe('synthetic toy run', () => {
-  it('maps the toy sim north (negative z) to pack north (positive y)', () => {
-    const world = buildWorld(RESIDENTS)
-    for (const i of [0, 1, 500, 2999]) {
-      expect(city.residents.y[i]).toBe(-(world.res.z[i] ?? 0))
-      expect(city.residents.z[i]).toBe(world.res.y[i])
-      expect(city.buildings.y[i]).toBe(-(world.city.buildings.z[i] ?? 0))
-    }
-    expect(city.stores.y[0]).toBe(-(world.stores[0]?.z ?? 0))
+  it('keeps Ahmedabad the right way up: Chandkheda north, Maninagar south-east, Thaltej west', () => {
+    const north = residentCentre('Chandkheda')
+    const southEast = residentCentre('Maninagar')
+    const west = residentCentre('Thaltej')
+    expect(north.y).toBeGreaterThan(southEast.y)
+    expect(southEast.x).toBeGreaterThan(west.x)
+    expect(north.y).toBeGreaterThan(0)
+    expect(southEast.y).toBeLessThan(0)
+  })
+
+  it('flips road segments into pack axes', () => {
+    const source = world.city.roads
+    expect(city.roads.segments.slice(0, 4)).toEqual(
+      Float32Array.of(source[0] ?? 0, -(source[1] ?? 0), source[2] ?? 0, -(source[3] ?? 0)),
+    )
   })
 
   it('places every resident on the footprint of its building in pack axes', () => {
