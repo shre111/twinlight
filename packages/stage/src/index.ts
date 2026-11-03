@@ -1,4 +1,6 @@
+export { idleTape } from './idle'
 export { NEVER, ROAD_KIND, type StageCity, type StageTape } from './inputs'
+export { decodePack, fetchPack, PACK_FILES, type PackFiles, type PackManifest } from './pack'
 export type { Backend, BackendPreference } from './renderer'
 export { type FrameReport, Stage, type StageOptions } from './stage'
 export { TIERS, type Tier, type TierName, type TierOption } from './tiers'

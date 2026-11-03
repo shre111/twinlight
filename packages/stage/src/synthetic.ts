@@ -17,7 +17,6 @@ export function synthesizeToyRun(residents: number): { city: StageCity; tape: St
   const world = buildWorld(residents)
   return { city: toyCity(world), tape: toyTape(world) }
 }
-
 function toyCity(world: ToyWorld): StageCity {
   const { buildings: b, roads, arterials, bridges } = world.city
   const res = world.res

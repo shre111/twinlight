@@ -1,6 +1,6 @@
 import type { BackendPreference, TierOption } from '@twinlight/stage'
 import { notFound } from 'next/navigation'
-import { DevStage } from './dev-stage'
+import { DevStage, type RunSource } from './dev-stage'
 
 const TIER_OPTIONS: readonly TierOption[] = ['auto', 'high', 'medium', 'low']
 const BACKEND_OPTIONS: readonly BackendPreference[] = ['auto', 'webgl2']
@@ -17,6 +17,14 @@ function pick<T extends string>(value: unknown, options: readonly T[]): T | unde
 function residentCount(value: unknown): number {
   const count = Number(value)
   return Number.isInteger(count) && count > 0 ? Math.min(count, MAX_RESIDENTS) : DEFAULT_RESIDENTS
+}
+
+const PACK_NAME = /^[a-z0-9-]+$/
+
+function runSource(query: { pack?: unknown; residents?: unknown }): RunSource {
+  return typeof query.pack === 'string' && PACK_NAME.test(query.pack)
+    ? { pack: query.pack }
+    : { residents: residentCount(query.residents) }
 }
 
 function startMinutes(query: { t?: unknown; day?: unknown }): number {
@@ -37,7 +45,7 @@ export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
       tier={pick(query.tier, TIER_OPTIONS)}
       backend={pick(query.backend, BACKEND_OPTIONS)}
       hud={query.hud !== '0'}
-      residents={residentCount(query.residents)}
+      source={runSource(query)}
       minutes={startMinutes(query)}
     />
   )

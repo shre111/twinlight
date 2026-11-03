@@ -7,17 +7,29 @@ declare global {
   interface Window {
     /** The stage once its city, tape and time are applied; shots and the perf report wait for it. */
     __twinlightStage?: Stage
-    /** Set instead when the synthetic run fails to load, so shots fail fast. */
+    /** Set instead when the run fails to load, so shots fail fast. */
     __twinlightStageError?: string
   }
 }
 
-function loadSyntheticRun(stage: Stage, residents: number, minutes: number) {
+export type RunSource = { pack: string } | { residents: number }
+
+// A generated pack has no tape until P-014, so it shows the city before anyone has heard.
+async function runFor(source: RunSource) {
+  if ('pack' in source) {
+    const { fetchPack, idleTape } = await import('@twinlight/stage')
+    const city = await fetchPack(`/dev/packs/${source.pack}`)
+    return { city, tape: idleTape(city) }
+  }
+  const { synthesizeToyRun } = await import('@twinlight/stage/synthetic')
+  return synthesizeToyRun(source.residents)
+}
+
+function loadRun(stage: Stage, source: RunSource, minutes: number) {
   let cancelled = false
-  import('@twinlight/stage/synthetic')
-    .then(async ({ synthesizeToyRun }) => {
+  runFor(source)
+    .then(async ({ city, tape }) => {
       if (cancelled) return
-      const { city, tape } = synthesizeToyRun(residents)
       await stage.loadCity(city)
       if (cancelled) return
       await stage.setTape(tape)
@@ -40,7 +52,7 @@ export function DevStage(props: {
   tier?: TierOption
   backend?: BackendPreference
   hud: boolean
-  residents: number
+  source: RunSource
   minutes: number
 }) {
   return (
@@ -49,7 +61,7 @@ export function DevStage(props: {
         tier={props.tier}
         backend={props.backend}
         hud={props.hud}
-        onReady={(stage) => loadSyntheticRun(stage, props.residents, props.minutes)}
+        onReady={(stage) => loadRun(stage, props.source, props.minutes)}
       />
     </main>
   )
