@@ -1,0 +1,12 @@
+.main {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(44px, 12vw, 80px);
+  font-weight: inherit;
+}
