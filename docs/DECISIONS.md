@@ -88,7 +88,7 @@ Status: Accepted (2026-11-03)
 - **Consequences:** Attribution notices in the app and in each city pack manifest.
 
 ### D-013 City data from OpenStreetMap and WorldPop, baked into immutable packs
-Status: Accepted (2026-11-03)
+Status: Accepted (2026-11-03); amended by D-021 and D-022
 - **Decision:** `tools/citybake` builds content-addressed city packs from OSM extracts and WorldPop rasters. Dark-store locations are synthetic (coverage optimisation), not scraped from any platform.
 - **Why:** Open licences, reproducible builds, no dependency on private platform data.
 - **Consequences:** Building heights are estimated where OSM lacks them (levels x 3.2 m, else district defaults).
@@ -133,3 +133,17 @@ Status: Accepted (2026-11-03)
 - **Decision:** Docker images per service deployed with Coolify on one VPS; S3-compatible storage abstracted so it can move to R2/S3.
 - **Why:** Cheap, already familiar, enough for demos and early users.
 - **Consequences:** Runner replicas limited by the box; Monte Carlo default seeds tuned to fit.
+
+### D-021 Fill OSM building gaps from VIDA's combined footprints
+Status: Accepted (2026-11-03)
+- **Decision:** Citybake adds building footprints from VIDA's combined Google + Microsoft + OSM dataset (source.coop `vida/google-microsoft-osm-open-buildings`, `country_iso=IND` GeoParquet), reading only the city bbox with DuckDB and caching it under `data/cache`. Footprints are deduplicated across all three sources with priority OSM > Google > Microsoft: a footprint is dropped when more than 30% of its area overlaps a higher-priority one (VIDA does not deduplicate). Heights: OSM `height` or `building:levels` when present, else the median Google Open Buildings 2.5D Temporal 2023 `building_height` (4 m grid) inside the footprint, else the district default. Synthetic boxes in populated cells with no footprint come last and are flagged `synthetic` in the pack.
+- **Why:** OSM has about 100k buildings in the Ahmedabad bbox and almost none in the walled city and the south (Vatva, Narol, Lambha), where WorldPop puts dense population, so P-021's "no building over capacity" cannot hold on OSM alone. The combined dataset gives real shapes there under open licences.
+- **Alternatives:** Synthetic boxes only (keeps D-013 unchanged, but whole districts look procedural rather than like the city); leaving the gaps and relaxing the capacity check (residents pile into the few buildings that exist).
+- **Consequences:** Pack manifests and the app's attribution credit VIDA, Google Open Buildings and Microsoft Global ML Building Footprints alongside OSM; check each licence's terms when implementing and record them in the manifest. The bake report shows per district the source mix (OSM, Google, Microsoft, synthetic) and the share of WorldPop population with no footprint. Reproducibility depends on the pinned dataset release and cache, like the pinned OSM extract.
+
+### D-022 Travel times on the baked road graph instead of OSRM
+Status: Accepted (2026-11-03)
+- **Decision:** P-024 computes store-to-cell travel minutes in citybake with `scipy.sparse.csgraph.dijkstra` over the directed road graph (oneway tags respected), all stores as sources, one pass per time-of-day band with per-road-class speeds. A travel-backend interface keeps OSRM available as a later backend.
+- **Why:** Everything stays in Python and reproducible, with no routing container in CI or on the laptop. Within a 2 to 3 km delivery radius, OSRM's better turn handling barely matters next to the model's own travel noise (lognormal, sigma 0.15), and riders on two-wheelers don't follow perfect routes anyway.
+- **Alternatives:** OSRM in Docker during the bake (better routing realism, but a container dependency for every bake and in CI, on a machine where Docker is fragile).
+- **Consequences:** One-off check when P-024 lands: about 30 store-to-cell pairs compared by hand with Google Maps two-wheeler times, median error under 20%, result noted in MEMORY.md. `travel.bin` keeps its format; only its source changes.
