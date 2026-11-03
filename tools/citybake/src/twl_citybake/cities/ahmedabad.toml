@@ -13,3 +13,16 @@ names = ["Sabarmati River", "Sabarmati"]
 
 [districts]
 place_kinds = ["suburb", "neighbourhood", "quarter", "village", "town"]
+
+[footprints]
+# D-021: VIDA's combined Google + Microsoft + OSM footprints, S2 level-6 cell over the city
+vida_url = "https://data.source.coop/vida/google-microsoft-osm-open-buildings/geoparquet/by_country_s2/country_iso=IND/4134022982949404672.parquet"
+vida_etag = "\"d4fb270fd5ebbc6db795b886a3a213f6-84\""
+# date of VIDA's snapshot, which fixes the licence of its Microsoft rows (ODbL then)
+vida_snapshot = "2024-08-27"
+heights_manifest = "https://storage.googleapis.com/open-buildings-temporal-data/v1/manifests/39_EPSG_32643_2023_06_30.json"
+# drop a footprint when more than this share of its area overlaps higher-priority ones
+overlap_drop = 0.3
+# 2.5D pixels below this are ground
+raster_min_height_m = 1.0
+raster_cell_m = 4.0

@@ -126,6 +126,26 @@ class HouseholdConfig:
 
 
 @dataclass(frozen=True)
+class FootprintsConfig:
+    """D-021 gap filling: the pinned VIDA file (`vida_etag` is the HTTP ETag, quotes included)
+    and the Open Buildings 2.5D heights manifest."""
+
+    vida_url: str
+    vida_etag: str
+    heights_manifest: str
+    vida_snapshot: str = ""
+    overlap_drop: float = 0.3
+    raster_min_height_m: float = 1.0
+    raster_cell_m: float = 4.0
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.overlap_drop <= 1:
+            raise ValueError("overlap_drop must be in [0, 1]")
+        if self.raster_min_height_m < 0 or self.raster_cell_m <= 0:
+            raise ValueError("raster_min_height_m must be non-negative, raster_cell_m positive")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
@@ -137,6 +157,7 @@ class CityConfig:
     worldpop: WorldPopSource | None = None
     population: PopulationConfig = field(default_factory=PopulationConfig)
     households: HouseholdConfig | None = None
+    footprints: FootprintsConfig | None = None
 
 
 def load_city(slug: str) -> CityConfig:
@@ -159,6 +180,7 @@ def load_city(slug: str) -> CityConfig:
         worldpop=_worldpop(raw.get("worldpop")),
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
+        footprints=_footprints(raw.get("footprints")),
     )
 
 
@@ -172,6 +194,10 @@ def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
     return HouseholdConfig(
         source=raw["source"], sizes=tuple(raw["sizes"]), counts=tuple(raw["counts"])
     )
+
+
+def _footprints(raw: dict[str, Any] | None) -> FootprintsConfig | None:
+    return None if raw is None else FootprintsConfig(**raw)
 
 
 @dataclass(frozen=True)
