@@ -38,7 +38,9 @@ docs/             the documents listed above
 ## Commands
 ```
 just setup          install toolchains and deps (pnpm, uv)
-just dev            compose up (postgres, minio, redis, temporal) + all apps in watch mode
+just dev            just infra + all apps in watch mode
+just infra          compose up (postgres, minio, redis, temporal, otel-lgtm), wait healthy, create buckets
+just down           stop the dev infrastructure (volumes kept)
 just lint           biome + ruff + pyright
 just test           all test suites
 just test-engine    uv run pytest py (engine + tape, includes determinism goldens)
