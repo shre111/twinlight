@@ -1,5 +1,9 @@
 import { PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu'
+import { CameraRig } from './camera'
 import { FrameStats, type FrameSummary } from './frame-stats'
+import type { StageCity } from './inputs'
+import { CityLayer } from './layers/city'
+import { palette } from './palette'
 import { PerfHud } from './perf-hud'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
@@ -27,6 +31,8 @@ export class Stage {
   #renderer: WebGPURenderer
   #scene = new Scene()
   #camera = new PerspectiveCamera(40, 1, 20, 90_000)
+  #rig: CameraRig
+  #city: CityLayer | null = null
   #tier: TierName
   #pendingSize: ViewportSize | null = null
   #viewport: Viewport
@@ -43,7 +49,8 @@ export class Stage {
       options.tier === undefined || options.tier === 'auto'
         ? initialTier(window.matchMedia('(pointer: coarse)').matches)
         : options.tier
-    return new Stage(canvas, renderer, backend, tier, options.hud ?? false)
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    return new Stage(canvas, renderer, backend, tier, options.hud ?? false, reducedMotion)
   }
 
   private constructor(
@@ -52,10 +59,12 @@ export class Stage {
     backend: Backend,
     tier: TierName,
     hud: boolean,
+    reducedMotion: boolean,
   ) {
     this.#renderer = renderer
     this.backend = backend
     this.#tier = tier
+    this.#rig = new CameraRig(this.#camera, canvas, reducedMotion)
     this.#hud = hud && canvas.parentElement ? new PerfHud(canvas.parentElement) : null
     this.#viewport = watchViewport(
       canvas,
@@ -78,6 +87,17 @@ export class Stage {
     this.#viewport.remeasure()
   }
 
+  async loadCity(city: StageCity): Promise<void> {
+    if (this.#disposed) return
+    this.#city?.dispose()
+    const layer = new CityLayer(city)
+    this.#city = layer
+    this.#scene.add(layer.group)
+    this.#renderer.setClearColor(palette.skyTop, 1)
+    await this.#renderer.compileAsync(this.#scene, this.#camera)
+    this.#stats.reset()
+  }
+
   perf(): FrameReport {
     return {
       ...this.#stats.summary(),
@@ -95,6 +115,8 @@ export class Stage {
     document.removeEventListener('visibilitychange', this.#restartClock)
     this.#viewport.stop()
     this.#hud?.dispose()
+    this.#city?.dispose()
+    this.#rig.dispose()
     void this.#renderer.dispose()
   }
 
@@ -108,6 +130,8 @@ export class Stage {
     if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) this.#stats.push(gap)
     this.#lastFrameAt = now
 
+    const cameraDistance = this.#rig.update()
+    this.#city?.update(this.#camera, cameraDistance)
     this.#renderer.render(this.#scene, this.#camera)
     this.#drawCalls = this.#renderer.info.render.drawCalls
 
@@ -120,8 +144,7 @@ export class Stage {
   #applySize({ width, height, pixelRatio }: ViewportSize): void {
     this.#renderer.setPixelRatio(pixelRatio)
     this.#renderer.setSize(width, height, false)
-    this.#camera.aspect = width / height
-    this.#camera.updateProjectionMatrix()
+    this.#rig.resize(width, height)
     this.#stats.reset()
   }
 
