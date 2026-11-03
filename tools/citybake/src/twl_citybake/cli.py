@@ -119,12 +119,19 @@ def footprints_summary(report: dict[str, Any]) -> str:
     ]
     heights = ", ".join(f"{k.lower()} {v:,}" for k, v in report["by_height_source"].items())
     check, cover = report["raster_check"], report["coverage"]
+    validation = report["height_correction"]["validation"]
+    bands = ", ".join(
+        f"{band} {v['before']} to {v['after']} (n {v['n']:,})"
+        for band, v in validation["bands"].items()
+    )
     return "\n".join(
         [
             *lines,
             f"buildings {report['count']:,}; heights {heights}",
             f"raster vs levels on {check['n']:,} buildings: median ratio "
-            f"{check['median_ratio']}, median abs error {check['median_abs_error_m']} m",
+            f"{check['median_ratio']} ({check['median_ratio_corrected']} corrected), "
+            f"median abs error {check['median_abs_error_m']} m",
+            f"held-out median abs % error by storeys, raw to corrected: {bands}",
             f"coverage {cover['cells_without_buildings']} of {cover['cells_in_bbox']} "
             f"{cover['cell_m']} m cells without buildings "
             f"(OSM alone {cover['cells_without_osm_buildings']})",

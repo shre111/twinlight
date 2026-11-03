@@ -9,6 +9,12 @@ import shapely
 from shapely import Polygon
 
 from twl_citybake.config import CityConfig, FootprintsConfig
+from twl_citybake.footprints.correction import (
+    HeightCorrection,
+    can_fit,
+    fit_correction,
+    validate_by_district,
+)
 from twl_citybake.footprints.dedupe import dedupe_tiers, valid_footprints
 from twl_citybake.footprints.raster import HeightRaster, mosaic_tiles
 from twl_citybake.footprints.vida import SOURCE_CODES, VidaRows, read_vida
@@ -45,6 +51,7 @@ def attribution(config: FootprintsConfig) -> list[str]:
 OSM_SOURCE = 0
 SOURCE_NAMES = {"osm": OSM_SOURCE, **SOURCE_CODES}
 NON_OSM_TYPE = 255
+MAX_FLOORS = 255
 TAGGED = (HeightSource.HEIGHT, HeightSource.LEVELS)
 
 
@@ -71,7 +78,8 @@ def build_buildings(
     osm_layers: Path, osm_pbf: Path, vida: Path, heights: Path, city: CityConfig
 ) -> BuildingLayers:
     """P-020's buildings followed by the VIDA footprints that survive the D-021 dedupe, with
-    heights from OSM tags, else the 2.5D raster, else the P-020 default chain."""
+    heights from OSM tags, else the 2.5D raster corrected against OSM storeys (D-024), else the
+    P-020 default chain."""
     if city.footprints is None:
         raise ValueError(f"{city.slug} has no [footprints] sources")
     config = city.footprints
@@ -92,10 +100,13 @@ def build_buildings(
     medians = raster.footprint_medians(
         np.concatenate([osm_geoms, new.geoms]), proj, config.raster_min_height_m
     )
-    table["height_m"], table["height_source"] = _heights(table, medians)
+    correction = _fit_correction(table, medians)
+    table["height_m"], table["height_source"] = _heights(table, medians, correction)
     table["raster_height_m"] = medians.astype(np.float32)
+    table["floors"] = _floors(table["height_m"])
     counts = np.bincount(table["district"], minlength=len(districts))
-    report = _report(table, new, medians, clip, len(osm["x"]), [d["name"] for d in districts])
+    names = [d["name"] for d in districts]
+    report = _report(table, new, medians, correction, clip, len(osm["x"]), names)
     return BuildingLayers(
         buildings=table,
         rings={
@@ -106,7 +117,7 @@ def build_buildings(
         },
         districts=[{**d, "buildings": int(counts[d["id"]])} for d in districts],
         report=report,
-        meta=_meta(city, config, proj, heights, osm_layers),
+        meta=_meta(city, config, proj, heights, osm_layers, correction),
     )
 
 
@@ -185,18 +196,35 @@ def _new_columns(
     return columns, {"offsets": offsets, "xy": xy}
 
 
-def _heights(
+def _levels_sample(
     table: dict[str, np.ndarray], medians: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Raw raster medians and levels x 3.2 heights of the LEVELS-tagged buildings the raster
+    covers, and the mask selecting them."""
+    sample = (table["height_source"] == HeightSource.LEVELS) & ~np.isnan(medians)
+    return medians[sample].astype(np.float64), table["height_m"][sample].astype(np.float64), sample
+
+
+def _fit_correction(table: dict[str, np.ndarray], medians: np.ndarray) -> HeightCorrection | None:
+    """The D-024 fit, or None (raw raster heights) when the tagged sample fills fewer than two
+    bins."""
+    raw, target, _ = _levels_sample(table, medians)
+    return fit_correction(raw, target) if can_fit(raw, target) else None
+
+
+def _heights(
+    table: dict[str, np.ndarray], medians: np.ndarray, correction: HeightCorrection | None
 ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.uint8]]:
-    """Tagged OSM heights stay; the rest take the raster median, else the P-020 default chain
-    sampled from the same LEVELS-tagged buildings."""
+    """Tagged OSM heights stay; the rest take the corrected raster median, else the P-020
+    default chain sampled from the same LEVELS-tagged buildings."""
     source = table["height_source"]
     tagged = np.isin(source, TAGGED)
     from_raster = ~tagged & ~np.isnan(medians)
     height_source = np.where(
         tagged, source, np.where(from_raster, HeightSource.RASTER, HeightSource.DEFAULT)
     ).astype(np.uint8)
-    height = np.where(tagged, table["height_m"], np.where(from_raster, medians, np.nan))
+    raster = medians if correction is None else correction.apply(medians)
+    height = np.where(tagged, table["height_m"], np.where(from_raster, raster, np.nan))
     # P-020 stores float32(levels x 3.2); tagged levels have at most two decimals
     levels = np.where(
         source == HeightSource.LEVELS,
@@ -209,10 +237,17 @@ def _heights(
     return final, height_source
 
 
+def _floors(height_m: np.ndarray) -> npt.NDArray[np.uint8]:
+    """Storeys as P-021's capacity rounds them, at least one."""
+    levels = np.round(height_m.astype(np.float64) / LEVEL_HEIGHT_M)
+    return np.clip(levels, 1, MAX_FLOORS).astype(np.uint8)
+
+
 def _report(
     table: dict[str, np.ndarray],
     new: NewFootprints,
     medians: np.ndarray,
+    correction: HeightCorrection | None,
     clip: Polygon,
     n_osm: int,
     names: list[str],
@@ -229,7 +264,8 @@ def _report(
         "count": len(table["x"]),
         "sources": {"osm": {**osm, "kept": n_osm}, **new.counts},
         "by_height_source": {s.name: int(sources[s]) for s in HeightSource},
-        "raster_check": _raster_check(table, medians, n_osm),
+        "raster_check": _raster_check(table, medians, correction),
+        "height_correction": _correction_report(table, medians, correction),
         "districts": {
             name: {source: int(mix[i, code]) for source, code in SOURCE_NAMES.items()}
             for i, name in enumerate(names)
@@ -241,19 +277,33 @@ def _report(
     }
 
 
-def _raster_check(table: dict[str, np.ndarray], medians: np.ndarray, n_osm: int) -> dict[str, Any]:
-    """The raster median against LEVELS-tagged OSM heights (levels x 3.2 m)."""
-    levels = table["height_source"][:n_osm] == HeightSource.LEVELS
-    raster = medians[:n_osm][levels].astype(np.float64)
-    tagged = table["height_m"][:n_osm][levels].astype(np.float64)
-    seen = ~np.isnan(raster)
-    if not seen.any():
+def _raster_check(
+    table: dict[str, np.ndarray], medians: np.ndarray, correction: HeightCorrection | None
+) -> dict[str, Any]:
+    """The raw raster median against LEVELS-tagged OSM heights (levels x 3.2 m), and the ratio
+    after the correction fitted on the same buildings."""
+    raster, tagged, _ = _levels_sample(table, medians)
+    if not len(raster):
         return {"n": 0, "median_ratio": None, "median_abs_error_m": None}
-    raster, tagged = raster[seen], tagged[seen]
+    corrected = None
+    if correction is not None:
+        corrected = round(float(np.median(correction.apply(raster) / tagged)), 3)
     return {
-        "n": int(seen.sum()),
+        "n": len(raster),
         "median_ratio": round(float(np.median(raster / tagged)), 3),
         "median_abs_error_m": round(float(np.median(np.abs(raster - tagged))), 3),
+        "median_ratio_corrected": corrected,
+    }
+
+
+def _correction_report(
+    table: dict[str, np.ndarray], medians: np.ndarray, correction: HeightCorrection | None
+) -> dict[str, Any]:
+    raw, target, sample = _levels_sample(table, medians)
+    levels = np.round(target / LEVEL_HEIGHT_M, 3)
+    return {
+        "knots": None if correction is None else correction.knots(),
+        "validation": validate_by_district(raw, target, table["district"][sample], levels),
     }
 
 
@@ -263,6 +313,7 @@ def _meta(
     proj: LocalProjection,
     heights: Path,
     osm_layers: Path,
+    correction: HeightCorrection | None,
 ) -> dict[str, Any]:
     return {
         "city": city.slug,
@@ -282,4 +333,5 @@ def _meta(
         "overlap_drop": config.overlap_drop,
         "raster_min_height_m": config.raster_min_height_m,
         "raster_cell_m": config.raster_cell_m,
+        "height_correction": None if correction is None else correction.knots(),
     }

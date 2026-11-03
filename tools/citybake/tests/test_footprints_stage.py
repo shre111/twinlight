@@ -25,6 +25,7 @@ from test_population_stage import tiny_config as tiny_population_config
 
 from twl_citybake.cli import main
 from twl_citybake.config import CityConfig, DataDirs
+from twl_citybake.footprints.correction import fit_correction
 from twl_citybake.footprints.stage import build_buildings, write_building_layers
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import OsmLayers, extract_osm, write_osm_layers
@@ -166,23 +167,66 @@ def test_the_table_has_the_osm_columns_plus_source_and_confidence(
     world: World, table: dict[str, np.ndarray]
 ) -> None:
     base = world.baseline.buildings
-    assert set(table) == set(base) | {"source", "confidence", "raster_height_m"}
+    assert set(table) == set(base) | {"source", "confidence", "raster_height_m", "floors"}
     for name, column in base.items():
         assert table[name].dtype == column.dtype, name
     assert table["source"].dtype == np.uint8
+    assert table["floors"].dtype == np.uint8
     assert table["confidence"].dtype == np.float32
     assert table["raster_height_m"].dtype == np.float32
     assert len({len(c) for c in table.values()}) == 1
 
 
 def test_raster_height_keeps_the_raw_median_and_is_nan_without_raster_support(
+    world: World, table: dict[str, np.ndarray]
+) -> None:
+    n = n_osm(world)
+    assert table["raster_height_m"][row_of(table, 1003)] == pytest.approx(9.5)
+    assert table["raster_height_m"][row_of(table, 1002)] == pytest.approx(25.6)
+    assert table["raster_height_m"][row_of(table, 20000)] == pytest.approx(9.6)
+    assert table["raster_height_m"][n] == pytest.approx(7.25)
+    assert np.isnan(table["raster_height_m"][table["height_source"] == 2]).all()
+
+
+def test_raster_rows_are_corrected_by_the_fit_to_levels_tagged_buildings(
+    world: World, table: dict[str, np.ndarray]
+) -> None:
+    n = n_osm(world)
+    assert table["height_m"][row_of(table, 1003)] == pytest.approx(9.6, abs=1e-4)
+    assert table["height_m"][n] == pytest.approx(7.25 * 9.6 / 9.5, abs=1e-4)
+
+
+def test_the_correction_is_the_fit_of_raw_raster_against_levels_heights(
     table: dict[str, np.ndarray],
 ) -> None:
-    from_raster = table["height_source"] == 3
-    np.testing.assert_array_equal(
-        table["raster_height_m"][from_raster], table["height_m"][from_raster]
+    levels = (table["height_source"] == HeightSource.LEVELS) & ~np.isnan(table["raster_height_m"])
+    fit = fit_correction(table["raster_height_m"][levels], table["height_m"][levels])
+    raster = table["height_source"] == RASTER
+    assert raster.sum() == 2
+    np.testing.assert_allclose(
+        table["height_m"][raster], fit.apply(table["raster_height_m"][raster]), rtol=1e-6
     )
-    assert np.isnan(table["raster_height_m"][table["height_source"] == 2]).all()
+
+
+def test_non_raster_heights_are_not_touched_by_the_correction(
+    world: World, table: dict[str, np.ndarray]
+) -> None:
+    base = world.baseline.buildings
+    tagged = np.isin(base["height_source"], [HeightSource.HEIGHT, HeightSource.LEVELS])
+    np.testing.assert_array_equal(
+        table["height_m"][: n_osm(world)][tagged], base["height_m"][tagged]
+    )
+    assert table["height_m"][row_of(table, 1002)] == pytest.approx(12.8, abs=1e-4)
+
+
+def test_floors_are_the_rounded_clipped_height_over_a_level_for_every_row(
+    table: dict[str, np.ndarray],
+) -> None:
+    expected = np.clip(np.round(table["height_m"].astype(np.float64) / 3.2), 1, 255)
+    np.testing.assert_array_equal(table["floors"], expected.astype(np.uint8))
+    assert table["floors"].min() >= 1
+    assert table["floors"][row_of(table, 1002)] == 4
+    assert table["floors"][row_of(table, 1001)] == 5
 
 
 def test_osm_rows_come_first_and_are_identical_to_the_osm_stage_except_defaulted_heights(
@@ -291,7 +335,7 @@ def test_untagged_osm_buildings_take_the_raster_median_ignoring_ground_pixels(
 ) -> None:
     i = row_of(table, 1003)
     assert table["height_source"][i] == RASTER
-    assert table["height_m"][i] == pytest.approx(9.5)
+    assert table["raster_height_m"][i] == pytest.approx(9.5)
 
 
 def test_new_footprints_use_the_raster_median_else_the_default_chain(
@@ -305,7 +349,8 @@ def test_new_footprints_use_the_raster_median_else_the_default_chain(
         HeightSource.DEFAULT,
         HeightSource.DEFAULT,
     ]
-    assert height[0] == pytest.approx(7.25)
+    assert table["raster_height_m"][n] == pytest.approx(7.25)
+    assert height[0] == pytest.approx(7.25 * 9.6 / 9.5, abs=1e-4)
     assert (height[1:] > 0).all() and np.isfinite(height).all()
 
 
@@ -384,16 +429,36 @@ def test_the_report_height_sources_match_the_table(
 def test_the_report_checks_the_raster_against_levels_tagged_osm_buildings(
     report: dict[str, Any],
 ) -> None:
-    check = next(
-        node
-        for _, node in walk(report)
-        if isinstance(node, dict) and "n" in node and any("ratio" in k for k in node)
+    check = find_dict(
+        report,
+        "raster_check",
+        {"n", "median_ratio", "median_abs_error_m", "median_ratio_corrected"},
     )
-    ratio = next(v for k, v in check.items() if "ratio" in k)
-    error = next(v for k, v in check.items() if "error" in k)
     assert check["n"] == 2
-    assert ratio == pytest.approx(1.5, rel=1e-2)
-    assert error == pytest.approx(6.4, rel=1e-2)
+    assert check["median_ratio"] == pytest.approx(1.5, rel=1e-2)
+    assert check["median_abs_error_m"] == pytest.approx(6.4, rel=1e-2)
+    assert check["median_ratio_corrected"] == pytest.approx(1.0, abs=1e-3)
+
+
+def test_the_report_and_layer_json_carry_the_fitted_knots(
+    world: World, report: dict[str, Any]
+) -> None:
+    section = find_dict(report, "height_correction", {"knots", "validation"})
+    knots = section["knots"]
+    assert knots["centres"] == pytest.approx([9.5, 25.5])
+    assert knots["fitted"] == pytest.approx([9.6, 12.8])
+    meta = json.loads((world.out / "layer.json").read_text())
+    assert meta["height_correction"] == knots
+
+
+def test_the_report_validation_gives_every_storey_band_before_and_after(
+    report: dict[str, Any],
+) -> None:
+    validation = find_dict(report, "height_correction", {"knots", "validation"})["validation"]
+    assert validation["folds"] == 5
+    assert list(validation["bands"]) == ["1-2", "3-4", "5-7", "8-12", "13+"]
+    for stats in [*validation["bands"].values(), validation["overall"]]:
+        assert {"n", "before", "after"} <= set(stats)
 
 
 def test_the_report_gives_the_source_mix_per_district(
