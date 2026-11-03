@@ -9,7 +9,7 @@
     "./synthetic": "./src/synthetic.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "test": "vitest run"
   },
   "dependencies": {
