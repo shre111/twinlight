@@ -58,11 +58,53 @@ class RiverConfig:
     names: tuple[str, ...] = ()
 
 
+def normalise_name(name: str) -> str:
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+@dataclass(frozen=True)
+class ExtraSeed:
+    """A district seed named `name` at OSM node `node`, for a district OSM has no place for."""
+
+    name: str
+    node: int
+
+
 @dataclass(frozen=True)
 class DistrictConfig:
-    """`place` values whose named nodes and areas seed districts."""
+    """`place` values whose named nodes and areas seed districts, then the seed table:
+    `extra_seeds` add seeds, `merge` drops a district into another, `rename` changes display
+    names. Names match by normalise_name."""
 
     place_kinds: tuple[str, ...] = ("suburb", "neighbourhood", "quarter", "village", "town")
+    extra_seeds: tuple[ExtraSeed, ...] = ()
+    merge: Mapping[str, str] = field(default_factory=dict)
+    rename: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _check_names("districts.extra_seeds name", [s.name for s in self.extra_seeds], True)
+        nodes = [s.node for s in self.extra_seeds]
+        if bad := [n for n in nodes if not isinstance(n, int) or isinstance(n, bool)]:
+            raise ValueError(f"districts.extra_seeds node {bad[0]!r} is not an OSM node id")
+        if repeats := [n for i, n in enumerate(nodes) if n in nodes[:i]]:
+            raise ValueError(f"districts.extra_seeds repeat node {repeats[0]}")
+        _check_names("districts.merge key", list(self.merge), True)
+        _check_names("districts.merge target", list(self.merge.values()))
+        _check_names("districts.rename key", list(self.rename), True)
+        _check_names("districts.rename value", list(self.rename.values()))
+        merged = {normalise_name(k) for k in self.merge}
+        if chained := sorted(t for t in self.merge.values() if normalise_name(t) in merged):
+            raise ValueError(f"districts.merge target {chained[0]!r} is itself merged away")
+
+
+def _check_names(what: str, names: list[Any], unique: bool = False) -> None:
+    seen: dict[str, str] = {}
+    for name in names:
+        if not isinstance(name, str) or not (key := normalise_name(name)):
+            raise ValueError(f"{what} {name!r} has no letters or digits")
+        if unique and key in seen:
+            raise ValueError(f"{what} {name!r} repeats {seen[key]!r}")
+        seen.setdefault(key, name)
 
 
 DEFAULT_RESIDENTIAL_SHARE = {
@@ -209,17 +251,40 @@ def load_city(slug: str) -> CityConfig:
         bbox=BBox(*raw["bbox"]),
         osm=OsmSource(url=raw["osm"]["url"], md5=raw["osm"]["md5"]),
         river=RiverConfig(names=tuple(raw.get("river", {}).get("names", ()))),
-        districts=DistrictConfig(
-            place_kinds=tuple(
-                raw.get("districts", {}).get("place_kinds", DistrictConfig.place_kinds)
-            )
-        ),
+        districts=_districts(raw.get("districts", {})),
         seed=int(raw.get("seed", 0)),
         worldpop=_worldpop(raw.get("worldpop")),
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
         footprints=_footprints(raw.get("footprints")),
     )
+
+
+def _districts(raw: dict[str, Any]) -> DistrictConfig:
+    _known_keys("[districts]", raw, {"place_kinds", "extra_seeds", "merge", "rename"})
+    for table in ("merge", "rename"):
+        if not isinstance(raw.get(table, {}), dict):
+            raise ValueError(f"districts.{table} must be a table of names")
+    return DistrictConfig(
+        place_kinds=tuple(raw.get("place_kinds", DistrictConfig.place_kinds)),
+        extra_seeds=tuple(_extra_seed(entry) for entry in raw.get("extra_seeds", [])),
+        merge=dict(raw.get("merge", {})),
+        rename=dict(raw.get("rename", {})),
+    )
+
+
+def _extra_seed(raw: Any) -> ExtraSeed:
+    if not isinstance(raw, dict):
+        raise ValueError(f"districts.extra_seeds entry {raw!r} must be a table")
+    _known_keys("districts.extra_seeds entry", raw, {"name", "node"})
+    if "name" not in raw or "node" not in raw:
+        raise ValueError(f"districts.extra_seeds entry {raw!r} needs a name and a node")
+    return ExtraSeed(name=raw["name"], node=raw["node"])
+
+
+def _known_keys(where: str, raw: dict[str, Any], known: set[str]) -> None:
+    if unknown := sorted(set(raw) - known):
+        raise ValueError(f"{where} has unknown key {unknown[0]!r}")
 
 
 def _worldpop(raw: dict[str, Any] | None) -> WorldPopSource | None:
