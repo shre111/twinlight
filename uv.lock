@@ -4,7 +4,9 @@ requires-python = ">=3.13"
 
 [manifest]
 members = [
+    "twl-citybake",
     "twl-engine",
+    "twl-minds",
     "twl-runner",
     "twl-tape",
 ]
@@ -496,6 +498,11 @@ wheels = [
 ]
 
 [[package]]
+name = "twl-citybake"
+version = "0.0.0"
+source = { editable = "tools/citybake" }
+
+[[package]]
 name = "twl-engine"
 version = "0.0.0"
 source = { editable = "py/engine" }
@@ -508,6 +515,21 @@ dependencies = [
 requires-dist = [
     { name = "numba", specifier = ">=0.68,<0.69" },
     { name = "numpy", specifier = ">=2.5,<2.6" },
+]
+
+[[package]]
+name = "twl-minds"
+version = "0.0.0"
+source = { editable = "services/minds" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.162,<0.163" },
+    { name = "uvicorn", specifier = ">=0.54,<0.55" },
 ]
 
 [[package]]
