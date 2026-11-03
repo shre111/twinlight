@@ -7,11 +7,17 @@ import styles from './stage-host.module.css'
 interface StageHostProps {
   tier?: TierOption
   backend?: BackendPreference
+  hud?: boolean
   /** Runs once the stage is live; a returned function runs before the stage is disposed. */
   onReady?: (stage: Stage) => (() => void) | undefined
 }
 
-export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHostProps) {
+export function StageHost({
+  tier = 'auto',
+  backend = 'auto',
+  hud = false,
+  onReady,
+}: StageHostProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const ready = useEffectEvent((stage: Stage) => onReady?.(stage))
   const [failed, setFailed] = useState(false)
@@ -30,7 +36,7 @@ export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHos
     let disposed = false
 
     import('@twinlight/stage')
-      .then(({ Stage }) => Stage.create(canvas, { tier, backend }))
+      .then(({ Stage }) => Stage.create(canvas, { tier, backend, hud }))
       .then((created) => {
         if (disposed) {
           created.dispose()
@@ -50,7 +56,7 @@ export function StageHost({ tier = 'auto', backend = 'auto', onReady }: StageHos
       stage?.dispose()
       canvas.remove()
     }
-  }, [tier, backend])
+  }, [tier, backend, hud])
 
   return (
     <div ref={hostRef} className={styles.host}>

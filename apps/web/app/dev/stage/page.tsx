@@ -16,6 +16,7 @@ export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
     <DevStage
       tier={pick(query.tier, TIER_OPTIONS)}
       backend={pick(query.backend, BACKEND_OPTIONS)}
+      hud={query.hud !== '0'}
     />
   )
 }

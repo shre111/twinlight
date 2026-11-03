@@ -16,10 +16,10 @@ function expose(stage: Stage) {
   }
 }
 
-export function DevStage(props: { tier?: TierOption; backend?: BackendPreference }) {
+export function DevStage(props: { tier?: TierOption; backend?: BackendPreference; hud: boolean }) {
   return (
     <main>
-      <StageHost tier={props.tier} backend={props.backend} onReady={expose} />
+      <StageHost tier={props.tier} backend={props.backend} hud={props.hud} onReady={expose} />
     </main>
   )
 }
