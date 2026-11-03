@@ -10,6 +10,7 @@ import {
   instanceIndex,
   length,
   max,
+  min,
   mix,
   modelViewMatrix,
   normalize,
@@ -18,6 +19,7 @@ import {
   smoothstep,
   uniform,
   uv,
+  vec3,
   vec4,
   vertexStage,
   viewportSize,
@@ -48,6 +50,8 @@ const MAX_PX = 7.5
 // A fresh flare's quad is this many cores wide to carry its soft glow (a stand-in for bloom
 // until P-045); steady points draw only the core.
 const FLARE_SPAN = 2
+// The wall-clearing nudge never exceeds this, so far flares cannot jump in front of buildings.
+const MAX_NUDGE_METRES = 60
 
 /**
  * Residents as one instanced quad per resident: WebGPU draws point primitives at 1 px, so
@@ -123,7 +127,11 @@ export class ResidentsLayer {
     // Perspective size in logical pixels; below MIN_PX the point dims instead of shrinking,
     // so far districts fade rather than turn to noise.
     const depth = max(modelViewMatrix.mul(vec4(home, 1)).z.negate(), 1)
-    const pixelsPerMetre = this.#focal.mul(viewportSize.y).div(screenDPR).mul(0.5).div(depth)
+    // Floored so a zero-size viewport cannot divide by zero below.
+    const pixelsPerMetre = max(
+      this.#focal.mul(viewportSize.y).div(screenDPR).mul(0.5).div(depth),
+      1e-4,
+    )
     const px = growth.mul(seed.mul(0.36).add(0.82)).mul(POINT_METRES).mul(pixelsPerMetre)
     const dim = clamp(px.div(MIN_PX), 0.25, 1)
     const span = flare.mul(FLARE_SPAN - 1).add(1)
@@ -132,8 +140,9 @@ export class ResidentsLayer {
 
     // The quad is depth-tested at its own radius in front of the resident, like the near side
     // of a glowing sphere, so the wall it sits on cannot cut it while buildings in front still hide it.
-    const radius = size.div(pixelsPerMetre).mul(0.5)
-    material.positionNode = home.add(normalize(cameraPosition.sub(home)).mul(radius))
+    const radius = min(size.div(pixelsPerMetre).mul(0.5), MAX_NUDGE_METRES)
+    const towardCamera = normalize(cameraPosition.sub(home).add(vec3(0, 1e-3, 0)))
+    material.positionNode = home.add(towardCamera.mul(radius))
 
     const glow = vertexStage(tint.mul(dim).mul(oneMinus(fog.factor(depth))))
     const haloSpan = vertexStage(span)
