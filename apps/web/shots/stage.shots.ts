@@ -6,7 +6,7 @@ import type { FrameReport, TierName } from '@twinlight/stage'
 const TIERS: TierName[] = ['high', 'medium', 'low']
 // A frame count rather than a time window, so software GL samples as many frames as a GPU.
 const SAMPLE_FRAMES = 60
-const SAMPLE_TIMEOUT_MS = 30_000
+const SAMPLE_TIMEOUT_MS = 60_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
 async function openStage(page: Page, query: string) {
@@ -26,6 +26,8 @@ for (const day of [1, 6, 13]) {
 }
 
 test('frame report', async ({ page }, testInfo) => {
+  // Three tiers of 60 software GL frames with 20k residents run past the default timeout.
+  test.slow()
   const report: Partial<Record<TierName, FrameReport>> = {}
   for (const tier of TIERS) {
     await openStage(page, `hud=0&tier=${tier}`)

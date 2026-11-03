@@ -50,7 +50,8 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   timeout: 60_000,
-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
+  // A software GL screenshot takes close to 2 s and a stable still needs two in a row.
+  expect: { timeout: 15_000, toHaveScreenshot: { maxDiffPixelRatio: 0.01 } },
   use: { baseURL: `http://localhost:${port}` },
   projects: [
     {
