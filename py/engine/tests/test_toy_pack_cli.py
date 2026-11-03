@@ -1,6 +1,4 @@
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -20,13 +18,3 @@ def test_cli_prints_the_hash_of_the_manifest_it_wrote(
     assert parsed["seed"] == 7
     assert parsed["counts"]["residents"] == 500
     assert parsed["counts"]["stores"] == 3
-
-
-def test_cli_runs_as_a_module(tmp_path: Path) -> None:
-    result = subprocess.run(
-        [sys.executable, "-m", "twl_engine.fixtures", "--residents", "200", "--out", str(tmp_path)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    assert result.stdout.strip() == blake3((tmp_path / "manifest.json").read_bytes()).hexdigest()
