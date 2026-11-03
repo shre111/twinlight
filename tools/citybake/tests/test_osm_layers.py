@@ -1,3 +1,4 @@
+import dataclasses
 import json
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import pytest
 from osm_fixture import TinyCity
 
 from twl_citybake.cli import main
-from twl_citybake.config import BBox, CityConfig
+from twl_citybake.config import BBox, CityConfig, DistrictConfig, load_city
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import OsmLayers, extract_osm, write_osm_layers
 from twl_citybake.projection import LocalProjection
@@ -105,6 +106,9 @@ def test_report_has_the_specified_keys(layers: OsmLayers) -> None:
         "buildings_min",
         "buildings_median",
         "buildings_max",
+        "extra_seeds",
+        "merged",
+        "renamed",
     }
     assert {"cell_m", "cells_in_bbox", "cells_without_buildings"} <= set(report["coverage"])
 
@@ -204,8 +208,16 @@ def test_extract_and_write_twice_gives_identical_bytes(
 
 
 def test_cli_osm_bakes_layers_from_the_fetched_extract(
-    tmp_path: Path, tiny_city: TinyCity, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    tiny_city: TinyCity,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    ahmedabad = load_city("ahmedabad")
+    plain = dataclasses.replace(
+        ahmedabad, districts=DistrictConfig(place_kinds=ahmedabad.districts.place_kinds)
+    )
+    monkeypatch.setattr("twl_citybake.cli.load_city", lambda slug: plain)
     stage = tmp_path / "cache" / "citybake" / "ahmedabad" / "osm"
     stage.mkdir(parents=True)
     clip_extract(tiny_city.path, stage / "ahmedabad.osm.pbf", AHMEDABAD_BBOX)
