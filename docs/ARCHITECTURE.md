@@ -120,7 +120,7 @@ Binary, little-endian, sections independently zstd-compressed, 8-byte aligned. D
 ```
 Header
   magic "TWLT", u16 version, u16 flags
-  run_id (16 bytes), u64 seed, engine_version (32 bytes, git describe)
+  run_id (16 bytes), u64 seed, engine_version (32 bytes, zero-padded format version string)
   city_pack_hash (32 bytes), scenario_hash (32 bytes)
   u32 sim_minutes (43_200 for 30 days), u32 tick_minutes (15)
   u32 residents, u32 stores, u32 chatter_rows, u32 delivery_rows, u32 stockout_pairs, u32 reserved (0)
