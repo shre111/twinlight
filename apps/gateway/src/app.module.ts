@@ -13,6 +13,11 @@ export class AppModule {
         LoggerModule.forRoot({
           pinoHttp: {
             level: config.LOG_LEVEL,
+            redact: [
+              'req.headers.authorization',
+              'req.headers.cookie',
+              'res.headers["set-cookie"]',
+            ],
             transport: config.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
           },
         }),

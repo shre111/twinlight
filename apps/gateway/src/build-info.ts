@@ -13,6 +13,7 @@ export function readBuildInfo(gitShaFromEnv?: string): BuildInfo {
 }
 
 function readVersion(): string {
+  // Resolves from both src/ and dist/, so images must ship package.json beside dist/.
   const packageJson = readFileSync(new URL('../package.json', import.meta.url), 'utf8')
   return (JSON.parse(packageJson) as { version: string }).version
 }
