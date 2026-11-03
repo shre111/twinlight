@@ -4,7 +4,7 @@ import type { StageTape } from './inputs'
 export const WARM_ADOPTED_SHARE = 0.2
 
 export function clampTime(simMinutes: number, tape: Pick<StageTape, 'simMinutes'>): number {
-  if (!Number.isFinite(simMinutes)) return 0
+  if (Number.isNaN(simMinutes)) return 0
   return Math.min(Math.max(simMinutes, 0), tape.simMinutes)
 }
 

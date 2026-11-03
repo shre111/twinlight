@@ -40,9 +40,10 @@ describe('clampTime', () => {
     expect(clampTime(1e9, tape)).toBe(240)
   })
 
-  it('treats NaN and infinities as the start', () => {
+  it('treats NaN as the start and infinities as the ends of the run', () => {
     expect(clampTime(Number.NaN, tape)).toBe(0)
-    expect(clampTime(Number.POSITIVE_INFINITY, tape)).toBe(0)
+    expect(clampTime(Number.NEGATIVE_INFINITY, tape)).toBe(0)
+    expect(clampTime(Number.POSITIVE_INFINITY, tape)).toBe(tape.simMinutes)
   })
 })
 
@@ -63,6 +64,13 @@ describe('warmFraction', () => {
     expect(warmFraction(30, tape, RESIDENTS)).toBeCloseTo(0.5)
     expect(warmFraction(45, tape, RESIDENTS)).toBe(1)
     expect(warmFraction(240, tape, RESIDENTS)).toBe(1)
+  })
+
+  it('finds the tick from the tape header, not a fixed tick length', () => {
+    const hourly = { ...tape, tickMinutes: 60 }
+    expect(warmFraction(60, hourly, RESIDENTS)).toBeCloseTo(0.25)
+    expect(warmFraction(119, hourly, RESIDENTS)).toBeCloseTo(0.25)
+    expect(warmFraction(120, hourly, RESIDENTS)).toBeCloseTo(0.5)
   })
 
   it('is zero without aggregates or residents', () => {
