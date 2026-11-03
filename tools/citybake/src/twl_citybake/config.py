@@ -123,9 +123,10 @@ class HouseholdConfig:
             raise ValueError("household sizes must be positive and increasing")
         if self.sizes[-1] > 255 or min(self.counts) < 0 or sum(self.counts) == 0:
             raise ValueError("household sizes must fit u8, counts be non-negative and not all 0")
-        if not 0 < self.size_shrink <= 1 or self.mean_size * self.size_shrink < self.sizes[0]:
+        smallest = min(s for s, n in zip(self.sizes, self.counts, strict=True) if n > 0)
+        if not 0 < self.size_shrink <= 1 or self.mean_size * self.size_shrink < smallest:
             raise ValueError(
-                "size_shrink must be in (0, 1] and keep the mean above the smallest size"
+                "size_shrink must be in (0, 1] and keep the mean above the smallest counted size"
             )
 
     @property
@@ -152,11 +153,14 @@ class HouseholdConfig:
             w = weights(theta)
             return sum(wk * s for wk, s in zip(w, sizes, strict=True)) / sum(w)
 
-        lo, hi = -50.0, 0.0
+        lo, hi = -700.0 / max(1.0, max(sizes) - min(sizes)), 0.0
         for _ in range(200):
             mid = (lo + hi) / 2
             lo, hi = (mid, hi) if mean(mid) < goal else (lo, mid)
-        return tuple(weights((lo + hi) / 2))
+        theta = (lo + hi) / 2
+        if not abs(mean(theta) - goal) <= 1e-9 * goal:
+            raise ValueError(f"cannot shrink the mean household size to {goal:.3f}")
+        return tuple(weights(theta))
 
 
 @dataclass(frozen=True)
