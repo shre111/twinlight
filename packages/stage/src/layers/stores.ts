@@ -64,10 +64,12 @@ const OUT_GAIN = 1.15
 const FLICKER_DEPTH = 0.28
 const FLICKER_RATE = 5
 const FLICKER_PHASE_STEP = 1.7
-// Reduced motion holds the flicker, so out-of-stock beams break into segments instead: a still
-// cue that is not colour alone.
-const SEGMENT_METRES = 65
-const SEGMENT_GAP_GAIN = 0.15
+/** The flicker repeats every this many seconds, so the stage can wrap its clock without a jump. */
+export const FLICKER_PERIOD_SECONDS = (2 * Math.PI) / FLICKER_RATE
+// Reduced motion holds the flicker, so out-of-stock beams break into dashes instead: a still
+// cue that is not colour alone. Four dashes with dark gaps stay legible at the default view.
+const SEGMENT_METRES = 130
+const SEGMENT_GAP_GAIN = 0
 
 /** Dark stores as tube beams over a ground glow and a delivery-radius ring, three draws in all. */
 export class StoresLayer {
@@ -183,7 +185,7 @@ function flickerAt(clock: Node<'float'>) {
 // eased so the gaps have soft ends; the first segment is centred on the foot.
 function beamSegments(up: Node<'float'>) {
   const wave = abs(fract(up.mul(BEAM_HEIGHT / SEGMENT_METRES).add(0.5)).sub(0.5)).mul(2)
-  return mix(float(1), float(SEGMENT_GAP_GAIN), smoothstep(0.5, 0.7, wave))
+  return mix(float(1), float(SEGMENT_GAP_GAIN), smoothstep(0.42, 0.55, wave))
 }
 
 interface SharedAttributes {

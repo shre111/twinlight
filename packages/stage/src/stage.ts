@@ -5,7 +5,7 @@ import { FrameStats, type FrameSummary } from './frame-stats'
 import type { StageCity, StageTape } from './inputs'
 import { CityLayer } from './layers/city'
 import { ResidentsLayer } from './layers/residents'
-import { StoresLayer } from './layers/stores'
+import { FLICKER_PERIOD_SECONDS, StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
@@ -17,7 +17,10 @@ export interface StageOptions {
   tier?: TierOption
   backend?: BackendPreference
   hud?: boolean
-  /** Holds wall-clock animation such as the stockout flicker, so screenshots repeat exactly. */
+  /**
+   * Holds wall-clock animation such as the stockout flicker, so screenshots repeat exactly.
+   * For screenshots and the dev route only; product pages leave it unset.
+   */
   still?: boolean
 }
 
@@ -64,6 +67,7 @@ export class Stage {
       options.tier === undefined || options.tier === 'auto'
         ? initialTier(window.matchMedia('(pointer: coarse)').matches)
         : options.tier
+    // Read once: a change to the OS setting applies to the next stage, not this one.
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     return new Stage(canvas, renderer, backend, tier, {
       hud: options.hud ?? false,
@@ -249,7 +253,10 @@ export class Stage {
     const gap = now - this.#lastFrameAt
     if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) {
       this.#stats.push(gap)
-      if (!this.#still) this.#clock.value += gap / 1000
+      // Wrapped by the flicker's period so the float32 uniform keeps its precision in long sessions.
+      if (!this.#still) {
+        this.#clock.value = (this.#clock.value + gap / 1000) % FLICKER_PERIOD_SECONDS
+      }
     }
     this.#lastFrameAt = now
 
