@@ -50,6 +50,8 @@ for (const day of [1, 6, 10, 13]) {
 test('city day 10 with reduced motion', async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await openStage(page, 'hud=0&day=10')
+  const reduced = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
+  expect(reduced, 'reduced motion emulated').toBe(true)
   await captureStill(page, testInfo, 'city-day10-reduced-motion')
 })
 
