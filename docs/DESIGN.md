@@ -19,7 +19,7 @@ Light is data. Every colour in the city means something, and the legend says wha
 | `sindoor` | #FF5468 | stockouts, errors |
 | `monsoon` | #6F8CC9 | rain, weather |
 
-Sky shades are environment, not data, and exist only for the stage (TS tokens `sky.*`, no CSS variables): `zenith` #04061A overhead, `mid` #0B0F2E above the horizon, `horizon` #231F4E for the horizon haze and far fog, `band` #4A3C7E for the thin violet band. They are more violet than any mix of the colours above can reach, which is why they are tokens of their own.
+Sky shades are environment, not data, and exist only for the stage (TS tokens `sky.*`, no CSS variables): `zenith` #04061A overhead, `mid` #0B0F2E above the horizon, `horizon` #231F4E for the distant horizon glow, `band` #4A3C7E for the thin violet band. Fog is `dusk`; only its farthest reach drifts toward `sky.horizon`. The data colours above stay reserved for meaning, and blends of them did not reach these darker violets, so the sky has tokens of its own.
 
 The app commits to the dusk look; there is no light theme for the city. Marketing pages and the Plan view's printable export may use a light variant (`paper` ground, `dusk` text) defined in tokens.json under `light`.
 
