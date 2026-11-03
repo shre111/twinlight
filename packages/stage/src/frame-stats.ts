@@ -16,6 +16,11 @@ export class FrameStats {
     this.#sorted = new Float32Array(capacity)
   }
 
+  reset(): void {
+    this.#count = 0
+    this.#next = 0
+  }
+
   push(frameMs: number): void {
     this.#samples[this.#next] = frameMs
     this.#next = (this.#next + 1) % this.#samples.length

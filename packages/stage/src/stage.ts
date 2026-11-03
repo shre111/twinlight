@@ -19,6 +19,8 @@ export interface FrameReport extends FrameSummary {
 }
 
 const HUD_INTERVAL_MS = 250
+// Longer gaps come from a paused or throttled loop, not from rendering.
+const MAX_FRAME_GAP_MS = 1000
 
 export class Stage {
   readonly backend: Backend
@@ -72,6 +74,7 @@ export class Stage {
 
   setTier(tier: TierName): void {
     this.#tier = tier
+    this.#stats.reset()
     this.#viewport.remeasure()
   }
 
@@ -101,7 +104,8 @@ export class Stage {
       this.#applySize(this.#pendingSize)
       this.#pendingSize = null
     }
-    if (this.#lastFrameAt > 0) this.#stats.push(now - this.#lastFrameAt)
+    const gap = now - this.#lastFrameAt
+    if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) this.#stats.push(gap)
     this.#lastFrameAt = now
 
     this.#renderer.render(this.#scene, this.#camera)
@@ -118,6 +122,7 @@ export class Stage {
     this.#renderer.setSize(width, height, false)
     this.#camera.aspect = width / height
     this.#camera.updateProjectionMatrix()
+    this.#stats.reset()
   }
 
   // A hidden tab pauses the loop; the gap is not a frame.

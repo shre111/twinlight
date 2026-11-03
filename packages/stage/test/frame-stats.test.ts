@@ -15,6 +15,20 @@ describe('FrameStats', () => {
     expect(p95).toBe(95)
   })
 
+  it('summarises a partly filled ring from its pushed frames only', () => {
+    const stats = new FrameStats(8)
+    for (const ms of [10, 20, 30]) stats.push(ms)
+    expect(stats.summary()).toEqual({ frames: 3, fps: 50, p50: 20, p95: 30 })
+  })
+
+  it('forgets every frame on reset', () => {
+    const stats = new FrameStats(4)
+    for (const ms of [100, 100, 100]) stats.push(ms)
+    stats.reset()
+    stats.push(10)
+    expect(stats.summary()).toEqual({ frames: 1, fps: 100, p50: 10, p95: 10 })
+  })
+
   it('keeps only the most recent frames once full', () => {
     const stats = new FrameStats(4)
     for (const ms of [100, 100, 100, 100, 10, 10, 10, 20]) stats.push(ms)
