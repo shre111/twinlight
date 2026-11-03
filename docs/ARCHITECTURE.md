@@ -142,6 +142,7 @@ Footer
 ```
 - Streaming: while a run is live, the runner appends day chunks; the client fetches ranges listed in `CHUNKS` and appends to GPU buffers (event arrays are append-friendly because rows are time-sorted or per-entity fixed slots).
 - Golden tests: `py/tape` writes `fixtures/tape/v1/*.twlt`; `packages/tape` decodes them and must reproduce the checksums and a set of probe values.
+- TS decode names (`packages/tape`): camelCase of the fields above (`awareAt`, `firstOrderAt`, `storesOut`, ...), times in minutes, `0xFFFFFFFF` = never. Per-store series are flat row-major `[store * ticks + tick]`; stockout intervals are CSR: `stockoutOffsets` (storeCount + 1) into `stockoutIntervals` (start, end pairs). Header exposes `simMinutes`, `tickMinutes`, `seed`.
 
 ## 5. City pack format (one per city version)
 ```
@@ -155,7 +156,9 @@ stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
 travel.bin         travel minutes store -> hex (u16), from OSRM, per time-of-day band
 districts.json     names, polygons, marginals used in synthesis
 ```
-Coordinates are local metres in a city-specific projection with the origin at the bbox centre. Packs are immutable and content-addressed by `pack_hash`.
+Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
+
+Until P-025, toy packs ship `buildings.bin` instead of `buildings.glb`: little-endian f32 SoA `x, y, width, depth, height, rotation` (radians about up, counter-clockwise from east), with the count in `manifest.json`.
 
 ## 6. Data model (Postgres)
 ```
