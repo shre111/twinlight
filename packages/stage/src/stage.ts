@@ -1,12 +1,14 @@
 import { PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu'
 import { CameraRig } from './camera'
 import { FrameStats, type FrameSummary } from './frame-stats'
-import type { StageCity } from './inputs'
+import type { StageCity, StageTape } from './inputs'
 import { CityLayer } from './layers/city'
+import { ResidentsLayer } from './layers/residents'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
+import { clampTime, warmFraction } from './time'
 import { type Viewport, type ViewportSize, watchViewport } from './viewport'
 
 export interface StageOptions {
@@ -33,6 +35,9 @@ export class Stage {
   #camera = new PerspectiveCamera(40, 1, 20, 90_000)
   #rig: CameraRig
   #city: CityLayer | null = null
+  #tape: StageTape | null = null
+  #residents: ResidentsLayer | null = null
+  #time = 0
   #tier: TierName
   #pendingSize: ViewportSize | null = null
   #viewport: Viewport
@@ -82,28 +87,55 @@ export class Stage {
     return this.#tier
   }
 
+  /** Sim minutes the city is shown at. */
+  get time(): number {
+    return this.#time
+  }
+
   setTier(tier: TierName): void {
     this.#tier = tier
     this.#stats.reset()
     this.#viewport.remeasure()
+    this.#mountResidents()
   }
 
   async loadCity(city: StageCity): Promise<void> {
     if (this.#disposed) return
     const load = ++this.#loads
+    this.#tape = null
+    this.#residents?.dispose()
+    this.#residents = null
     this.#city?.dispose()
     const layer = new CityLayer(city)
     this.#city = layer
     this.#scene.add(layer.group)
     this.#renderer.setClearColor(palette.skyTop, 1)
-    try {
-      await this.#renderer.compileAsync(this.#scene, this.#camera)
-    } catch (error) {
-      if (!this.#disposed) throw error
-    }
+    await this.#compile()
     // A newer load or a dispose may have landed while the materials compiled.
     if (this.#disposed || load !== this.#loads) return
     this.#stats.reset()
+  }
+
+  /** Uploads the residents' event times once; the shaders evaluate them at `setTime` (D-004). */
+  async setTape(tape: StageTape): Promise<void> {
+    if (this.#disposed) return
+    const city = this.#city
+    if (!city) throw new Error('Load a city before setting its tape')
+    const expected = city.residents.count
+    const { awareAt, firstOrderAt } = tape.residents
+    if (awareAt.length !== expected || firstOrderAt.length !== expected) {
+      throw new Error(`The tape has ${awareAt.length} residents but the city has ${expected}`)
+    }
+    this.#tape = tape
+    this.#mountResidents()
+    await this.#compile()
+  }
+
+  /** Clamps to the tape and updates uniforms only; no work grows with the resident count. */
+  setTime(simMinutes: number): void {
+    const tape = this.#tape
+    this.#time = tape ? clampTime(simMinutes, tape) : Math.max(0, simMinutes || 0)
+    this.#applyTime()
   }
 
   perf(): FrameReport {
@@ -123,9 +155,43 @@ export class Stage {
     document.removeEventListener('visibilitychange', this.#restartClock)
     this.#viewport.stop()
     this.#hud?.dispose()
+    this.#residents?.dispose()
     this.#city?.dispose()
     this.#rig.dispose()
     void this.#renderer.dispose()
+  }
+
+  #mountResidents(): void {
+    this.#residents?.dispose()
+    this.#residents = null
+    const city = this.#city
+    const tape = this.#tape
+    if (!city || !tape) return
+    const layer = new ResidentsLayer(
+      city.residents,
+      tape.residents,
+      TIERS[this.#tier].residents,
+      city.fog,
+    )
+    this.#residents = layer
+    this.#scene.add(layer.object)
+    this.setTime(this.#time)
+  }
+
+  #applyTime(): void {
+    const city = this.#city
+    const tape = this.#tape
+    if (!city || !tape) return
+    if (this.#residents) this.#residents.time.value = this.#time
+    city.warm.value = warmFraction(this.#time, tape, city.residents.count)
+  }
+
+  async #compile(): Promise<void> {
+    try {
+      await this.#renderer.compileAsync(this.#scene, this.#camera)
+    } catch (error) {
+      if (!this.#disposed) throw error
+    }
   }
 
   #frame(now: number): void {
@@ -140,6 +206,7 @@ export class Stage {
 
     const cameraDistance = this.#rig.update()
     this.#city?.update(this.#camera, cameraDistance)
+    this.#residents?.update(this.#camera)
     this.#renderer.render(this.#scene, this.#camera)
     this.#drawCalls = this.#renderer.info.render.drawCalls
 
