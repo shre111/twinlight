@@ -185,6 +185,7 @@ export class Stage {
       tape.residents,
       TIERS[this.#tier].residents,
       city.fog,
+      TIERS[this.#tier].bloomScale > 0,
     )
     this.#residents = layer
     this.#scene.add(layer.object)

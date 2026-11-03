@@ -81,10 +81,11 @@ export class ResidentsLayer {
   readonly #geometry: BufferGeometry
   readonly #material: PointsNodeMaterial
 
-  constructor(residents: Residents, events: Events, cap: number, fog: Fog) {
+  /** `glow` follows the tier's bloom: the low tier has none, so it skips the glow quads' fill. */
+  constructor(residents: Residents, events: Events, cap: number, fog: Fog, glow = true) {
     const picks = residentSubset(residents.count, cap)
     this.count = picks.length
-    this.#geometry = pointAndGlowQuads()
+    this.#geometry = pointAndGlowQuads(glow)
     this.#geometry.setAttribute(
       'home',
       new InstancedBufferAttribute(residentPositions(residents, picks), 3),
@@ -164,8 +165,10 @@ export class ResidentsLayer {
     const radius = min(pointSize.div(pixelsPerMetre).mul(0.5), MAX_NUDGE_METRES)
     const towardCamera = normalize(cameraPosition.sub(home).add(vec3(0, 1e-3, 0)))
     const pointPosition = home.add(towardCamera.mul(radius))
-    // The glow sits on the same view ray just past the near plane: same screen spot, in front of every wall.
-    const glowPosition = cameraPosition.sub(towardCamera.mul(cameraNear.mul(1.5)))
+    // The glow sits on the same view ray just past the near plane: same screen spot, in front of
+    // every wall. Near clips on view depth, not ray length, so the step grows by 1 / cos off axis.
+    const offAxisCos = max(depth.div(max(length(cameraPosition.sub(home)), 1)), 0.1)
+    const glowPosition = cameraPosition.sub(towardCamera.mul(cameraNear.mul(1.5).div(offAxisCos)))
     material.positionNode = mix(pointPosition, glowPosition, isGlow)
 
     const shade = vertexStage(tint.mul(dim).mul(oneMinus(fog.factor(depth))))
@@ -232,17 +235,23 @@ export function eventMinutes(times: Uint32Array, picks: Uint32Array): Float32Arr
   return Float32Array.from(picks, (i) => times[i] ?? NEVER)
 }
 
-// Two quads per instance: the depth-tested point (glow 0) and its always-visible glow (glow 1).
-function pointAndGlowQuads(): BufferGeometry {
-  const corners = [-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]
-  const uvs = [0, 0, 1, 0, 1, 1, 0, 1]
+// Per instance: the depth-tested point (glow 0) and, unless disabled, its always-visible glow (glow 1).
+export function pointAndGlowQuads(withGlow: boolean): BufferGeometry {
+  const quads = withGlow ? 2 : 1
+  const repeat = (values: number[]) => Float32Array.from(Array(quads).fill(values).flat())
   const geometry = new BufferGeometry()
   geometry.setAttribute(
     'position',
-    new BufferAttribute(Float32Array.from([...corners, ...corners]), 3),
+    new BufferAttribute(repeat([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]), 3),
   )
-  geometry.setAttribute('uv', new BufferAttribute(Float32Array.from([...uvs, ...uvs]), 2))
-  geometry.setAttribute('glow', new BufferAttribute(Float32Array.of(0, 0, 0, 0, 1, 1, 1, 1), 1))
-  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7])
+  geometry.setAttribute('uv', new BufferAttribute(repeat([0, 0, 1, 0, 1, 1, 0, 1]), 2))
+  geometry.setAttribute(
+    'glow',
+    new BufferAttribute(
+      Float32Array.from({ length: quads * 4 }, (_, v) => (v < 4 ? 0 : 1)),
+      1,
+    ),
+  )
+  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7].slice(0, quads * 6))
   return geometry
 }

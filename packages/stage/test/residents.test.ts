@@ -5,6 +5,7 @@ import { Fog } from '../src/layers/fog'
 import {
   eventMinutes,
   glowDensity,
+  pointAndGlowQuads,
   ResidentsLayer,
   residentPositions,
   residentSubset,
@@ -86,6 +87,16 @@ describe('ResidentsLayer', () => {
     expect(layer.object.geometry.index?.count).toBe(12)
     expect(attribute('position').count).toBe(8)
     expect(Array.from(attribute('glow').array)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+
+  it('draws only the point quad when the tier has no bloom', () => {
+    const geometry = pointAndGlowQuads(false)
+    expect(geometry.index?.count).toBe(6)
+    expect(Array.from(geometry.getAttribute('glow').array)).toEqual([0, 0, 0, 0])
+    expect(Array.from(geometry.getAttribute('uv').array)).toEqual([0, 0, 1, 0, 1, 1, 0, 1])
+    const both = pointAndGlowQuads(true).getAttribute('position').array
+    expect(Array.from(both).every(Number.isFinite)).toBe(true)
+    expect(Array.from(both.slice(12))).toEqual(Array.from(both.slice(0, 12)))
   })
 
   it('uploads positions and event times once as instanced attributes', () => {
