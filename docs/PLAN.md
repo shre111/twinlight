@@ -14,7 +14,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
 ## M0 Foundations
 - [x] **P-001 Monorepo scaffold** Lane A. pnpm workspaces, Turborepo, Biome, base tsconfig, `packages/config`, `apps/web` (Next.js 16) rendering the Twinlight wordmark on the dusk background. `justfile` with `setup`, `dev`, `lint`, `test`.
   AC: `just setup && just lint && just test` pass on a clean clone; web app starts.
-- [ ] **P-002 Python workspace** Lane A. Root `pyproject.toml` as a uv workspace; `py/engine` (`twl_engine`), `py/tape` (`twl_tape`) and `services/runner` (FastAPI `/health`) skeletons; NumPy, Numba, ruff, pyright and pytest wired; a Numba smoke test.
+- [x] **P-002 Python workspace** Lane A. Root `pyproject.toml` as a uv workspace; `py/engine` (`twl_engine`), `py/tape` (`twl_tape`) and `services/runner` (FastAPI `/health`) skeletons; NumPy, Numba, ruff, pyright and pytest wired; a Numba smoke test.
   AC: `just test-engine` runs; ruff and pyright clean; the Numba smoke test passes on Linux and macOS.
 - [ ] **P-003 Minds and citybake** Lane C. `services/minds` (FastAPI `/health`) and `tools/citybake` (CLI `citybake --help`) as members of the uv workspace, with ruff, pyright and pytest.
   AC: `uv run pytest` green in both.
