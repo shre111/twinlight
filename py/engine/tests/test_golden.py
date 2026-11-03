@@ -1,8 +1,9 @@
 import dataclasses
 import os
-import sys
 import tomllib
+from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
+from multiprocessing import get_context
 from pathlib import Path
 from typing import Any
 
@@ -10,42 +11,24 @@ import blake3
 import numpy as np
 import pytest
 
-from twl_engine.fixtures import ToyCity, build_toy_city
+from twl_engine.goldens import golden_inputs, golden_run_pid
 from twl_engine.montecarlo import run_seeds
-from twl_engine.run import RunInputs, run_seed_bytes
-from twl_engine.scenario import EMPTY, Params
+from twl_engine.run import run_seed_bytes
 from twl_tape.format import SectionKind
 from twl_tape.reader import read_tape
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.modules.setdefault("test_golden", sys.modules[__name__])
-
 GOLDEN = Path(__file__).resolve().parents[3] / "fixtures" / "golden" / "hashes.toml"
 STRICT = os.environ.get("TWL_GOLDEN_STRICT") == "1"
-SEEDS = [1, 2]
+PINNED_SEEDS = [1, 2]
+WORKER_SEEDS = list(range(1, 9))
 PROBE_KEYS = ["aware_day30", "adopted_day30", "orders_total", "tape_bytes"]
 
 pytestmark = pytest.mark.golden
 
 
 @lru_cache(maxsize=1)
-def toy_city() -> ToyCity:
-    return build_toy_city(seed=49, residents=5_000)
-
-
-@lru_cache(maxsize=1)
 def golden() -> dict[str, Any]:
     return tomllib.loads(GOLDEN.read_text())
-
-
-def inputs_for(seed: int) -> RunInputs:
-    pack_hash = bytes.fromhex(golden()["toy_pack"]["seed49_residents5000"]["hash"])
-    return RunInputs(
-        city=toy_city(), city_pack_hash=pack_hash, scenario=EMPTY, params=Params(), seed=seed
-    )
-
-
-inputs_for.__module__ = "test_golden"
 
 
 def digest(data: bytes) -> str:
@@ -101,31 +84,39 @@ def golden_table(seed: int) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def in_process() -> list[bytes]:
-    return [run_seed_bytes(inputs_for(s)) for s in SEEDS]
+def in_process() -> dict[int, bytes]:
+    return {seed: run_seed_bytes(golden_inputs(seed)) for seed in WORKER_SEEDS}
 
 
 @pytest.mark.parametrize("workers", [1, 4, 8])
 def test_hashes_are_identical_across_worker_counts_and_in_process_runs(
-    workers: int, in_process: list[bytes]
+    workers: int, in_process: dict[int, bytes]
 ) -> None:
-    tapes = run_seeds(inputs_for, SEEDS, workers=workers)
-    assert len(tapes) == len(SEEDS)
-    for seed, got, want in zip(SEEDS, tapes, in_process, strict=True):
+    tapes = run_seeds(golden_inputs, WORKER_SEEDS, workers=workers)
+    assert len(tapes) == len(WORKER_SEEDS)
+    for seed, got in zip(WORKER_SEEDS, tapes, strict=True):
+        want = in_process[seed]
         assert digest(got) == digest(want), (
             f"seed {seed} with {workers} workers: {first_difference(got, want)}"
         )
 
 
-def test_two_in_process_runs_of_a_seed_are_identical(in_process: list[bytes]) -> None:
-    again = run_seed_bytes(inputs_for(1))
-    assert digest(again) == digest(in_process[0]), first_difference(again, in_process[0])
+@pytest.mark.parametrize("workers", [4, 8])
+def test_worker_pools_spread_seeds_over_that_many_processes(workers: int) -> None:
+    with ProcessPoolExecutor(max_workers=workers, mp_context=get_context("spawn")) as pool:
+        pids = list(pool.map(golden_run_pid, WORKER_SEEDS))
+    assert len(set(pids)) == workers, f"{workers} workers used {len(set(pids))} processes"
 
 
-@pytest.mark.parametrize("seed", SEEDS)
-def test_empty_run_matches_the_checked_in_golden(seed: int, in_process: list[bytes]) -> None:
+def test_two_in_process_runs_of_a_seed_are_identical(in_process: dict[int, bytes]) -> None:
+    again = run_seed_bytes(golden_inputs(1))
+    assert digest(again) == digest(in_process[1]), first_difference(again, in_process[1])
+
+
+@pytest.mark.parametrize("seed", PINNED_SEEDS)
+def test_empty_run_matches_the_checked_in_golden(seed: int, in_process: dict[int, bytes]) -> None:
     expected = golden_table(seed)
-    data = in_process[SEEDS.index(seed)]
+    data = in_process[seed]
     actual = probes(data)
     if STRICT:
         assert digest(data) == expected["hash"], (

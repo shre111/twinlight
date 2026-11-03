@@ -51,6 +51,12 @@ def golden_inputs(seed: int, scenario: Scenario = EMPTY) -> RunInputs:
     )
 
 
+def golden_run_pid(seed: int) -> int:
+    """Run a golden seed and report the worker's pid; lets tests see how a pool spreads work."""
+    run_seed_bytes(golden_inputs(seed))
+    return os.getpid()
+
+
 def tape_probes(data: bytes) -> Probes:
     tape = read_tape(data)
     aggregates = tape.aggregates
