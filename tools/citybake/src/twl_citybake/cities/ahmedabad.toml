@@ -15,6 +15,13 @@ names = ["Sabarmati River", "Sabarmati"]
 
 [districts]
 place_kinds = ["suburb", "neighbourhood", "quarter", "village", "town"]
+# Vatva railway station; no place node in OSM
+extra_seeds = [{ name = "Vatva", node = 4398457021 }]
+# two spellings of one place: the key's buildings and area join the target district
+merge = { "Koteshwar Village" = "Koteshwar" }
+# display names, applied after merges; the two Ramol/Jantanagar nodes are 2.85 km apart, so they stay
+# separate districts named for the locality each one sits in
+rename = { "Ramol -Jantanagar" = "Ramol", "Jantanagar -Ramol" = "Jantanagar", "vejalpur" = "Vejalpur", "DaniLimda" = "Danilimda", "Narol gam" = "Narol" }
 
 [footprints]
 # D-021: VIDA's combined Google + Microsoft + OSM footprints, S2 level-6 cell over the city
