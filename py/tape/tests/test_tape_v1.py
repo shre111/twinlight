@@ -81,7 +81,7 @@ SCENARIO_HASH = bytes(range(100, 132))
 PARAMS_HASH = bytes(range(200, 232))
 
 
-def arr(values: list[float] | list[int], dtype: str) -> NDArray[np.generic]:
+def arr(values: list[float] | list[int], dtype: str) -> NDArray[Any]:
     return np.array(values, dtype=dtype)
 
 
