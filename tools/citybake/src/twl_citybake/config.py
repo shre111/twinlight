@@ -1,4 +1,5 @@
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from importlib.resources import files
@@ -44,7 +45,7 @@ class CityConfig:
 
 def load_city(slug: str) -> CityConfig:
     resource = files("twl_citybake.cities") / f"{slug}.toml"
-    if not resource.is_file():
+    if not re.fullmatch(r"[a-z0-9-]+", slug) or not resource.is_file():
         raise ValueError(f"unknown city {slug!r}")
     raw = tomllib.loads(resource.read_text())
     return CityConfig(

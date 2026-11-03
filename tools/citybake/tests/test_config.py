@@ -17,8 +17,9 @@ def test_ahmedabad_config_is_pinned() -> None:
 
 
 def test_unknown_city_is_rejected() -> None:
-    with pytest.raises(ValueError, match="unknown city"):
-        load_city("atlantis")
+    for slug in ("atlantis", "../ahmedabad", "Ahmedabad"):
+        with pytest.raises(ValueError, match="unknown city"):
+            load_city(slug)
 
 
 def test_bbox_must_be_ordered() -> None:
@@ -57,3 +58,4 @@ def test_fetch_verifies_checksum(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="pinned"):
         fetch(payload.as_uri(), "0" * 32, tmp_path / "other.bin")
     assert not (tmp_path / "other.bin").exists()
+    assert not (tmp_path / "other.bin.part").exists()
