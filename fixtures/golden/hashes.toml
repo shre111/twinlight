@@ -2,7 +2,7 @@
 # Change these only for an intended output change, with the reason in the PR body.
 
 [toy_pack.seed49_residents5000]
-hash = "3037c244ba7bd4c3e2f3b2bc4a1b0efa811e6c126c5e48f7bdd40a3533cacab0"
+hash = "f3927b2a9bec2f3459cf5cca55e51f4214f15a556cc5d375433510d7965cffe9"
 buildings = 7210
 ties = 22521
 roads = 5839

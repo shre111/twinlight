@@ -88,6 +88,7 @@ LAYOUT: dict[str, tuple[str, list[Column]]] = {
             ("offsets", U32, plus_one("riverPolygons")),
             ("x", F32, const("riverPoints")),
             ("y", F32, const("riverPoints")),
+            ("kind", U8, const("riverPolygons")),
         ],
     ),
 }

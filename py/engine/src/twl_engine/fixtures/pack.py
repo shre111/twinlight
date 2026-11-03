@@ -121,6 +121,7 @@ def _files(city: ToyCity, counts: dict[str, int]) -> dict[str, bytes]:
                 (river.offsets, U4, counts["riverPolygons"] + 1),
                 (river.x, F4, river_points),
                 (river.y, F4, river_points),
+                (river.kind, U1, counts["riverPolygons"]),
             ]
         ),
         "districts.json": _json([dataclasses.asdict(d) for d in city.districts]),

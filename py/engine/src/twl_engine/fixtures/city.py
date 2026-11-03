@@ -327,4 +327,5 @@ def _river() -> River:
         offsets=np.array([0, x.size], dtype=np.uint32),
         x=x.astype(np.float32),
         y=(-zs).astype(np.float32),
+        kind=np.zeros(1, dtype=np.uint8),
     )
