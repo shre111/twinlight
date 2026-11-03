@@ -52,6 +52,7 @@ export function DevStage(props: {
   tier?: TierOption
   backend?: BackendPreference
   hud: boolean
+  still: boolean
   source: RunSource
   minutes: number
 }) {
@@ -61,6 +62,7 @@ export function DevStage(props: {
         tier={props.tier}
         backend={props.backend}
         hud={props.hud}
+        still={props.still}
         onReady={(stage) => loadRun(stage, props.source, props.minutes)}
       />
     </main>

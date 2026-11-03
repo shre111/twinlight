@@ -6,6 +6,8 @@ import {
   dot,
   exp,
   float,
+  fract,
+  instanceIndex,
   length,
   max,
   mix,
@@ -14,6 +16,8 @@ import {
   oneMinus,
   positionGeometry,
   positionViewDirection,
+  sin,
+  smoothstep,
   uniform,
   uv,
   vec3,
@@ -56,6 +60,16 @@ const RING_LIFT = 1.5
 const RING_SEGMENTS = 128
 const RING_GAIN = 0.085
 const OUT_GAIN = 1.15
+// Out-of-stock beams pulse by this much around their gain, roughly once a second.
+const FLICKER_DEPTH = 0.28
+const FLICKER_RATE = 5
+const FLICKER_PHASE_STEP = 1.7
+/** The flicker repeats every this many seconds, so the stage can wrap its clock without a jump. */
+export const FLICKER_PERIOD_SECONDS = (2 * Math.PI) / FLICKER_RATE
+// Reduced motion holds the flicker, so out-of-stock beams break into dashes instead: a still
+// cue that is not colour alone. Four dashes with dark gaps stay legible at the default view.
+const SEGMENT_METRES = 130
+const SEGMENT_GAP_GAIN = 0
 
 /** Dark stores as tube beams over a ground glow and a delivery-radius ring, three draws in all. */
 export class StoresLayer {
@@ -66,7 +80,8 @@ export class StoresLayer {
   readonly #geometries: BufferGeometry[] = []
   readonly #materials: NodeMaterial[] = []
 
-  constructor(stores: Stores, fog: Fog) {
+  /** `clock` is wall-clock seconds for the flicker, which reduced motion holds steady. */
+  constructor(stores: Stores, fog: Fog, clock: Node<'float'>, reducedMotion: boolean) {
     this.count = stores.count
     this.#stockout = new InstancedBufferAttribute(new Float32Array(stores.count), 1)
     const centre = new InstancedBufferAttribute(storeCentres(stores), 3)
@@ -75,10 +90,12 @@ export class StoresLayer {
 
     const out = vertexStage(attribute('stockout', 'float'))
     const tint = mix(color(palette.tube), color(palette.sindoor), out)
-    const gain = vertexStage(mix(float(1), float(OUT_GAIN), out))
+    const flicker = reducedMotion ? float(1) : flickerAt(clock)
+    const gain = vertexStage(mix(float(1), flicker.mul(OUT_GAIN), out))
     const clear = (amount: number) => vertexStage(oneMinus(fog.factor(viewDepth).mul(amount)))
+    const segmented = reducedMotion ? out : null
 
-    this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8))), 2)
+    this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8)), segmented), 2)
     this.#mount(this.#bases(shared, tint.mul(gain).mul(clear(1))), 1)
     this.#mount(this.#rings(shared, tint.mul(clear(1)).mul(RING_GAIN)), 1)
   }
@@ -100,7 +117,7 @@ export class StoresLayer {
     this.object.removeFromParent()
   }
 
-  #beams(shared: SharedAttributes, shade: Node<'vec3'>): Mesh {
+  #beams(shared: SharedAttributes, shade: Node<'vec3'>, segmented: Node<'float'> | null): Mesh {
     const geometry = instanced(beamShape(), shared, this.count)
     const material = additive(new MeshBasicNodeMaterial())
     const centre = attribute('centre', 'vec3')
@@ -116,7 +133,8 @@ export class StoresLayer {
       .mul(fall)
       .mul(facing.mul(facing).mul(0.85).add(0.08))
       .add(exp(up.mul(-30)).mul(0.6))
-    material.colorNode = shade.mul(alpha).mul(thin).mul(0.95)
+    const lit = shade.mul(alpha).mul(thin).mul(0.95)
+    material.colorNode = segmented ? lit.mul(mix(float(1), beamSegments(up), segmented)) : lit
     return new Mesh(geometry, material)
   }
 
@@ -154,6 +172,20 @@ export class StoresLayer {
     this.#materials.push(object.material as NodeMaterial)
     this.object.add(object)
   }
+}
+
+function flickerAt(clock: Node<'float'>) {
+  const phase = clock.mul(FLICKER_RATE).add(instanceIndex.toFloat().mul(FLICKER_PHASE_STEP))
+  return sin(phase)
+    .mul(FLICKER_DEPTH)
+    .add(1 - FLICKER_DEPTH)
+}
+
+// A triangle wave along the beam, 0 at each segment's middle and 1 at the gaps between them,
+// eased so the gaps have soft ends; the first segment is centred on the foot.
+function beamSegments(up: Node<'float'>) {
+  const wave = abs(fract(up.mul(BEAM_HEIGHT / SEGMENT_METRES).add(0.5)).sub(0.5)).mul(2)
+  return mix(float(1), float(SEGMENT_GAP_GAIN), smoothstep(0.42, 0.55, wave))
 }
 
 interface SharedAttributes {

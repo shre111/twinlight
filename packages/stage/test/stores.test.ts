@@ -1,3 +1,4 @@
+import { uniform } from 'three/tsl'
 import {
   type BufferAttribute,
   type BufferGeometry,
@@ -23,8 +24,8 @@ const stockouts: StageTape['stores'] = {
   stockoutIntervals: Uint32Array.of(60, 120, 90, 200),
 }
 
-function layer() {
-  return new StoresLayer(stores, new Fog())
+function layer(reducedMotion = false) {
+  return new StoresLayer(stores, new Fog(), uniform(0), reducedMotion)
 }
 
 const geometries = (stores: StoresLayer) =>
@@ -113,6 +114,10 @@ describe('StoresLayer', () => {
     stores.showStockouts(stockouts, 120)
     expect(outOfStock(stores)).toEqual([0, 1])
     expect(uploads()).toBe(before + 3)
+  })
+
+  it('builds under reduced motion too', () => {
+    expect(layer(true).object.children).toHaveLength(3)
   })
 
   it('frees its geometries and materials and leaves the scene on dispose', () => {

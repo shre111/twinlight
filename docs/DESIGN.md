@@ -64,7 +64,7 @@ Phone (390): wordmark + product chip on top, two readouts, the city, a compact t
 ## Motion
 - One orchestrated moment per screen. City view: on load the camera eases down from altitude while districts light up in a wave (2.5 s). Brief: when "Build the city" is pressed, buildings rise from the river outward.
 - In-world motion is the content: arcs travel, riders move, flares bloom. UI motion only answers an action (a card slides in from its edge in 220 ms, a sheet rises in 260 ms, ease-out).
-- Reduced motion: no flights, cuts instead; flares become a static amber; arcs appear without travelling; auto-rotate off.
+- Reduced motion: no flights, cuts instead; flares become a static amber; arcs appear without travelling; out-of-stock beams hold steady and dash instead of flickering; auto-rotate off.
 
 ## The city, layer by layer (stage)
 - **Sky and fog:** deep indigo overhead, a thin muted violet band at the horizon; exponential fog in `dusk`.
@@ -73,7 +73,7 @@ Phone (390): wordmark + product chip on top, two readouts, the city, a compact t
 - **Buildings:** dark indigo boxes or extrusions, roofs a shade lighter so the skyline reads; heights from the pack.
 - **Residents:** soft round points inside buildings at floor heights; cool `tube` at 20% intensity, `chatter` at 50% when aware, `lamp` at 90% when ordered with a 6 sim-hour flare.
 - **Arcs:** lifted curves between homes in `chatter`; a bright head with a fading tail; at most a few hundred visible at once.
-- **Stores:** thin vertical beams of `tube` with a faint ground ring for the delivery radius; `sindoor` and a slow flicker while out of stock.
+- **Stores:** thin vertical beams of `tube` with a faint ground ring for the delivery radius; `sindoor` and a slow flicker while out of stock (under reduced motion, a steady `sindoor` beam broken into dashes).
 - **Riders:** small `tube` points with short trails along the road network.
 - **Rain:** `monsoon` streaks, darker fog, sheen on roads and river.
 - **Bloom:** subtle; individual lights must stay distinguishable. If a district turns into a white blob, bloom is too strong.
@@ -84,7 +84,7 @@ Plain, specific, calm. Name things the way a brand manager would: "orders", "sto
 ## Accessibility
 - Every 3D insight exists as text or a table (Plan view, cards, readouts).
 - Real buttons, inputs and labels; visible focus rings (`lamp`, 2 px, offset 2 px).
-- Colour is never the only signal: stockouts also flicker and are listed; layer pills carry text labels.
+- Colour is never the only signal: stockouts also flicker (or are dashed under reduced motion) and are listed; layer pills carry text labels.
 - Targets at least 44 px on touch.
 - `prefers-reduced-motion` respected as above.
 

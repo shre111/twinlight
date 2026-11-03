@@ -8,6 +8,8 @@ interface StageHostProps {
   tier?: TierOption
   backend?: BackendPreference
   hud?: boolean
+  /** Holds wall-clock animation for repeatable screenshots. */
+  still?: boolean
   /** Runs once the stage is live; a returned function runs before the stage is disposed. */
   onReady?: (stage: Stage) => (() => void) | undefined
 }
@@ -16,6 +18,7 @@ export function StageHost({
   tier = 'auto',
   backend = 'auto',
   hud = false,
+  still = false,
   onReady,
 }: StageHostProps) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -36,7 +39,7 @@ export function StageHost({
     let disposed = false
 
     import('@twinlight/stage')
-      .then(({ Stage }) => Stage.create(canvas, { tier, backend, hud }))
+      .then(({ Stage }) => Stage.create(canvas, { tier, backend, hud, still }))
       .then((created) => {
         if (disposed) {
           created.dispose()
@@ -56,7 +59,7 @@ export function StageHost({
       stage?.dispose()
       canvas.remove()
     }
-  }, [tier, backend, hud])
+  }, [tier, backend, hud, still])
 
   return (
     <div ref={hostRef} className={styles.host}>
