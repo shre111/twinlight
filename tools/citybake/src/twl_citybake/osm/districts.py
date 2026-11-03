@@ -71,6 +71,10 @@ class PlaceCollector:
             if key not in best or rank < best[key][0]:
                 best[key] = (rank, int(i))
         chosen = [best[key][1] for key in sorted(best)]
+        first_at: dict[tuple[float, float], int] = {}
+        for i in sorted(chosen, key=lambda i: (kind[i], osm_id[i])):
+            first_at.setdefault((float(x[i]), float(y[i])), i)
+        chosen = [i for i in chosen if first_at[(float(x[i]), float(y[i]))] == i]
         return Seeds([name[i] for i in chosen], x[chosen], y[chosen])
 
 
