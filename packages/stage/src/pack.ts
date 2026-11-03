@@ -4,6 +4,8 @@ import type { StageCity } from './inputs'
 export interface PackManifest {
   format: string
   version: number
+  /** minX, minY, maxX, maxY in local metres. */
+  bbox?: [number, number, number, number]
   counts: {
     buildings: number
     residents: number
@@ -20,12 +22,13 @@ export function decodePack(manifest: PackManifest, files: PackFiles): StageCity 
   if (manifest.format !== 'twinlight-pack' || manifest.version !== 1) {
     throw new Error(`Unsupported city pack ${manifest.format} v${manifest.version}`)
   }
-  const { counts } = manifest
+  const { counts, bbox } = manifest
   return {
     buildings: decodeBuildings(files['buildings.bin'], counts.buildings),
     roads: decodeRoads(files['roads.bin'], counts.roads, counts.roadPoints),
     residents: decodeResidents(files['residents.bin'], counts.residents),
     stores: decodeStores(files['stores.bin'], counts.stores),
+    ...(bbox && { bounds: { minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3] } }),
   }
 }
 

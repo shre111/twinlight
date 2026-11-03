@@ -1,4 +1,5 @@
 import { buildWorld, HOURS } from '../../../design/prototype/toy-sim.mjs'
+import { TOY_BOUNDS } from './extent'
 import { NEVER, ROAD_KIND, type StageCity, type StageTape } from './inputs'
 
 // Stand-in for a real city pack and tape until P-010 and P-014 land. The toy sim works in
@@ -50,6 +51,7 @@ function toyCity(world: ToyWorld): StageCity {
       y: Float32Array.from(stores, (s) => -s.z),
       radius: new Float32Array(stores.length).fill(TOY_DELIVERY_RADIUS_M),
     },
+    bounds: TOY_BOUNDS,
   }
 }
 

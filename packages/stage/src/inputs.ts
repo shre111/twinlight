@@ -27,6 +27,8 @@ export interface StageCity {
     building: Uint32Array
   }
   stores: { count: number; x: Float32Array; y: Float32Array; radius: Float32Array }
+  /** The pack manifest's bbox; the stage fits its camera and ground to it (or to the buildings). */
+  bounds?: { minX: number; minY: number; maxX: number; maxY: number }
 }
 
 /** The subset of a decoded tape (ARCHITECTURE.md section 4) that the stage draws. Times in minutes. */
