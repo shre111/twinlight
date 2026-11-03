@@ -84,6 +84,11 @@ jobs:
     env:
       TWL_GOLDEN_STRICT: '1'
       NUMBA_CACHE_DIR: .numba-cache
+      NPY_ENABLE_CPU_FEATURES: X86_V3
+      NUMBA_CPU_NAME: generic
+      NUMBA_DISABLE_INTEL_SVML: '1'
+      OPENBLAS_CORETYPE: Haswell
+      OPENBLAS_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.3
@@ -94,6 +99,7 @@ jobs:
           path: .numba-cache
           key: numba-${{ runner.os }}-${{ hashFiles('uv.lock', 'py/engine/**/*.py') }}
       - run: uv sync --frozen
+      - run: uv run python -c "import numpy; numpy.show_runtime()"
       - run: uv run ruff format --check py services/runner
       - run: uv run ruff check py services/runner
       - run: uv run pyright py services/runner
