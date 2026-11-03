@@ -6,21 +6,23 @@ import numpy as np
 import osmium
 import shapely
 from osmium.geom import WKBFactory
-from osmium.osm import Area, Way
+from osmium.osm import Area, Node, Way
 from shapely import Polygon
 
 from twl_citybake.config import CityConfig
+from twl_citybake.osm.banks import RiverCollector, split_banks
 from twl_citybake.osm.buildings import BuildingCollector, Buildings
-from twl_citybake.osm.geometry import clip_polygon
+from twl_citybake.osm.districts import PlaceCollector, assign_districts
+from twl_citybake.osm.geometry import clip_polygon, north_west
+from twl_citybake.osm.heights import final_heights
 from twl_citybake.osm.roads import RoadCollector, RoadGraph, length_km_by_class
-from twl_citybake.osm.tags import LEVEL_HEIGHT_M, BuildingKind, HeightSource
+from twl_citybake.osm.tags import BuildingKind, HeightSource
 from twl_citybake.osm.water import Water, WaterCollector
 from twl_citybake.projection import LocalProjection
 from twl_citybake.store import write_json, write_ragged, write_table
 
 ATTRIBUTION = "© OpenStreetMap contributors, ODbL 1.0"
 COVERAGE_CELL_M = 1000
-DEFAULT_HEIGHT_M = 2 * LEVEL_HEIGHT_M
 
 
 @dataclass(frozen=True)
@@ -40,34 +42,41 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
     proj = LocalProjection.for_bbox(city.bbox)
     clip = clip_polygon(city.bbox, proj)
     buildings, roads, water = BuildingCollector(), RoadCollector(), WaterCollector()
+    river, places = RiverCollector(city.river.names), PlaceCollector(city.districts.place_kinds)
     factory = WKBFactory()
     for obj in osmium.FileProcessor(str(pbf)).with_areas():
         if isinstance(obj, Area):
             buildings.add(obj, factory)
             water.add(obj, factory)
+            places.add_area(obj, factory)
         elif isinstance(obj, Way):
             roads.add(obj)
+            river.add(obj)
+        elif isinstance(obj, Node) and "place" in obj.tags:
+            places.add_node(obj)
 
     footprints = buildings.finish(proj, clip)
     graph = roads.finish(proj, clip)
     waters = water.finish(proj, clip)
-    n = len(footprints)
-    untagged = footprints.height_source == HeightSource.DEFAULT
-    height_m = np.where(untagged, DEFAULT_HEIGHT_M, footprints.tagged_height_m).astype(np.float32)
-    table = footprints.table(height_m, np.zeros(n, np.uint16), np.zeros(n, np.uint8))
-    districts = [_city_district(clip, n)]
+    banks = split_banks(clip, river.finish(proj), north_west(city.bbox, proj))
+    bank = banks.of(footprints.x, footprints.y)
+    seeds = places.finish(proj, clip)
+    district, districts = assign_districts(seeds, banks, footprints.x, footprints.y, bank)
+    height_m = final_heights(
+        footprints.tagged_height_m,
+        footprints.height_source,
+        district,
+        footprints.kind,
+        footprints.levels,
+    )
+    table = footprints.table(height_m, district, bank)
     report = {
         "buildings": _building_report(footprints, height_m),
         "roads": _road_report(graph),
         "water": _water_report(waters),
-        "banks_split": False,
-        "bank_share_west": 1.0 if n else 0.0,
-        "districts": {
-            "count": 1,
-            "buildings_min": n,
-            "buildings_median": float(n),
-            "buildings_max": n,
-        },
+        "banks_split": banks.split,
+        "bank_share_west": _round(np.mean(bank == 0)) if len(bank) else 0.0,
+        "districts": _district_report(districts),
         "coverage": _coverage(clip, footprints.x, footprints.y),
     }
     meta = {
@@ -100,18 +109,6 @@ def write_osm_layers(layers: OsmLayers, out_dir: Path) -> None:
     write_json(out_dir / "districts.json", layers.districts)
     write_json(out_dir / "report.json", layers.report)
     write_json(out_dir / "layer.json", layers.meta)
-
-
-def _city_district(clip: Polygon, buildings: int) -> dict[str, Any]:
-    centre = shapely.centroid(clip)
-    return {
-        "id": 0,
-        "name": "City",
-        "seed": np.round([centre.x, centre.y], 1).tolist(),
-        "bank": 0,
-        "buildings": buildings,
-        "polygon": [np.round(np.asarray(clip.exterior.coords), 1).tolist()],
-    }
 
 
 def _round(value: Any) -> float:
@@ -160,6 +157,16 @@ def _water_report(water: Water) -> dict[str, Any]:
         "river_area_km2": _round(water.river_area_m2 / 1e6),
         "lakes": water.lakes,
         "lake_area_km2": _round(water.lake_area_m2 / 1e6),
+    }
+
+
+def _district_report(districts: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = np.asarray([d["buildings"] for d in districts])
+    return {
+        "count": len(districts),
+        "buildings_min": int(counts.min()),
+        "buildings_median": _round(np.median(counts)),
+        "buildings_max": int(counts.max()),
     }
 
 
