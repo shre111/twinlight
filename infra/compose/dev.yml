@@ -9,11 +9,11 @@ services:
       POSTGRES_PASSWORD: twinlight
       POSTGRES_DB: twinlight
     ports:
-      - '5432:5432'
+      - '127.0.0.1:15432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U twinlight -d twinlight']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U twinlight -d twinlight']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -25,8 +25,8 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio-dev-secret
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - minio-data:/data
     healthcheck:
@@ -55,7 +55,7 @@ services:
   redis:
     image: redis:8.8.4-alpine
     ports:
-      - '6379:6379'
+      - '127.0.0.1:16379:6379'
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -66,8 +66,8 @@ services:
     image: temporalio/temporal:1.10.0
     command: ['server', 'start-dev', '--ip', '0.0.0.0']
     ports:
-      - '7233:7233'
-      - '8233:8233'
+      - '127.0.0.1:7233:7233'
+      - '127.0.0.1:8233:8233'
     healthcheck:
       test: ['CMD', 'temporal', 'operator', 'cluster', 'health', '--address', '127.0.0.1:7233']
       interval: 5s
@@ -77,9 +77,9 @@ services:
   otel-lgtm:
     image: grafana/otel-lgtm:0.38.1
     ports:
-      - '3001:3000'
-      - '4317:4317'
-      - '4318:4318'
+      - '127.0.0.1:3001:3000'
+      - '127.0.0.1:4317:4317'
+      - '127.0.0.1:4318:4318'
     healthcheck:
       test: ['CMD', '/otel-lgtm/docker/healthcheck.sh']
       interval: 10s
