@@ -125,13 +125,13 @@ def _files(city: ToyCity, counts: dict[str, int]) -> dict[str, bytes]:
 
 
 def _columns(columns: list[Column]) -> bytes:
-    """Little-endian columns, each starting at an 8-byte aligned offset."""
+    """Little-endian columns, each zero-padded to a multiple of 8 bytes."""
     out = bytearray()
     for values, dtype, length in columns:
         if values.shape != (length,):
             raise ValueError(f"column of shape {values.shape} where ({length},) was expected")
-        out += bytes(-len(out) % COLUMN_ALIGN)
         out += np.ascontiguousarray(values.astype(dtype, casting="safe")).tobytes()
+        out += bytes(-len(out) % COLUMN_ALIGN)
     return bytes(out)
 
 
