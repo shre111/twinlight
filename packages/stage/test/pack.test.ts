@@ -91,6 +91,38 @@ describe('decodePack', () => {
     expect(() => decodePack(manifest, longer)).toThrow(/residents\.bin/)
   })
 
+  it('draws nothing for roads with one point or none', () => {
+    const files = tinyPack()
+    files['roads.bin'] = file(
+      Uint32Array.of(0, 0, 1, 3),
+      Float32Array.of(5, 0, 10),
+      Float32Array.of(5, 0, 0),
+      Uint8Array.of(ROAD_KIND.street, ROAD_KIND.street, ROAD_KIND.bridge),
+    )
+    const roads = decodePack(
+      { ...manifest, counts: { ...manifest.counts, roads: 3, roadPoints: 3 } },
+      files,
+    ).roads
+    expect(Array.from(roads.segments)).toEqual([0, 0, 10, 0])
+    expect(Array.from(roads.kind)).toEqual([ROAD_KIND.bridge])
+  })
+
+  it('rejects road offsets that do not cover the points in order', () => {
+    const withOffsets = (offsets: Uint32Array) => {
+      const files = tinyPack()
+      files['roads.bin'] = file(
+        offsets,
+        Float32Array.of(0, 10, 20, 100, 110),
+        Float32Array.of(0, 0, 5, -50, -50),
+        Uint8Array.of(ROAD_KIND.arterial, ROAD_KIND.bridge),
+      )
+      return () => decodePack(manifest, files)
+    }
+    expect(withOffsets(Uint32Array.of(1, 3, 5))).toThrow(/from 0 to 5/)
+    expect(withOffsets(Uint32Array.of(0, 3, 4))).toThrow(/from 0 to 5/)
+    expect(withOffsets(Uint32Array.of(0, 6, 5))).toThrow(/backwards at road 1/)
+  })
+
   it('rejects other formats and versions', () => {
     expect(() => decodePack({ ...manifest, version: 2 }, tinyPack())).toThrow(/v2/)
   })

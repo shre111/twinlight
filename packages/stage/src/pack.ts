@@ -134,9 +134,15 @@ function decodeRoads(buffer: ArrayBuffer, roads: number, points: number): StageC
   const y = c.f32(points)
   const roadClass = c.u8(roads)
   c.end()
+  if (offsets[0] !== 0 || offsets[roads] !== points) {
+    throw new Error(`roads.bin offsets must run from 0 to ${points} road points`)
+  }
   let total = 0
-  for (let r = 0; r < roads; r++)
-    total += Math.max(0, (offsets[r + 1] ?? 0) - (offsets[r] ?? 0) - 1)
+  for (let r = 0; r < roads; r++) {
+    const length = (offsets[r + 1] ?? 0) - (offsets[r] ?? 0)
+    if (length < 0) throw new Error(`roads.bin offsets go backwards at road ${r}`)
+    total += Math.max(0, length - 1)
+  }
   const segments = new Float32Array(total * 4)
   const kind = new Uint8Array(total)
   let s = 0
