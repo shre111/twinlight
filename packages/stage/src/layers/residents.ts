@@ -1,6 +1,7 @@
 import { city as cityTokens } from '@twinlight/ui/tokens'
 import {
   attribute,
+  cameraPosition,
   clamp,
   color,
   exp,
@@ -10,11 +11,14 @@ import {
   length,
   max,
   mix,
+  modelViewMatrix,
+  normalize,
   oneMinus,
   screenDPR,
   smoothstep,
   uniform,
   uv,
+  vec4,
   vertexStage,
   viewportSize,
 } from 'three/tsl'
@@ -29,7 +33,7 @@ import {
 } from 'three/webgpu'
 import { NEVER, type StageCity, type StageTape } from '../inputs'
 import { palette } from '../palette'
-import { type Fog, viewDepth } from './fog'
+import type { Fog } from './fog'
 
 type Residents = StageCity['residents']
 type Events = StageTape['residents']
@@ -41,8 +45,9 @@ const FLARE_MINUTES = cityTokens.flareSimHours * 60
 const POINT_METRES = 9.5
 const MIN_PX = 1.3
 const MAX_PX = 7.5
-// The quad is twice the core so a soft halo stands in for bloom until P-045 adds the real one.
-const HALO_SPAN = 2
+// A fresh flare's quad is this many cores wide to carry its soft glow (a stand-in for bloom
+// until P-045); steady points draw only the core.
+const FLARE_SPAN = 2
 
 /**
  * Residents as one instanced quad per resident: WebGPU draws point primitives at 1 px, so
@@ -98,8 +103,8 @@ export class ResidentsLayer {
     })
     material.sizeAttenuation = false
     material.alphaToCoverage = false
-    material.positionNode = attribute('home', 'vec3')
 
+    const home = attribute('home', 'vec3')
     const seed = hash(instanceIndex)
     const sinceAware = this.time.sub(attribute('awareAt', 'float'))
     const sinceOrder = this.time.sub(attribute('orderAt', 'float'))
@@ -117,19 +122,28 @@ export class ResidentsLayer {
 
     // Perspective size in logical pixels; below MIN_PX the point dims instead of shrinking,
     // so far districts fade rather than turn to noise.
-    const depth = max(viewDepth, 1)
+    const depth = max(modelViewMatrix.mul(vec4(home, 1)).z.negate(), 1)
     const pixelsPerMetre = this.#focal.mul(viewportSize.y).div(screenDPR).mul(0.5).div(depth)
     const px = growth.mul(seed.mul(0.36).add(0.82)).mul(POINT_METRES).mul(pixelsPerMetre)
     const dim = clamp(px.div(MIN_PX), 0.25, 1)
-    material.sizeNode = clamp(px, MIN_PX, growth.mul(MAX_PX)).mul(HALO_SPAN)
+    const span = flare.mul(FLARE_SPAN - 1).add(1)
+    const size = clamp(px, MIN_PX, growth.mul(MAX_PX)).mul(span)
+    material.sizeNode = size
 
-    const brightness = dim.mul(oneMinus(fog.factor(depth)))
-    const glow = vertexStage(tint.mul(brightness))
+    // The quad is depth-tested at its own radius in front of the resident, like the near side
+    // of a glowing sphere, so the wall it sits on cannot cut it while buildings in front still hide it.
+    const radius = size.div(pixelsPerMetre).mul(0.5)
+    material.positionNode = home.add(normalize(cameraPosition.sub(home)).mul(radius))
+
+    const glow = vertexStage(tint.mul(dim).mul(oneMinus(fog.factor(depth))))
+    const haloSpan = vertexStage(span)
+    const haloGain = vertexStage(flare.mul(0.45))
     material.colorNode = Fn(() => {
-      // d is 0 at the centre, 1 at the core's edge and HALO_SPAN at the quad's edge.
-      const d = length(uv().sub(0.5)).mul(2 * HALO_SPAN)
+      // d is 0 at the centre, 1 at the core's edge and haloSpan at the quad's edge.
+      const d = length(uv().sub(0.5)).mul(2).mul(haloSpan)
       const core = oneMinus(smoothstep(0, 1, d))
-      const halo = exp(d.mul(d).mul(-0.9)).mul(0.45)
+      const window = oneMinus(smoothstep(haloSpan.mul(0.7), haloSpan, d))
+      const halo = exp(d.mul(d).mul(-0.9)).mul(haloGain).mul(window)
       return glow.mul(core.mul(core).mul(0.85).add(core.mul(0.35)).add(halo))
     })()
     return material
