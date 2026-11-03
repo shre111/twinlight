@@ -28,7 +28,7 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 - Persona pool (P-022): Nemotron-Personas-India `en_IN` has 1,000,000 personas: 53,077 in Gujarat and 6,604 in Ahmadabad district. All are aged 18 or over. There are 1,216 distinct occupation titles, and 47% are "No Occupation / Retired / Homemaker". DuckDB reads the demographic columns over HTTP in about 12 s.
 - Household sizes (P-021): Census 2011 HH-01 (Gujarat, `DDW-HH01-2400-2011.XLS`). Ahmadabad City sub-district: 1,175,757 households, 5,552,466 persons, mean 4.7. Bins: 1, 2, 3, 4, 5, 6, 7 to 10, 11 to 14, 15+.
 - WorldPop R2025A India 2025 (100 m, constrained) is 778 MB, and its server ignores HTTP range requests, so citybake downloads it whole.
-- Levels rise with footprint size for residential and commercial buildings: about 2 below 150 m2, 5 to 6 at 250 to 700 m2, 8 to 10 above 700 m2. Unknown buildings stay near 2 to 3. This is why defaults use footprint bands.
+- Levels rise with footprint size for residential and commercial buildings: about 2 below 250 m2, 5 to 6 at 250 to 700 m2, 8 to 10 above 700 m2. Unknown buildings stay near 2 to 3. This is why defaults use footprint bands.
 
 ## Gotchas
 - Bake data lives in `data/raw` (downloads) and `data/cache/citybake/<city>/<stage>` (gitignored). `TWL_DATA_DIR` overrides the root.
