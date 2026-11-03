@@ -149,7 +149,7 @@ Footer
 manifest.json      name, bbox, crs, counts, hashes, attributions, version
 buildings.glb      meshopt-compressed instanced boxes or extruded footprints (LOD0/LOD1)
 roads.bin          polylines for rendering (f32 xy, u8 class: 0 street, 1 arterial incl. ring road, 2 bridge)
-river.bin          polygon(s)
+river.bin          water polygons (river, lakes)
 residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)
 graph.bin          CSR adjacency: u32 offsets[n+1], u32 targets[m], u8 tie_kind[m], f32 strength[m]
 stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
@@ -164,7 +164,7 @@ Coordinates are local metres in a city-specific projection with the origin at th
 - `graph.bin`: directed ties; resident `i` talks to `targets[offsets[i]..offsets[i + 1]]`, and an undirected relation appears in both directions. Count `ties` = length of `targets`. `tie_kind`: 0 household, 1 neighbour, 2 friend, 3 work.
 - `stores.bin`: `f32 x, y`, `u32 hex`, `f32 radius_m`, `u16 district`. Count `stores`.
 - `roads.bin`: `u32 offsets[roads + 1]` into points, `f32 x[roadPoints]`, `f32 y[roadPoints]`, `u8 class[roads]`.
-- `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`.
+- `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake). One exterior ring per polygon, no holes in v1.
 - `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add polygons and marginals.
 - `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
 - Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
