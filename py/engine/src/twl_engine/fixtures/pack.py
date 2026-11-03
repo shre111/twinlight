@@ -22,7 +22,10 @@ Column = tuple[NDArray[Any], str, int]
 
 
 def write_pack(city: ToyCity, out_dir: Path) -> str:
-    """Write the pack files and manifest; returns `pack_hash`, the blake3 of the manifest bytes."""
+    """Write the pack files and manifest (other files in `out_dir` are left as they are).
+
+    Returns `pack_hash`, the blake3 of the manifest bytes.
+    """
     counts = _counts(city)
     files = _files(city, counts)
     manifest = _json(
@@ -136,7 +139,7 @@ def _columns(columns: list[Column]) -> bytes:
 
 
 def _bbox(city: ToyCity) -> list[float]:
-    """Bounds of buildings, roads, residents and stores; the river runs on past them."""
+    """Bounds of building centres, roads, residents and stores; the river runs on past them."""
     parts = (city.buildings, city.roads, city.residents, city.stores)
     x = np.concatenate([p.x for p in parts])
     y = np.concatenate([p.y for p in parts])
