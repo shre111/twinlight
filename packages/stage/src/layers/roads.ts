@@ -5,7 +5,7 @@ import { palette } from '../palette'
 import { type Fog, viewDepth } from './fog'
 import type { Layer } from './layer'
 
-// Lift keeps each class above the ground and the slower classes above the finer ones.
+// Lift keeps roads off the ground, arterials above streets and bridges above both.
 const ROAD_STYLE = [
   { kind: ROAD_KIND.street, colour: palette.street, opacity: 0.32, lift: 0.6 },
   { kind: ROAD_KIND.arterial, colour: palette.arterial, opacity: 0.42, lift: 0.9 },
