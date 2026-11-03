@@ -167,7 +167,7 @@ Coordinates are local metres in a city-specific projection with the origin at th
 - `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`.
 - `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add polygons and marginals.
 - `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
-- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
+- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
 
 ## 6. Data model (Postgres)
 ```
