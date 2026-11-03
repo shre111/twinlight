@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from twl_citybake.osm.tags import BuildingKind
 from twl_citybake.population.capacity import residential_capacity
@@ -69,3 +70,45 @@ def test_capacity_is_int64_and_never_negative() -> None:
 def test_denser_floor_allowance_raises_capacity() -> None:
     args = (np.array([200.0]), np.array([6.4]), np.array([1], np.uint8), SHARE)
     assert residential_capacity(*args, 2.0)[0] == 2 * residential_capacity(*args, 4.0)[0]
+
+
+def call(
+    area: list[float] | None = None,
+    height: list[float] | None = None,
+    kind: list[int] | None = None,
+    share: dict[BuildingKind, float] | None = None,
+    floor: float = 4.0,
+) -> np.ndarray:
+    return residential_capacity(
+        np.asarray(area or [100.0], np.float64),
+        np.asarray(height or [9.6], np.float64),
+        np.asarray(kind or [1], np.int64),
+        SHARE if share is None else share,
+        floor,
+    )
+
+
+@pytest.mark.parametrize("floor", [0.0, -4.0, float("nan")])
+def test_non_positive_floor_per_person_raises(floor: float) -> None:
+    with pytest.raises(ValueError):
+        call(floor=floor)
+
+
+def test_share_missing_a_building_kind_raises() -> None:
+    partial = {k: v for k, v in SHARE.items() if k is not BuildingKind.CIVIC}
+    with pytest.raises(ValueError):
+        call(share=partial)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf")])
+def test_non_finite_area_or_height_raises(bad: float) -> None:
+    with pytest.raises(ValueError):
+        call(area=[bad])
+    with pytest.raises(ValueError):
+        call(height=[bad])
+
+
+@pytest.mark.parametrize("kind", [-1, len(BuildingKind)])
+def test_kind_out_of_range_raises(kind: int) -> None:
+    with pytest.raises(ValueError):
+        call(kind=[kind])

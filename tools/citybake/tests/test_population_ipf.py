@@ -194,3 +194,64 @@ def test_integerise_stops_short_when_nobody_has_room() -> None:
     expected = np.array([[0.5], [0.5]])
     got = integerise(expected, np.array([4]), np.array([3, 3]), np.array([2]))
     assert got.sum() == 0
+
+
+def test_integerise_never_adds_a_household_to_a_structural_zero() -> None:
+    expected = np.array([[0.0], [0.4]])
+    got = integerise(expected, np.array([2]), np.array([50, 50]), np.array([3]))
+    assert got.ravel().tolist() == [0, 3]
+
+
+def test_integerise_leaves_column_short_when_only_structural_zeros_remain() -> None:
+    got = integerise(np.zeros((3, 1)), np.array([1]), np.array([9, 9, 9]), np.array([2]))
+    assert got.sum() == 0
+
+
+def test_integerise_removes_overshoot_one_per_row_smallest_remainder_first() -> None:
+    expected = np.array([[2.1], [1.9], [1.5]])
+    got = integerise(expected, np.array([1]), np.array([99, 99, 99]), np.array([3]))
+    assert got.ravel().tolist() == [1, 1, 1]
+    got = integerise(expected, np.array([1]), np.array([99, 99, 99]), np.array([4]))
+    assert got.ravel().tolist() == [2, 1, 1]
+
+
+def test_integerise_overshoot_ties_remove_from_the_higher_row_first() -> None:
+    expected = np.array([[1.5], [1.5], [1.5]])
+    got = integerise(expected, np.array([1]), np.array([99, 99, 99]), np.array([2]))
+    assert got.ravel().tolist() == [1, 1, 0]
+
+
+def test_integerise_removes_at_most_one_per_row_per_pass() -> None:
+    expected = np.array([[3.0], [1.0]])
+    got = integerise(expected, np.array([1]), np.array([99, 99]), np.array([2]))
+    assert got.ravel().tolist() == [2, 0]
+    got = integerise(expected, np.array([1]), np.array([99, 99]), np.array([1]))
+    assert got.ravel().tolist() == [1, 0]
+
+
+@st.composite
+def zeroed_cases(
+    draw: st.DrawFn,
+) -> tuple[Floats, npt.NDArray[np.int64], npt.NDArray[np.int64], npt.NDArray[np.int64]]:
+    expected, sizes, capacity, _ = draw(integerise_cases())
+    mask = np.asarray(
+        draw(st.lists(st.booleans(), min_size=expected.size, max_size=expected.size))
+    ).reshape(expected.shape)
+    expected = np.where(mask, 0.0, expected)
+    totals = np.asarray(
+        draw(st.lists(st.integers(0, 30), min_size=expected.shape[1], max_size=expected.shape[1])),
+        np.int64,
+    )
+    return expected, sizes, capacity, totals
+
+
+@settings(deadline=None, max_examples=300)
+@given(zeroed_cases())
+def test_integerise_has_no_positive_count_at_zero_expectation_and_respects_totals(
+    case: tuple[Floats, npt.NDArray[np.int64], npt.NDArray[np.int64], npt.NDArray[np.int64]],
+) -> None:
+    expected, sizes, capacity, col_totals = case
+    x = integerise(expected, sizes, capacity, col_totals)
+    assert (x[expected == 0] == 0).all()
+    assert (x.sum(0) <= col_totals).all()
+    assert ((x * sizes).sum(1) <= capacity).all()
