@@ -7,7 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "three": "0.186.1"
@@ -15,6 +16,8 @@
   "devDependencies": {
     "@twinlight/config": "workspace:*",
     "@types/three": "0.186.0",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }
