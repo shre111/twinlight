@@ -6,3 +6,10 @@ bbox = [72.45, 22.92, 72.72, 23.14]
 [osm]
 url = "https://download.geofabrik.de/asia/india/western-zone-260101.osm.pbf"
 md5 = "d62746c49b4ba9277e1e6de4b5afad70"
+
+[river]
+# waterway=river centreline names that split the city into banks
+names = ["Sabarmati River", "Sabarmati"]
+
+[districts]
+place_kinds = ["suburb", "neighbourhood", "quarter", "village", "town"]
