@@ -9,53 +9,69 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       web: ${{ steps.filter.outputs.web }}
       engine: ${{ steps.filter.outputs.engine }}
       python: ${{ steps.filter.outputs.python }}
       formats: ${{ steps.filter.outputs.formats }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
-            web:
-              - 'apps/**'
-              - 'packages/**'
-              - 'design/**'
+            workflow: &workflow
+              - '.github/workflows/ci.yml'
+            node: &node
+              - *workflow
               - 'package.json'
               - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
               - 'turbo.json'
               - 'biome.json'
+              - '.nvmrc'
+            uv: &uv
+              - *workflow
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.python-version'
+            web:
+              - *node
+              - 'apps/**'
+              - 'packages/**'
+              - 'design/tokens.json'
             engine:
+              - *uv
               - 'py/**'
               - 'services/runner/**'
               - 'fixtures/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
             python:
+              - *uv
               - 'services/minds/**'
               - 'tools/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
             formats:
+              - 'packages/tape/**'
               - 'fixtures/tape/**'
-              - 'fixtures/pack/**'
 
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm biome ci .
@@ -69,11 +85,11 @@ jobs:
       TWL_GOLDEN_STRICT: '1'
       NUMBA_CACHE_DIR: .numba-cache
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .numba-cache
           key: numba-${{ runner.os }}-${{ hashFiles('uv.lock', 'py/engine/**/*.py') }}
@@ -91,8 +107,8 @@ jobs:
       matrix:
         project: [services/minds, tools/citybake]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       - run: uv sync --frozen
@@ -106,16 +122,25 @@ jobs:
     if: needs.changes.outputs.formats == 'true'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: pnpm
       - run: uv sync --frozen
       - run: pnpm install --frozen-lockfile
       - run: uv run python -m twl_tape.fixtures --check
       - run: pnpm -F @twinlight/tape test
+
+  ci-ok:
+    needs: [changes, web, engine, python, cross-language-goldens]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "all required jobs passed or were skipped"
