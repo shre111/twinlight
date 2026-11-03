@@ -4,14 +4,30 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
 - P-020: all ACs hold. Lane B rendered a v1 preview pack of the OSM layers in `/dev/stage` (2026-11-04): 100,488 buildings, 238k road segments and 100k stand-in residents in 8 draw calls, 16.7 ms p50 and 17.5 ms p95 on the M4. Stills are in Lane B's scratchpad. The pack was written by `twl_engine.fixtures.pack.write_pack` from a one-off script; P-025 brings the real writer.
-- D-021 footprints: this PR completes `citybake footprints <city>`.
+- D-021 footprints: merged (#44, #45).
+- P-021: the ACs hold on the real Ahmedabad run (see below). This PR adds the Ahmedabad population TOML sections and the lead's four follow-ups.
+- Waiting on decisions:
+  - D-024: the median fit is a staircase; I've proposed bin mean, pooling the top bins to at least 30 buildings, and a top ratio of at least 1. The code is parked on `feat/p020-height-correction`.
+  - WorldPop scale: see "P-021 real run" below.
 - Next:
-  - D-024 height correction.
-  - Ahmedabad's population TOML sections. The WorldPop raster is downloaded: md5 `89905eed942228829cf21eee28eb12df`, 778,106,191 bytes.
-  - The lead's four P-021 follow-ups.
-  - The real P-021 run.
-  - District seed merges and names.
+  - cache keys for the footprint caches (`vida.parquet` and `heights.tif` should record what they were built from);
+  - district seed merges and names;
   - P-022.
+
+## P-021 real run (Ahmedabad, combined buildings, WorldPop R2025A, about 4 s)
+- All 105 districts are synthesised at 0.00% error against their marginals. 0 buildings over capacity; IPF converged everywhere in at most 12 sweeps.
+- 740,171 households, mean size 4.74 (census 4.74).
+- 100,001 residents from 30,465 households; weight 6.54.
+- 234k WorldPop people sit in 20,558 cells with no buildings, so they are unplaced.
+- WorldPop scale: R2025A puts only 3.74M people in the bbox (AMC alone was 5.58M in 2011; the UA is about 8 to 9M in 2025). Its densest cell holds 130 people per 100 m, so it under-concentrates dense cores; Mumbai's island bbox shows 4.99M against over 12M. Options sent to the lead:
+  - rescale to a sourced city total;
+  - switch to GHS-POP R2023A;
+  - both.
+- Lead-accepted assumptions, now explicit in the config and report:
+  - `shopper_share` 0.27, with the mean weight in `layer.json`;
+  - the adult share 0.69 with its C-14 source;
+  - `[households].size_shrink` (default 1.0; an exponential tilt of the census sizes);
+  - edge-cell people beyond the bbox in the report.
 
 ## D-021 bake (Ahmedabad, cached rerun 23 s, peak RSS about 3.2 GB, byte-identical reruns)
 - Buildings: 1,054,627 in total.
