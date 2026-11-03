@@ -43,7 +43,7 @@ def synthesise_households(
     cap = np.asarray(capacity, np.int64)
     of = np.asarray(district, np.intp)
     size = np.asarray(sizes, np.int64)
-    census = np.asarray(counts, np.int64)
+    census = np.asarray(counts, np.float64)
     persons_share = census * size / (census * size).sum()
     fits = [
         _fit_district(members, people[members], cap[members], size, persons_share)
@@ -59,7 +59,13 @@ def synthesise_households(
         size=hh_size.astype(np.uint8),
         district=hh_district.astype(np.uint16),
         report=_report(
-            hh_size, hh_district, np.asarray(marginal, np.float64), n_districts, census, size, fits
+            hh_size,
+            hh_district,
+            np.asarray(marginal, np.float64),
+            np.bincount(of, weights=people, minlength=n_districts),
+            census,
+            size,
+            fits,
         ),
     )
 
@@ -115,11 +121,12 @@ def _report(
     hh_size: npt.NDArray[np.int64],
     hh_district: npt.NDArray[np.intp],
     marginal: npt.NDArray[np.float64],
-    n_districts: int,
-    census: npt.NDArray[np.int64],
+    placed: npt.NDArray[np.float64],
+    census: npt.NDArray[np.float64],
     size: npt.NDArray[np.int64],
     fits: list[_DistrictFit],
 ) -> dict[str, Any]:
+    n_districts = len(marginal)
     persons = np.bincount(hh_district, weights=hh_size, minlength=n_districts)
     rel = np.divide(
         np.abs(persons - marginal), marginal, out=np.zeros(n_districts), where=marginal > 0
@@ -134,6 +141,10 @@ def _report(
             "max_rel_error": float(rel.max(initial=0.0)),
             "max_rel_error_1000_plus": float(rel[big].max(initial=0.0)),
             "outside_1pct": np.flatnonzero(big & (rel > AC_REL_ERROR)).tolist(),
+            "outside_1pct_under_1000": np.flatnonzero(
+                ~big & (marginal > 0) & (rel > AC_REL_ERROR)
+            ).tolist(),
+            "max_abs_people_vs_placed": float(np.abs(persons - placed).max(initial=0.0)),
         },
         "households": {
             "count": len(hh_size),
@@ -151,6 +162,6 @@ def _report(
     }
 
 
-def _shares(size: npt.NDArray[np.int64], counts: npt.NDArray[np.int64]) -> dict[str, float]:
+def _shares(size: npt.NDArray[np.int64], counts: npt.NDArray[np.number]) -> dict[str, float]:
     total = counts.sum()
     return {str(s): float(n / total) if total else 0.0 for s, n in zip(size, counts, strict=True)}
