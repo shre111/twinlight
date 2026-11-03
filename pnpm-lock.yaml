@@ -109,6 +109,24 @@ importers:
 
   packages/config: {}
 
+  packages/ui:
+    devDependencies:
+      '@twinlight/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 8.3.5
+        version: 8.3.5(@types/node@24.19.2)
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2))
+
 packages:
 
   '@biomejs/biome@2.6.4':

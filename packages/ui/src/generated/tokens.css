@@ -1,0 +1,39 @@
+/* Generated from design/tokens.json by packages/ui/scripts/generate-tokens.ts. Do not edit. */
+:root {
+  --color-dusk: #0f1330;
+  --color-dusk-2: #171c42;
+  --color-haze: #2a3166;
+  --color-mist: #9aa3cf;
+  --color-paper: #eef0fb;
+  --color-lamp: #ffb547;
+  --color-tube: #a6f0da;
+  --color-chatter: #c8b6ff;
+  --color-sindoor: #ff5468;
+  --color-monsoon: #6f8cc9;
+  --color-light-ground: #f3f4fb;
+  --color-light-text: #0f1330;
+  --color-light-muted: #4a5288;
+  --color-light-line: #d5d9ee;
+  --color-light-lamp-ink: #9a5b00;
+  --font-display: var(--font-display-face, "Big Shoulders"), "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: var(--font-body-face, "Atkinson Hyperlegible Next"), "Segoe UI", system-ui, sans-serif;
+  --text-12: 12px;
+  --text-14: 14px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-21: 21px;
+  --text-24: 24px;
+  --text-32: 32px;
+  --text-44: 44px;
+  --text-60: 60px;
+  --text-80: 80px;
+  --radius-card: 14px;
+  --radius-input: 10px;
+  --radius-pill: 999px;
+  --radius-docked: 0px;
+  --shadow-card: 0px 12px 40px 0px rgba(5,7,20,0.45);
+  --motion-card: 220ms;
+  --motion-sheet: 260ms;
+  --motion-intro: 2500ms;
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
