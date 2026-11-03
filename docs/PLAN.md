@@ -31,6 +31,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
 Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end through engine, tape, stage and timeline. No LLM, no OSM yet.
 - [ ] **P-010 Toy city generator** Lane A. Port the prototype's procedural city (`design/prototype/toy-sim.mjs`: `buildCity`, `placeResidents`, `placeStores`, `buildTies`) to Python in `twl_engine.fixtures`, vectorised where it can be, using the engine's seeded streams. Sizes: 48,000 residents and 14 stores to match the prototype, 5,000 for fast tests. Writes a city pack (minimal subset of the real format).
   AC: same seed produces a byte-identical pack; at 48,000 residents the building count is within 3% of the prototype's 7,253 and ties per resident within 3% of its 4.5; pack loads in the stage. `[tests]`
+  Progress: generator, pack writer and golden merged (#20, #21, #23, #29); byte-identical and count ACs hold; waiting on Lane B's loader to render a generated pack.
 - [ ] **P-011 Engine core** Lane A. Integer clock, `SeedSequence` streams, NumPy struct-of-arrays residents, vectorised tick loop, Numba event queue. `[tests] [deep]`
   AC: determinism golden across 1/4/8 worker processes; empty scenario produces a valid empty tape.
 - [ ] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
