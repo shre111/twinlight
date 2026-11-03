@@ -4,6 +4,7 @@ import { FrameStats, type FrameSummary } from './frame-stats'
 import type { StageCity, StageTape } from './inputs'
 import { CityLayer } from './layers/city'
 import { ResidentsLayer } from './layers/residents'
+import { StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
@@ -37,6 +38,7 @@ export class Stage {
   #city: CityLayer | null = null
   #tape: StageTape | null = null
   #residents: ResidentsLayer | null = null
+  #stores: StoresLayer | null = null
   #time = 0
   #tier: TierName
   #pendingSize: ViewportSize | null = null
@@ -108,10 +110,16 @@ export class Stage {
     this.#tape = null
     this.#residents?.dispose()
     this.#residents = null
+    this.#stores?.dispose()
+    this.#stores = null
     this.#city?.dispose()
     const layer = new CityLayer(city)
     this.#city = layer
     this.#scene.add(layer.group)
+    if (city.stores.count > 0) {
+      this.#stores = new StoresLayer(city.stores, layer.fog)
+      this.#scene.add(this.#stores.object)
+    }
     this.#renderer.setClearColor(palette.skyTop, 1)
     await this.#compile()
     // A newer load or a dispose may have landed while the materials compiled.
@@ -129,6 +137,15 @@ export class Stage {
     if (awareAt.length !== expected || firstOrderAt.length !== expected) {
       throw new Error(`The tape has ${awareAt.length} residents but the city has ${expected}`)
     }
+    // CSR offsets carry one more entry than there are stores, so even a storeless tape has [0].
+    const offsets = tape.stores.stockoutOffsets
+    if (offsets.length === 0)
+      throw new Error('The tape has no store offsets; expected at least [0]')
+    const stores = offsets.length - 1
+    const cityStores = this.#stores?.count ?? 0
+    if (stores !== cityStores) {
+      throw new Error(`The tape has ${stores} stores but the city has ${cityStores}`)
+    }
     const load = this.#loads
     this.#tape = tape
     this.#mountResidents()
@@ -140,7 +157,7 @@ export class Stage {
     this.#stats.reset()
   }
 
-  /** Clamps to the tape and updates uniforms only; no work grows with the resident count. */
+  /** Clamps to the tape, updates uniforms and each store's stock state; no work grows with residents. */
   setTime(simMinutes: number): void {
     const tape = this.#tape
     this.#time = tape
@@ -169,6 +186,7 @@ export class Stage {
     this.#viewport.stop()
     this.#hud?.dispose()
     this.#residents?.dispose()
+    this.#stores?.dispose()
     this.#city?.dispose()
     this.#rig.dispose()
     void this.#renderer.dispose()
@@ -198,6 +216,8 @@ export class Stage {
     if (!city || !tape) return
     if (this.#residents) this.#residents.time.value = this.#time
     city.warm.value = warmFraction(this.#time, tape, city.residents.count)
+    // At the run's end the last minute holds, so a stockout still open then stays shown.
+    this.#stores?.showStockouts(tape.stores, Math.min(this.#time, tape.simMinutes - 1))
   }
 
   async #compile(): Promise<void> {
@@ -221,6 +241,7 @@ export class Stage {
     const cameraDistance = this.#rig.update()
     this.#city?.update(this.#camera, cameraDistance)
     this.#residents?.update(this.#camera)
+    this.#stores?.update(this.#camera)
     this.#renderer.render(this.#scene, this.#camera)
     this.#drawCalls = this.#renderer.info.render.drawCalls
 
