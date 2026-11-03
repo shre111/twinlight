@@ -175,3 +175,19 @@ def test_districts_with_ids_not_running_zero_to_n_in_order_are_rejected(
     (copy / "districts.json").write_text(json.dumps(districts))
     with pytest.raises(ValueError, match=r"0\.\.n-1"):
         run_population(copy, tif, tiny_config())
+
+
+def test_shrinking_below_the_smallest_counted_size_is_rejected() -> None:
+    with pytest.raises(ValueError, match="size_shrink"):
+        HouseholdConfig(source="t", sizes=(1, 2, 3), counts=(0, 5, 5), size_shrink=0.5)
+
+
+def test_report_keeps_census_shares_beside_the_shrunk_target_shares(tmp_path: Path) -> None:
+    layers, tif = tmp_path / "layers", tmp_path / "pop.tif"
+    write_world(BBOX, tif, layers, block=18)
+    city = tiny_config()
+    assert city.households is not None
+    shrunk = replace(city, households=replace(city.households, size_shrink=0.8))
+    households = run_population(layers, tif, shrunk).report["households"]
+    assert households["census_size_shares"] != households["target_size_shares"]
+    assert sum(households["census_size_shares"].values()) == pytest.approx(1.0, abs=5e-3)

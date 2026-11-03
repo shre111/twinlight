@@ -32,6 +32,8 @@ def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> Popula
         raise ValueError(f"{city.slug} has no [households] census table")
     buildings = read_table(osm_layers / "buildings")
     districts = json.loads((osm_layers / "districts.json").read_text(encoding="utf-8"))
+    if [d["id"] for d in districts] != list(range(len(districts))):
+        raise ValueError("districts.json ids must run 0..n-1 in order")
     pop = city.population
     capacity = residential_capacity(
         buildings["area_m2"],
@@ -68,12 +70,17 @@ def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> Popula
         "placed": alloc.placed,
         "persons": persons.astype(np.int64),
     }
-    if [d["id"] for d in districts] != list(range(len(districts))):
-        raise ValueError("districts.json ids must run 0..n-1 in order")
     names = [d["name"] for d in districts]
     housed = capacity > 0
     edge = edge_people(grid, city.bbox, lon[housed], lat[housed])
-    report = _report(grid, alloc, building_population, households, residents, names, edge)
+    census = np.asarray(city.households.counts, np.float64)
+    census_shares = {
+        str(size): float(n / census.sum())
+        for size, n in zip(city.households.sizes, census, strict=True)
+    }
+    report = _report(
+        grid, alloc, building_population, households, residents, names, edge, census_shares
+    )
     report["population"] = _rounded(
         {
             "adult_share": pop.adult_share,
@@ -126,6 +133,7 @@ def _report(
     residents: dict[str, np.ndarray],
     names: list[str],
     edge_people_beyond_bbox: float,
+    census_shares: dict[str, float],
 ) -> dict[str, Any]:
     capacity, persons = building_population["capacity"], building_population["persons"]
     districts = households.report["districts"]
@@ -150,7 +158,10 @@ def _report(
             "outside_1pct_under_1000": [names[i] for i in districts["outside_1pct_under_1000"]],
             "shortfall_people": float(alloc.shortfall.sum()),
         },
-        "households": households.report["households"],
+        "households": {
+            **households.report["households"],
+            "census_size_shares": census_shares,
+        },
         "ipf": households.report["ipf"],
         "residents": {
             "count": len(weight),

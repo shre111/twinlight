@@ -151,7 +151,7 @@ def _report(
             "people": int(hh_size.sum()),
             "mean_size": float(hh_size.mean()) if len(hh_size) else 0.0,
             "size_shares": _shares(size, by_size),
-            "census_size_shares": _shares(size, census),
+            "target_size_shares": _shares(size, census),
         },
         "ipf": {
             "districts": len(fits),
