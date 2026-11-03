@@ -40,7 +40,7 @@ Status: Accepted (2026-11-03)
 - **Consequences:** Budgets in ARCHITECTURE.md section 9 assume about 10 s per seed. Profile with py-spy and move hot loops into Numba before considering anything else. Revisit with a new decision only if benchmarks miss budgets by more than 2x after optimisation.
 
 ### D-006 Determinism contract
-Status: Accepted (2026-11-03)
+Status: Accepted (2026-11-03); refined by D-023
 - **Decision:** `numpy.random.Generator` streams spawned from `SeedSequence(run_seed)`, one per subsystem and passed explicitly; integer minute clock; no set iteration in sim paths; no `parallel=True`, `prange` or `fastmath=True` in Numba sim code; parallelism only across seeds. Golden tape hashes are bit-exact on the pinned CI platform (Linux x86_64, locked NumPy and Numba) and checked across 1, 4 and 8 worker processes; other platforms check probe values and aggregates within tolerance.
 - **Why:** Every number in the product must be reproducible from a seed, and reproducibility is what makes debugging and the narration's event links trustworthy. NumPy's SIMD transcendental functions can differ in the last bit across CPU generations, so bit-exactness is promised per platform rather than everywhere.
 - **Alternatives:** Best-effort determinism (unreviewable drift); disabling SIMD globally (slow, and still not portable across builds).
@@ -147,3 +147,10 @@ Status: Accepted (2026-11-03)
 - **Why:** Everything stays in Python and reproducible, with no routing container in CI or on the laptop. Within a 2 to 3 km delivery radius, OSRM's better turn handling barely matters next to the model's own travel noise (lognormal, sigma 0.15), and riders on two-wheelers don't follow perfect routes anyway.
 - **Alternatives:** OSRM in Docker during the bake (better routing realism, but a container dependency for every bake and in CI, on a machine where Docker is fragile).
 - **Consequences:** One-off check when P-024 lands: about 30 store-to-cell pairs compared by hand with Google Maps two-wheeler times, median error under 20%, result noted in MEMORY.md. `travel.bin` keeps its format; only its source changes.
+
+### D-023 Pin CPU features for strict goldens
+Status: Accepted (2026-11-03)
+- **Decision:** The CI engine job, and `just goldens` when P-011 adds it, run with `NPY_ENABLE_CPU_FEATURES=X86_V3` (an allow-list, so current and future AVX-512 groups stay off), `NUMBA_CPU_NAME=generic`, `NUMBA_DISABLE_INTEL_SVML=1`, `OPENBLAS_CORETYPE=Haswell` and `OPENBLAS_NUM_THREADS=1`. A guard test, active when `TWL_GOLDEN_STRICT=1`, asserts through `numpy._core._multiarray_umath.__cpu_features__` that `X86_V3` is on and `X86_V4` is off, and CI prints `np.show_runtime()`.
+- **Why:** GitHub's Linux runners mix CPUs with and without AVX-512, and NumPy dispatches different SIMD kernels for `exp` and `log` on each, which can flip the last bit and make strict goldens flaky. NumPy 2.5 groups features as `X86_V2`/`X86_V3`/`X86_V4` and silently ignores old names such as `AVX512F`, so the guard makes a renamed group fail loudly instead of flaking.
+- **Alternatives:** No pinning, fixing the first flake when it appears (slow to diagnose); the pinned container image D-006 originally described (it does not exist, and an image does not pin the CPU).
+- **Consequences:** "Pinned CI platform" in D-006 now means Linux x86_64 at `X86_V3` with these variables. A small CI-only speed cost. Strict hashes come from CI; other machines compare probes with tolerance. Check the group names on every NumPy upgrade.
