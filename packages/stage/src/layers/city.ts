@@ -1,3 +1,4 @@
+import { uniform } from 'three/tsl'
 import { type Camera, Group } from 'three/webgpu'
 import type { StageCity } from '../inputs'
 import { createBuildings } from './buildings'
@@ -9,23 +10,27 @@ import { createSky } from './sky'
 
 export class CityLayer {
   readonly group = new Group()
-  readonly #fog = new Fog()
+  readonly fog = new Fog()
+  /** 0 is the cool launch-day city, 1 fully warmed by orders. */
+  readonly warm = uniform(0)
+  readonly residents: StageCity['residents']
   readonly #sky: Layer
   readonly #layers: Layer[]
 
   constructor(city: StageCity) {
-    this.#sky = createSky(this.#fog)
+    this.residents = city.residents
+    this.#sky = createSky(this.fog)
     this.#layers = [
       this.#sky,
-      createGround(this.#fog),
-      ...createRoads(city.roads, this.#fog),
-      createBuildings(city.buildings, this.#fog),
+      createGround(this.fog, this.warm),
+      ...createRoads(city.roads, this.fog),
+      createBuildings(city.buildings, this.fog, this.warm),
     ]
     this.group.add(...this.#layers.map((layer) => layer.object))
   }
 
   update(camera: Camera, cameraDistance: number): void {
-    this.#fog.update(cameraDistance)
+    this.fog.update(cameraDistance)
     this.#sky.object.position.copy(camera.position)
   }
 

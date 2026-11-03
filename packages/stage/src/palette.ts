@@ -1,5 +1,6 @@
 import { color, sky } from '@twinlight/ui/tokens'
-import { Color, NoColorSpace } from 'three/webgpu'
+import { color as colorNode, mix } from 'three/tsl'
+import { Color, NoColorSpace, type Node } from 'three/webgpu'
 
 type TokenHex = (typeof color)[keyof typeof color] | (typeof sky)[keyof typeof sky]
 
@@ -24,6 +25,10 @@ export const palette = {
   fog: shade(color.dusk, 1),
   ground: shade(color.dusk, 1),
   cityGlow: shade(color.tube, 0.5),
+  cityGlowWarm: shade(color.lamp, 1),
+  tube: shade(color.tube, 1),
+  chatter: shade(color.chatter, 1),
+  lamp: shade(color.lamp, 1),
   wall: shade(color.dusk, 1.33),
   roof: shade(color.dusk, 1.75),
   edgeLip: shade(color.haze, 1.13),
@@ -32,3 +37,8 @@ export const palette = {
   arterial: blend(color.haze, color.mist, 0.35),
   bridge: blend(color.haze, color.mist, 0.55),
 } as const
+
+/** The city's ambient glow, cool tubelight until orders warm it to sodium amber. */
+export function cityGlow(warm: Node<'float'>) {
+  return mix(colorNode(palette.cityGlow), colorNode(palette.cityGlowWarm), warm)
+}
