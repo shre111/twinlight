@@ -24,7 +24,8 @@ How to start building Twinlight with Claude Code, and the prompts to paste.
 | --- | --- |
 | Default driver for every session | Opus 5.5 (`/model opus`) |
 | Points marked `[deep]` (engine core, Bass anchor, tape v1, residents and arcs shaders, population synthesis, social graph, calibration, backtests, compare view, voice) | Fable 5.1 (`/model fable`) for that point, back to Opus after |
-| `test-author`, `reviewer` subagents | Sonnet 5.5 (set in their files) |
+| `engine-smith`, `scene-director`, `persona-lab` subagents | Inherit the session model (`model: inherit`), so they run on Fable for `[deep]` points |
+| `test-author`, `reviewer` subagents | Sonnet 5.5 (set in their files), so tests and review come from a different model |
 
 ## Session rhythm
 Every session: read `docs/MEMORY.md`, `/start-point <next point>`, work in micro commits, `/ship` each micro PR, `/wrap` at the end of the point or session.
