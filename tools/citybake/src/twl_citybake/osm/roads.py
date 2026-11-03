@@ -151,7 +151,9 @@ def _ceil_float32(values: np.ndarray) -> npt.NDArray[np.float32]:
     return rounded
 
 
-def _polylines(start: np.ndarray, end: np.ndarray, x: np.ndarray, y: np.ndarray) -> dict:
+def _polylines(
+    start: np.ndarray, end: np.ndarray, x: np.ndarray, y: np.ndarray
+) -> dict[str, np.ndarray]:
     counts = end - start + 1
     offsets = np.concatenate([[0], np.cumsum(counts)]).astype(np.uint32)
     index = np.repeat(start - offsets[:-1].astype(np.intp), counts) + np.arange(offsets[-1])
