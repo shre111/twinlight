@@ -7,6 +7,8 @@ declare global {
   interface Window {
     /** The stage once its city, tape and time are applied; shots and the perf report wait for it. */
     __twinlightStage?: Stage
+    /** Set instead when the synthetic run fails to load, so shots fail fast. */
+    __twinlightStageError?: string
   }
 }
 
@@ -23,9 +25,13 @@ function loadSyntheticRun(stage: Stage, residents: number, minutes: number) {
       stage.setTime(minutes)
       window.__twinlightStage = stage
     })
-    .catch(console.error)
+    .catch((error: unknown) => {
+      console.error(error)
+      if (!cancelled) window.__twinlightStageError = String(error)
+    })
   return () => {
     cancelled = true
+    window.__twinlightStageError = undefined
     if (window.__twinlightStage === stage) window.__twinlightStage = undefined
   }
 }

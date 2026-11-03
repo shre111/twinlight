@@ -7,12 +7,30 @@ const TIERS: TierName[] = ['high', 'medium', 'low']
 // A frame count rather than a time window, so software GL samples as many frames as a GPU.
 const SAMPLE_FRAMES = 60
 const SAMPLE_TIMEOUT_MS = 60_000
+const LOAD_TIMEOUT_MS = 30_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
 async function openStage(page: Page, query: string) {
   await page.goto(`/dev/stage?${query}`)
   await page.addStyleTag({ content: HIDE_DEV_INDICATOR })
-  await page.waitForFunction(() => (window.__twinlightStage?.perf().frames ?? 0) > 2)
+  await page.waitForFunction(
+    () => window.__twinlightStage !== undefined || window.__twinlightStageError !== undefined,
+    undefined,
+    { timeout: LOAD_TIMEOUT_MS },
+  )
+  expect(
+    await page.evaluate(() => window.__twinlightStageError),
+    'stage load error',
+  ).toBeUndefined()
+  // The stage is exposed once its tape and time are set; three frames later a still shows them.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let left = 3
+        const tick = () => (--left === 0 ? resolve() : requestAnimationFrame(tick))
+        requestAnimationFrame(tick)
+      }),
+  )
 }
 
 for (const day of [1, 6, 13]) {
