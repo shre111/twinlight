@@ -61,7 +61,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm biome ci .
-      - run: pnpm turbo run typecheck test --filter="...[origin/main]"
+      - run: pnpm turbo run typecheck test
 
   engine:
     needs: changes
