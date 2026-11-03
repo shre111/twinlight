@@ -21,6 +21,7 @@ from twl_tape.format import (
     TapeHeader,
 )
 from twl_tape.sections import (
+    check_stockout_offsets,
     encode_aggregates,
     encode_chatter,
     encode_deliveries,
@@ -89,6 +90,7 @@ def _check_counts(tape: Tape) -> None:
         "delivery_rows": (header.delivery_rows, tape.deliveries.ordered_at.shape[0]),
         "stockout_pairs": (header.stockout_pairs, tape.stores.stockout_intervals.shape[0] // 2),
     }
+    check_stockout_offsets(tape.stores.stockout_offsets, header.stockout_pairs)
     for name, (in_header, in_arrays) in expected.items():
         if in_header != in_arrays:
             raise ValueError(f"header {name} is {in_header} but the arrays hold {in_arrays}")

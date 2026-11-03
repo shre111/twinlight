@@ -150,7 +150,7 @@ def test_raw_length_is_checked_against_the_decompressed_size() -> None:
     body[row_start : row_start + 32] = struct.pack(
         TABLE_ROW_STRUCT, kind, offset, length, raw_length + 8, crc
     )
-    with pytest.raises(TapeError, match="CHATTER section decompressed"):
+    with pytest.raises(TapeError, match="CHATTER section claims"):
         read_tape(reseal(body))
 
 
