@@ -6,6 +6,7 @@ environment, and CI confirms the values. Tables other than `engine` are kept as 
 
 import argparse
 import json
+import os
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
@@ -70,26 +71,39 @@ def compute_engine_goldens() -> dict[str, Probes]:
 
 
 def render_toml(tables: dict[str, dict[str, Probes]]) -> str:
+    """Two-level tables of scalars only; anything else raises rather than being rewritten."""
     lines = [HEADER]
     for table, entries in tables.items():
+        if not isinstance(entries, dict):
+            raise TypeError(f"[{table}] must be a table of tables")
         for name, values in entries.items():
+            if not isinstance(values, dict):
+                raise TypeError(f"[{table}.{name}] must be a table")
             lines.append(f"\n[{table}.{name}]")
-            lines.extend(f"{key} = {_toml_value(value)}" for key, value in values.items())
+            lines.extend(
+                f"{key} = {_toml_value(f'{table}.{name}.{key}', value)}"
+                for key, value in values.items()
+            )
     return "\n".join(lines) + "\n"
 
 
-def _toml_value(value: str | int | float | bool) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
+def _toml_value(path: str, value: object) -> str:
     if isinstance(value, str):
         return json.dumps(value)
-    return repr(value)
+    if type(value) in (int, float):
+        return repr(value)
+    raise TypeError(f"{path}: cannot round-trip a {type(value).__name__} through render_toml")
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m twl_engine.goldens")
     parser.add_argument("--write", action="store_true", help=f"rewrite {GOLDEN_PATH}")
     args = parser.parse_args(argv)
+    if args.write and os.environ.get("TWL_GOLDEN_STRICT") != "1":
+        raise SystemExit(
+            "refusing to write goldens without TWL_GOLDEN_STRICT=1; "
+            "use `just goldens`, which sets the pinned environment (D-023)"
+        )
     tables = read_goldens()
     tables["engine"] = compute_engine_goldens()
     text = render_toml(tables)
