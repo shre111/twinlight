@@ -5,12 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { tokenOutputs } from '../scripts/tokens.ts'
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
-const scannedDirs = [
-  ['apps', 'app'],
-  ['apps', 'components'],
-  ['packages', 'src'],
-] as const
-const excludedDirs = ['packages/ui/src/generated/', 'node_modules/']
+const generatedDir = join(repoRoot, 'packages/ui/src/generated')
+const skippedDirNames = new Set(['node_modules', '.next', '.turbo', 'dist', 'public'])
 const sourceExtensions = /\.(?:tsx?|css)$/
 
 const hexColour = /(?<![\w&.])#(?:[\da-f]{8}|[\da-f]{6}|[\da-f]{3,4})(?![\w-])/gi
@@ -19,18 +15,26 @@ const varReference = /var\(\s*(--[\w-]+)/g
 const cssDeclaration = /(--[\w-]+)\s*:/g
 const quotedName = /['"](--[\w-]+)['"]/g
 
-function sourceFiles(): string[] {
-  return scannedDirs.flatMap(([workspace, dir]) => {
-    const workspaceRoot = join(repoRoot, workspace)
-    return readdirSync(workspaceRoot).flatMap((name) => {
-      const root = join(workspaceRoot, name, dir)
-      if (!existsSync(root)) return []
-      return readdirSync(root, { recursive: true, encoding: 'utf8' })
-        .map((file) => relative(repoRoot, join(root, file)))
-        .filter((file) => sourceExtensions.test(file))
-        .filter((file) => !excludedDirs.some((excluded) => file.includes(excluded)))
-    })
+function workspaceDirs(workspace: string): string[] {
+  return readdirSync(join(repoRoot, workspace)).map((name) => join(repoRoot, workspace, name))
+}
+
+function walk(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      return skippedDirNames.has(entry.name) || path === generatedDir ? [] : walk(path)
+    }
+    return entry.isFile() && sourceExtensions.test(entry.name) ? [relative(repoRoot, path)] : []
   })
+}
+
+function sourceFiles(): string[] {
+  const roots = [
+    ...workspaceDirs('apps'),
+    ...workspaceDirs('packages').map((dir) => join(dir, 'src')),
+  ]
+  return roots.filter((root) => existsSync(root)).flatMap(walk)
 }
 
 function findings(pattern: RegExp): string[] {
@@ -48,8 +52,11 @@ function names(text: string, pattern: RegExp): string[] {
 }
 
 describe('token usage in app and package source', () => {
-  it('scans the web app', () => {
-    expect(sourceFiles()).toContain('apps/web/components/wordmark.tsx')
+  it('scans every app and package source, skipping build output and generated tokens', () => {
+    const files = sourceFiles()
+    expect(files).toContain('apps/web/components/wordmark.tsx')
+    expect(files).toContain('apps/web/next.config.ts')
+    expect(files.some((file) => /node_modules|\.next\/|generated\//.test(file))).toBe(false)
   })
 
   it('has no hex colour literals; use @twinlight/ui tokens', () => {
