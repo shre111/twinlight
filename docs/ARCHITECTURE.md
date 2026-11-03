@@ -158,7 +158,7 @@ districts.json     names, polygons, marginals used in synthesis
 ```
 Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
 
-**Binary layout (v1).** Every `.bin` file is a sequence of little-endian columns in the order listed, each starting at an 8-byte aligned offset (zero padding between columns), so a client can view each column as a typed array without copying. Lengths come from `manifest.json` `counts`. Variable-length lists are CSR: `u32 offsets[n + 1]`, then the flat columns.
+**Binary layout (v1).** Every `.bin` file is a sequence of little-endian columns in the order listed, each zero-padded to a multiple of 8 bytes, so every column starts 8-byte aligned (a client views it as a typed array without copying) and the file size is the sum of the padded columns. Lengths come from `manifest.json` `counts`, which has exactly the keys `buildings`, `residents`, `ties`, `stores`, `roads`, `roadPoints`, `riverPolygons`, `riverPoints`. Variable-length lists are CSR: `u32 offsets[n + 1]`, then the flat columns.
 - `buildings.bin` (toy packs, until P-025 brings `buildings.glb`): `f32 x, y, width, depth, height, rotation` (radians about up, counter-clockwise from east), `u16 district`. Count `buildings`.
 - `residents.bin`: the columns above. Count `residents`; `building` indexes `buildings`.
 - `graph.bin`: directed ties; resident `i` talks to `targets[offsets[i]..offsets[i + 1]]`, and an undirected relation appears in both directions. Count `ties` = length of `targets`. `tie_kind`: 0 household, 1 neighbour, 2 friend, 3 work.
@@ -167,7 +167,7 @@ Coordinates are local metres in a city-specific projection with the origin at th
 - `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`.
 - `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add polygons and marginals.
 - `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
-- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1.
+- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
 
 ## 6. Data model (Postgres)
 ```
