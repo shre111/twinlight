@@ -23,11 +23,12 @@ import {
   InstancedMesh,
   Matrix4,
   MeshBasicNodeMaterial,
+  type Node,
   Quaternion,
   Vector3,
 } from 'three/webgpu'
 import type { StageCity } from '../inputs'
-import { palette } from '../palette'
+import { cityGlow, palette } from '../palette'
 import { type Fog, viewDepth } from './fog'
 import type { Layer } from './layer'
 
@@ -39,12 +40,12 @@ const position = new Vector3()
 const scale = new Vector3()
 const quaternion = new Quaternion()
 
-export function createBuildings(buildings: Buildings, fog: Fog): Layer {
+export function createBuildings(buildings: Buildings, fog: Fog, warm: Node<'float'>): Layer {
   const geometry = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
   geometry.deleteAttribute('uv')
   geometry.setAttribute('height', new InstancedBufferAttribute(buildings.height, 1))
   const material = new MeshBasicNodeMaterial()
-  material.colorNode = buildingColour(fog)
+  material.colorNode = buildingColour(fog, warm)
   const mesh = new InstancedMesh(geometry, material, buildings.count)
   const matrix = new Matrix4()
   for (let i = 0; i < buildings.count; i++)
@@ -69,7 +70,7 @@ export function buildingMatrix(buildings: Buildings, i: number, out: Matrix4): M
   return out.compose(position, quaternion, scale)
 }
 
-function buildingColour(fog: Fog) {
+function buildingColour(fog: Fog, warm: Node<'float'>) {
   return Fn(() => {
     const normal = normalWorld
     const y = positionWorld.y
@@ -88,7 +89,7 @@ function buildingColour(fog: Fog) {
     const glow = exp(max(y, 0).div(8).negate())
     const wall = shaded
       .add(color(palette.edgeLip).mul(lip).mul(0.45))
-      .add(color(palette.cityGlow).mul(glow).mul(0.05))
+      .add(cityGlow(warm).mul(glow).mul(0.05))
     const roofColour = color(palette.roof).mul(seed.mul(0.24).add(0.86))
     return clamp(fog.mix(mix(wall, roofColour, roof), fogFactor), 0, 1)
   })()
