@@ -16,7 +16,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
   AC: `just setup && just lint && just test` pass on a clean clone; web app starts.
 - [x] **P-002 Python workspace** Lane A. Root `pyproject.toml` as a uv workspace; `py/engine` (`twl_engine`), `py/tape` (`twl_tape`) and `services/runner` (FastAPI `/health`) skeletons; NumPy, Numba, ruff, pyright and pytest wired; a Numba smoke test.
   AC: `just test-engine` runs; ruff and pyright clean; the Numba smoke test passes on Linux and macOS.
-- [ ] **P-003 Minds and citybake** Lane C. `services/minds` (FastAPI `/health`) and `tools/citybake` (CLI `citybake --help`) as members of the uv workspace, with ruff, pyright and pytest.
+- [x] **P-003 Minds and citybake** Lane C. `services/minds` (FastAPI `/health`) and `tools/citybake` (CLI `citybake --help`) as members of the uv workspace, with ruff, pyright and pytest.
   AC: `uv run pytest` green in both.
 - [ ] **P-004 Gateway skeleton** Lane A. NestJS app with `/v1/health`, config validation, OpenAPI at `/docs`, pino logging.
   AC: health returns version and git sha.
