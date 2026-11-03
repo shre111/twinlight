@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.36em;
-  font-family: var(--font-display-stack);
+  font-family: var(--font-display);
   font-weight: 500;
   line-height: 1;
 }

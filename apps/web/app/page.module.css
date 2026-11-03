@@ -7,6 +7,6 @@
 
 .title {
   margin: 0;
-  font-size: clamp(44px, 12vw, 80px);
+  font-size: clamp(var(--text-44), 12vw, var(--text-80));
   font-weight: inherit;
 }
