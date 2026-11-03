@@ -35,7 +35,8 @@ export class CameraRig {
     controls.screenSpacePanning = false
     controls.zoomSpeed = 0.8
     this.#controls = controls
-    this.pose(canvas.clientWidth < PHONE_MAX_WIDTH ? POSES.phone : POSES.home)
+    // The window, not the canvas, which may not be laid out yet.
+    this.pose(window.innerWidth < PHONE_MAX_WIDTH ? POSES.phone : POSES.home)
   }
 
   resize(width: number, height: number): void {
