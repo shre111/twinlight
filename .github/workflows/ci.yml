@@ -59,8 +59,8 @@ jobs:
               - 'services/minds/**'
               - 'tools/**'
             formats:
+              - 'packages/tape/**'
               - 'fixtures/tape/**'
-              - 'fixtures/pack/**'
 
   web:
     needs: changes
