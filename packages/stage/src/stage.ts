@@ -136,6 +136,8 @@ export class Stage {
     if (!this.#disposed && load !== this.#loads) {
       throw new Error('A new city loaded while its tape was being set; set the tape again')
     }
+    // Frames rendered while the residents compiled are not the scene's steady frame time.
+    this.#stats.reset()
   }
 
   /** Clamps to the tape and updates uniforms only; no work grows with the resident count. */
