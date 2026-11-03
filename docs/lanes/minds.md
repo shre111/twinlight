@@ -4,12 +4,14 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
 - P-020 OSM bake for Ahmedabad: code complete with this PR (#16, #18, #22, then this one). `citybake fetch ahmedabad` downloads and clips the pinned extract; `citybake osm ahmedabad` writes layers and `report.json` to `data/cache/citybake/ahmedabad/osm/layers` in about 4 s, byte-identical across runs. Pack rendering waits for P-025 (the pack writer) and P-016 (the city layer).
-- Next: a follow-up that conditions default heights on footprint size, then P-021 on cells that have OSM buildings (lead's instruction until the footprint decision lands).
+- Follow-up in review: default heights also conditioned on footprint band (below 250, 250 to 700, above 700 m2), and coincident district seeds collapsed.
+- Next: P-021 on cells that have OSM buildings (the lead's instruction until the footprint decision lands). The WorldPop download is slow, about 100 KB/s.
 
 ## P-020 bake report (Ahmedabad, bbox 72.45,22.92,72.72,23.14, Geofabrik western-zone-260101)
 - Buildings: 100,488. By kind: unknown (`building=yes`) 85,531, residential 11,985, commercial 1,832, civic 509, industrial 315, other 273, religious 43.
-- Height sources: `height` tag 14, `building:levels` 18,776, default 81,698 (81%). Defaults come from district-and-kind medians for 8,528 buildings and from city-wide kind medians for 73,170.
-- Height distribution: p5 to p75 are all 6.4 m (2 levels), p95 19.2 m, max 137.6 m (43 levels).
+- Height sources: `height` tag 14, `building:levels` 18,776, default 81,698 (81%).
+- Default levels with footprint bands: 1 level 96 buildings, 2 levels 67,305, 3 levels 11,026, 4 levels 2,113, 5 to 10 levels 1,158. Before bands they were nearly all 2.
+- Height distribution: p5 to p75 are all 6.4 m (2 levels), p95 16.0 m, max 137.6 m (43 levels).
 - Footprint: p5 44 m2, p50 133 m2, p95 625 m2.
 - Roads: 88,744 nodes and 112,373 edges in 21 weak components, the largest holding 99.8% of nodes. Length: local 4,865 km, tertiary 1,556 km, service 831 km, secondary 431 km, primary 392 km, major 254 km. 454 bridge edges.
 - Water: the Sabarmati covers 14.9 km2 in 3 polygons; 60 lakes total 3.0 km2.
@@ -26,7 +28,7 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 - Persona pool (P-022): Nemotron-Personas-India `en_IN` has 1,000,000 personas: 53,077 in Gujarat and 6,604 in Ahmadabad district. All are aged 18 or over. There are 1,216 distinct occupation titles, and 47% are "No Occupation / Retired / Homemaker". DuckDB reads the demographic columns over HTTP in about 12 s.
 - Household sizes (P-021): Census 2011 HH-01 (Gujarat, `DDW-HH01-2400-2011.XLS`). Ahmadabad City sub-district: 1,175,757 households, 5,552,466 persons, mean 4.7. Bins: 1, 2, 3, 4, 5, 6, 7 to 10, 11 to 14, 15+.
 - WorldPop R2025A India 2025 (100 m, constrained) is 778 MB, and its server ignores HTTP range requests, so citybake downloads it whole.
-- Levels rise with footprint size for residential and commercial buildings: about 2 below 150 m2, 5 to 6 at 250 to 700 m2, 8 to 10 above 700 m2. Unknown buildings stay near 2 to 3. This is the basis for the follow-up.
+- Levels rise with footprint size for residential and commercial buildings: about 2 below 250 m2, 5 to 6 at 250 to 700 m2, 8 to 10 above 700 m2. Unknown buildings stay near 2 to 3. This is why defaults use footprint bands.
 
 ## Gotchas
 - Bake data lives in `data/raw` (downloads) and `data/cache/citybake/<city>/<stage>` (gitignored). `TWL_DATA_DIR` overrides the root.

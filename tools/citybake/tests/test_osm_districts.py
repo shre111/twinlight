@@ -261,3 +261,38 @@ def test_bank_without_seeds_falls_back_to_the_nearest_seed_overall(
     assert lopsided.report["banks_split"] is True
     assert [d["name"] for d in lopsided.districts] == ["Only"]
     assert lopsided.buildings["district"].tolist() == [0, 0]
+
+
+@pytest.mark.parametrize("ids", [(7001, 7002), (7002, 7001)])
+def test_place_nodes_at_the_same_position_yield_one_district(
+    tmp_path: Path, tiny_city: TinyCity, city_config: CityConfig, ids: tuple[int, int]
+) -> None:
+    builder = OsmBuilder(tiny_city.projection)
+    builder.rect(1, -300, 200, 20, 20, {"building": "yes"})
+    builder.rect(2, 300, -200, 20, 20, {"building": "yes"})
+    builder.node(-100, 100, {"place": "suburb", "name": "Foo"}, node_id=ids[0])
+    builder.node(-100, 100, {"place": "suburb", "name": "Bar"}, node_id=ids[1])
+    builder.write(tmp_path / "twins.osm")
+
+    twins = extract_osm(tmp_path / "twins.osm", city_config)
+
+    assert len(twins.districts) == 1
+    assert twins.districts[0]["buildings"] == 2
+    assert twins.districts[0]["name"] == ("Foo" if ids[0] < ids[1] else "Bar")
+
+
+def test_coincident_seeds_do_not_remove_distinct_neighbours(
+    tmp_path: Path, tiny_city: TinyCity, city_config: CityConfig
+) -> None:
+    builder = OsmBuilder(tiny_city.projection)
+    builder.rect(1, -300, 200, 20, 20, {"building": "yes"})
+    builder.rect(2, 300, -200, 20, 20, {"building": "yes"})
+    builder.node(-300, 100, {"place": "suburb", "name": "Foo"}, node_id=7001)
+    builder.node(-300, 100, {"place": "suburb", "name": "Bar"}, node_id=7002)
+    builder.node(300, -100, {"place": "suburb", "name": "Baz"}, node_id=7003)
+    builder.write(tmp_path / "mixed.osm")
+
+    mixed = extract_osm(tmp_path / "mixed.osm", city_config)
+
+    assert sorted(d["name"] for d in mixed.districts) == ["Baz", "Foo"]
+    assert all(d["buildings"] == 1 for d in mixed.districts)

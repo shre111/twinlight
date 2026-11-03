@@ -67,6 +67,7 @@ def extract_osm(pbf: Path, city: CityConfig) -> OsmLayers:
         footprints.height_source,
         district,
         footprints.kind,
+        footprints.area_m2,
         footprints.levels,
     )
     table = footprints.table(height_m, district, bank)

@@ -71,7 +71,15 @@ class PlaceCollector:
             if key not in best or rank < best[key][0]:
                 best[key] = (rank, int(i))
         chosen = [best[key][1] for key in sorted(best)]
+        first_at: dict[tuple[int, int], int] = {}
+        for i in sorted(chosen, key=lambda i: (kind[i], osm_id[i])):
+            first_at.setdefault(_millimetres(x[i], y[i]), i)
+        chosen = [i for i in chosen if first_at[_millimetres(x[i], y[i])] == i]
         return Seeds([name[i] for i in chosen], x[chosen], y[chosen])
+
+
+def _millimetres(x: float, y: float) -> tuple[int, int]:
+    return round(float(x) * 1000), round(float(y) * 1000)
 
 
 def assign_districts(
