@@ -29,6 +29,7 @@ export const palette = {
   tube: shade(color.tube, 1),
   chatter: shade(color.chatter, 1),
   lamp: shade(color.lamp, 1),
+  sindoor: shade(color.sindoor, 1),
   wall: shade(color.dusk, 1.33),
   roof: shade(color.dusk, 1.75),
   edgeLip: shade(color.haze, 1.13),
