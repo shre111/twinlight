@@ -6,6 +6,7 @@ import {
   dot,
   exp,
   float,
+  fract,
   instanceIndex,
   length,
   max,
@@ -16,6 +17,7 @@ import {
   positionGeometry,
   positionViewDirection,
   sin,
+  smoothstep,
   uniform,
   uv,
   vec3,
@@ -62,6 +64,10 @@ const OUT_GAIN = 1.15
 const FLICKER_DEPTH = 0.28
 const FLICKER_RATE = 5
 const FLICKER_PHASE_STEP = 1.7
+// Reduced motion holds the flicker, so out-of-stock beams break into segments instead: a still
+// cue that is not colour alone.
+const SEGMENT_METRES = 65
+const SEGMENT_GAP_GAIN = 0.15
 
 /** Dark stores as tube beams over a ground glow and a delivery-radius ring, three draws in all. */
 export class StoresLayer {
@@ -85,8 +91,9 @@ export class StoresLayer {
     const flicker = reducedMotion ? float(1) : flickerAt(clock)
     const gain = vertexStage(mix(float(1), flicker.mul(OUT_GAIN), out))
     const clear = (amount: number) => vertexStage(oneMinus(fog.factor(viewDepth).mul(amount)))
+    const segmented = reducedMotion ? out : null
 
-    this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8))), 2)
+    this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8)), segmented), 2)
     this.#mount(this.#bases(shared, tint.mul(gain).mul(clear(1))), 1)
     this.#mount(this.#rings(shared, tint.mul(clear(1)).mul(RING_GAIN)), 1)
   }
@@ -108,7 +115,7 @@ export class StoresLayer {
     this.object.removeFromParent()
   }
 
-  #beams(shared: SharedAttributes, shade: Node<'vec3'>): Mesh {
+  #beams(shared: SharedAttributes, shade: Node<'vec3'>, segmented: Node<'float'> | null): Mesh {
     const geometry = instanced(beamShape(), shared, this.count)
     const material = additive(new MeshBasicNodeMaterial())
     const centre = attribute('centre', 'vec3')
@@ -124,7 +131,8 @@ export class StoresLayer {
       .mul(fall)
       .mul(facing.mul(facing).mul(0.85).add(0.08))
       .add(exp(up.mul(-30)).mul(0.6))
-    material.colorNode = shade.mul(alpha).mul(thin).mul(0.95)
+    const lit = shade.mul(alpha).mul(thin).mul(0.95)
+    material.colorNode = segmented ? lit.mul(mix(float(1), beamSegments(up), segmented)) : lit
     return new Mesh(geometry, material)
   }
 
@@ -169,6 +177,13 @@ function flickerAt(clock: Node<'float'>) {
   return sin(phase)
     .mul(FLICKER_DEPTH)
     .add(1 - FLICKER_DEPTH)
+}
+
+// A triangle wave along the beam, 0 at each segment's middle and 1 at the gaps between them,
+// eased so the gaps have soft ends; the first segment is centred on the foot.
+function beamSegments(up: Node<'float'>) {
+  const wave = abs(fract(up.mul(BEAM_HEIGHT / SEGMENT_METRES).add(0.5)).sub(0.5)).mul(2)
+  return mix(float(1), float(SEGMENT_GAP_GAIN), smoothstep(0.5, 0.7, wave))
 }
 
 interface SharedAttributes {
