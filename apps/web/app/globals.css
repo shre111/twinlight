@@ -1,11 +1,3 @@
-:root {
-  --color-dusk: #0f1330;
-  --color-paper: #eef0fb;
-  --color-lamp: #ffb547;
-  --color-tube: #a6f0da;
-  --font-display-stack: var(--font-display), "Arial Narrow", "Roboto Condensed", sans-serif;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -16,4 +8,13 @@ body {
   min-height: 100%;
   background: var(--color-dusk);
   color: var(--color-paper);
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lamp);
+  outline-offset: 2px;
 }

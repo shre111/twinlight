@@ -6,7 +6,15 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/*.md", "!**/*.yml", "!**/*.yaml", "!.claude", "!design"]
+    "includes": [
+      "**",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!.claude",
+      "!design",
+      "!packages/ui/src/generated"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -30,5 +38,22 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/gateway/**"],
+      "javascript": {
+        "parser": {
+          "unsafeParameterDecoratorsEnabled": true
+        }
+      },
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off"
+          }
+        }
+      }
+    }
+  ]
 }
