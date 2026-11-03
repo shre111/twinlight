@@ -150,7 +150,7 @@ def raw_lengths(header: TapeHeader) -> dict[SectionKind, int]:
     return {
         SectionKind.RESIDENTS: _padded(4, n) * 3 + _padded(2, n) + _padded(1, n) * 2,
         SectionKind.CHATTER: _padded(4, m) * 3,
-        SectionKind.DELIVERIES: _padded(2, d) + _padded(4, d) * 3 + _padded(1, d),
+        SectionKind.DELIVERIES: _padded(2, d) + _padded(4, d) * 4 + _padded(1, d),
         SectionKind.STORES: _padded(4, series)
         + _padded(2, series)
         + _padded(4, offsets)
