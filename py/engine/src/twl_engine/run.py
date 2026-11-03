@@ -21,7 +21,6 @@ from twl_tape import (
     derive_run_id,
     write_tape,
 )
-from twl_tape.format import FLAG_COMPLETE
 
 ENGINE_VERSION = "twl-engine 1"
 STREAMS = ("campaign", "wom", "occasions", "supply", "riders", "params")
@@ -90,7 +89,7 @@ def tape_header(inputs: RunInputs, clock: Clock) -> TapeHeader:
         chatter_rows=0,
         delivery_rows=0,
         stockout_pairs=0,
-        flags=FLAG_COMPLETE,
+        flags=0,
     )
 
 

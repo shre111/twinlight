@@ -14,6 +14,12 @@ class Scenario:
     days: int = 30
     tick_minutes: int = 15
 
+    def __post_init__(self) -> None:
+        if self.days < 1:
+            raise ValueError("a scenario runs for at least one day")
+        if self.tick_minutes < 1:
+            raise ValueError("tick_minutes must be at least 1")
+
     @property
     def sim_minutes(self) -> int:
         return self.days * MINUTES_PER_DAY
