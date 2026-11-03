@@ -13,6 +13,13 @@ export const color = {
   monsoon: '#6f8cc9',
 } as const
 
+export const sky = {
+  zenith: '#04061a',
+  mid: '#0b0f2e',
+  horizon: '#231f4e',
+  band: '#4a3c7e',
+} as const
+
 export const light = {
   ground: '#f3f4fb',
   text: '#0f1330',
