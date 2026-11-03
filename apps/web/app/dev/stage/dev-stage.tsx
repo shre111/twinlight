@@ -16,11 +16,13 @@ export type RunSource = { pack: string } | { residents: number }
 
 // A generated pack has no tape until P-014, so it shows the city before anyone has heard.
 async function runFor(source: RunSource) {
-  const { idleTape, synthesizeToyRun } = await import('@twinlight/stage/synthetic')
-  if (!('pack' in source)) return synthesizeToyRun(source.residents)
-  const { fetchPack } = await import('@twinlight/stage/pack')
-  const city = await fetchPack(`/dev/packs/${source.pack}`)
-  return { city, tape: idleTape(city) }
+  if ('pack' in source) {
+    const { fetchPack, idleTape } = await import('@twinlight/stage')
+    const city = await fetchPack(`/dev/packs/${source.pack}`)
+    return { city, tape: idleTape(city) }
+  }
+  const { synthesizeToyRun } = await import('@twinlight/stage/synthetic')
+  return synthesizeToyRun(source.residents)
 }
 
 function loadRun(stage: Stage, source: RunSource, minutes: number) {
