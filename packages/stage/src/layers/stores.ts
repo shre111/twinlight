@@ -6,6 +6,7 @@ import {
   dot,
   exp,
   float,
+  instanceIndex,
   length,
   max,
   mix,
@@ -14,6 +15,7 @@ import {
   oneMinus,
   positionGeometry,
   positionViewDirection,
+  sin,
   uniform,
   uv,
   vec3,
@@ -56,6 +58,10 @@ const RING_LIFT = 1.5
 const RING_SEGMENTS = 128
 const RING_GAIN = 0.085
 const OUT_GAIN = 1.15
+// Out-of-stock beams pulse by this much around their gain, roughly once a second.
+const FLICKER_DEPTH = 0.28
+const FLICKER_RATE = 5
+const FLICKER_PHASE_STEP = 1.7
 
 /** Dark stores as tube beams over a ground glow and a delivery-radius ring, three draws in all. */
 export class StoresLayer {
@@ -66,7 +72,8 @@ export class StoresLayer {
   readonly #geometries: BufferGeometry[] = []
   readonly #materials: NodeMaterial[] = []
 
-  constructor(stores: Stores, fog: Fog) {
+  /** `clock` is wall-clock seconds for the flicker, which reduced motion holds steady. */
+  constructor(stores: Stores, fog: Fog, clock: Node<'float'>, reducedMotion: boolean) {
     this.count = stores.count
     this.#stockout = new InstancedBufferAttribute(new Float32Array(stores.count), 1)
     const centre = new InstancedBufferAttribute(storeCentres(stores), 3)
@@ -75,7 +82,8 @@ export class StoresLayer {
 
     const out = vertexStage(attribute('stockout', 'float'))
     const tint = mix(color(palette.tube), color(palette.sindoor), out)
-    const gain = vertexStage(mix(float(1), float(OUT_GAIN), out))
+    const flicker = reducedMotion ? float(1) : flickerAt(clock)
+    const gain = vertexStage(mix(float(1), flicker.mul(OUT_GAIN), out))
     const clear = (amount: number) => vertexStage(oneMinus(fog.factor(viewDepth).mul(amount)))
 
     this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8))), 2)
@@ -154,6 +162,13 @@ export class StoresLayer {
     this.#materials.push(object.material as NodeMaterial)
     this.object.add(object)
   }
+}
+
+function flickerAt(clock: Node<'float'>) {
+  const phase = clock.mul(FLICKER_RATE).add(instanceIndex.toFloat().mul(FLICKER_PHASE_STEP))
+  return sin(phase)
+    .mul(FLICKER_DEPTH)
+    .add(1 - FLICKER_DEPTH)
 }
 
 interface SharedAttributes {

@@ -1,3 +1,4 @@
+import { uniform } from 'three/tsl'
 import { PerspectiveCamera, Scene, type WebGPURenderer } from 'three/webgpu'
 import { CameraRig } from './camera'
 import { FrameStats, type FrameSummary } from './frame-stats'
@@ -16,6 +17,8 @@ export interface StageOptions {
   tier?: TierOption
   backend?: BackendPreference
   hud?: boolean
+  /** Holds wall-clock animation such as the stockout flicker, so screenshots repeat exactly. */
+  still?: boolean
 }
 
 export interface FrameReport extends FrameSummary {
@@ -40,6 +43,10 @@ export class Stage {
   #residents: ResidentsLayer | null = null
   #stores: StoresLayer | null = null
   #time = 0
+  // Wall-clock seconds for ambient motion, apart from sim time, which only `setTime` moves.
+  #clock = uniform(0)
+  #still: boolean
+  #reducedMotion: boolean
   #tier: TierName
   #pendingSize: ViewportSize | null = null
   #viewport: Viewport
@@ -58,7 +65,11 @@ export class Stage {
         ? initialTier(window.matchMedia('(pointer: coarse)').matches)
         : options.tier
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    return new Stage(canvas, renderer, backend, tier, options.hud ?? false, reducedMotion)
+    return new Stage(canvas, renderer, backend, tier, {
+      hud: options.hud ?? false,
+      still: options.still ?? false,
+      reducedMotion,
+    })
   }
 
   private constructor(
@@ -66,12 +77,13 @@ export class Stage {
     renderer: WebGPURenderer,
     backend: Backend,
     tier: TierName,
-    hud: boolean,
-    reducedMotion: boolean,
+    { hud, still, reducedMotion }: { hud: boolean; still: boolean; reducedMotion: boolean },
   ) {
     this.#renderer = renderer
     this.backend = backend
     this.#tier = tier
+    this.#still = still
+    this.#reducedMotion = reducedMotion
     this.#rig = new CameraRig(this.#camera, canvas, reducedMotion)
     this.#hud = hud && canvas.parentElement ? new PerfHud(canvas.parentElement) : null
     this.#viewport = watchViewport(
@@ -117,7 +129,7 @@ export class Stage {
     this.#city = layer
     this.#scene.add(layer.group)
     if (city.stores.count > 0) {
-      this.#stores = new StoresLayer(city.stores, layer.fog)
+      this.#stores = new StoresLayer(city.stores, layer.fog, this.#clock, this.#reducedMotion)
       this.#scene.add(this.#stores.object)
     }
     this.#renderer.setClearColor(palette.skyTop, 1)
@@ -235,7 +247,10 @@ export class Stage {
       this.#pendingSize = null
     }
     const gap = now - this.#lastFrameAt
-    if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) this.#stats.push(gap)
+    if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) {
+      this.#stats.push(gap)
+      if (!this.#still) this.#clock.value += gap / 1000
+    }
     this.#lastFrameAt = now
 
     const cameraDistance = this.#rig.update()
