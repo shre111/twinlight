@@ -5,14 +5,30 @@ Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 ## Now
 - P-020: all ACs hold. Lane B rendered a v1 preview pack of the OSM layers in `/dev/stage` (2026-11-04): 100,488 buildings, 238k road segments and 100k stand-in residents in 8 draw calls, 16.7 ms p50 and 17.5 ms p95 on the M4. Stills are in Lane B's scratchpad. The pack was written by `twl_engine.fixtures.pack.write_pack` from a one-off script; P-025 brings the real writer.
 - D-021 footprints: merged (#44, #45).
-- P-021: the ACs hold on the real Ahmedabad run (see below). This PR adds the Ahmedabad population TOML sections and the lead's four follow-ups.
-- Waiting on decisions:
-  - D-024: the median fit is a staircase; I've proposed bin mean, pooling the top bins to at least 30 buildings, and a top ratio of at least 1. The code is parked on `feat/p020-height-correction`.
-  - WorldPop scale: see "P-021 real run" below.
-- Next:
-  - cache keys for the footprint caches (`vida.parquet` and `heights.tif` should record what they were built from);
-  - district seed merges and names;
-  - P-022.
+- P-021: the ACs hold on the real Ahmedabad run (#46, see below).
+- This PR adds the district names table (approved):
+  - display names prefer `name:en`, with the OSM `name` kept as `name_local`;
+  - `[districts]` gains `extra_seeds`, `merge` and `rename`, and any key that matches nothing fails loudly;
+  - a merged seed's catchment joins its target.
+  - Ahmedabad now has 104 districts. Vatva is an extra seed on its railway station node (37.8k buildings). Koteshwar Village is merged into Koteshwar. The four Gujarati-script names now display in English.
+  - "Jantanagar -Ramol" and "Ramol -Jantanagar" stay separate (renamed Jantanagar and Ramol): their nodes are 2.85 km apart, and merging them made a two-part Ramol.
+- Decided, to build next: the D-024 refinement (bin mean, top bins pooled to at least 30 buildings, top ratio of at least 1, floors = round, median signed error by raster bin and by storey band). The code is parked on `feat/p020-height-correction`.
+- Waiting on the owner: the population raster (GHS-POP recommended, see below) and the P-022 segment set (6 segments proposed).
+- Next: footprint cache keys (`vida.parquet` and `heights.tif` should record what they were built from), then P-022.
+
+## GHS-POP check (for the WorldPop scale decision)
+Ahmedabad: WorldPop R2025A against GHS-POP R2023A, 2025 epoch, 3 arcsec, CC BY 4.0, one 10-degree tile R7_C26:
+
+| Area | WorldPop | GHS-POP |
+|---|---|---|
+| bbox | 3.74M | 8.08M |
+| walled city density | 12.2k/km2 | 55.5k/km2 |
+| Vatva to Isanpur density | 9.9k/km2 | 34.3k/km2 |
+
+The two grids correlate at 0.69 cell by cell. P-021 on GHS-POP, unchanged:
+- 7.96M people placed, 105 districts at 0.00% error, 0 over capacity.
+- 120.7k people unplaced (WorldPop: 234k).
+- Resident weight 14.8.
 
 ## P-021 real run (Ahmedabad, combined buildings, WorldPop R2025A, about 4 s)
 - All 105 districts are synthesised at 0.00% error against their marginals. 0 buildings over capacity; IPF converged everywhere in at most 12 sweeps.
