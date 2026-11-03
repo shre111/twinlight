@@ -3,6 +3,7 @@ name = "twl-citybake"
 version = "0.0.0"
 requires-python = ">=3.13"
 dependencies = [
+    "duckdb>=2,<3",
     "numpy>=2.5,<3",
     "osmium>=4.3,<5",
     "pyproj>=3.8,<4",
