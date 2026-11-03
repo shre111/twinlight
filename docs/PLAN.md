@@ -20,7 +20,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
   AC: `uv run pytest` green in both.
 - [x] **P-004 Gateway skeleton** Lane A. NestJS app with `/v1/health`, config validation, OpenAPI at `/docs`, pino logging.
   AC: health returns version and git sha.
-- [ ] **P-005 Dev infrastructure** Lane A. `infra/compose/dev.yml`: Postgres 17 with PostGIS + h3, MinIO with buckets `packs` and `tapes`, Redis, Temporal dev server, otel-lgtm. `just dev` brings it up.
+- [x] **P-005 Dev infrastructure** Lane A. `infra/compose/dev.yml`: Postgres 17 with PostGIS + h3, MinIO with buckets `packs` and `tapes`, Redis, Temporal dev server, otel-lgtm. `just dev` brings it up.
   AC: all containers healthy; gateway connects to Postgres and MinIO.
 - [x] **P-006 CI** Lane A. Path-filtered jobs: web (biome, tsc, vitest), engine (ruff, pyright, pytest, determinism across worker counts), python services (ruff, pyright, pytest), cross-language goldens, PR title check. Cache pnpm and uv.
   AC: a docs-only PR runs only the title check; an engine PR runs only engine + title.
