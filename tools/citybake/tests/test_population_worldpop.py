@@ -58,11 +58,9 @@ def test_bbox_edge_exactly_on_a_cell_boundary_adds_no_extra_cell(tif: Path) -> N
     assert grid.values.shape == (2, 2)
 
 
-def test_window_is_clamped_to_the_raster(tif: Path) -> None:
-    grid = read_worldpop(tif, BBox(WEST - 1.0, NORTH - 7.0, WEST + 9.0, NORTH + 1.0))
-    assert grid.values.shape == (6, 8)
-    assert grid.west == pytest.approx(WEST)
-    assert grid.north == pytest.approx(NORTH)
+def test_a_bbox_the_raster_only_partly_covers_is_rejected(tif: Path) -> None:
+    with pytest.raises(ValueError, match="does not cover"):
+        read_worldpop(tif, BBox(WEST - 1.0, NORTH - 7.0, WEST + 9.0, NORTH + 1.0))
 
 
 def test_population_values_are_float64(tif: Path) -> None:

@@ -55,17 +55,13 @@ def read_worldpop(tif: Path, bbox: BBox) -> PopGrid:
         if t.b != 0 or t.d != 0 or t.a <= 0 or t.e >= 0:
             raise ValueError(f"{tif} is not a north-up raster")
         dlon, dlat = t.a, -t.e
-        col0 = _clamp(math.floor((bbox.west - t.c) / dlon + SNAP), src.width)
-        col1 = _clamp(math.ceil((bbox.east - t.c) / dlon - SNAP), src.width)
-        row0 = _clamp(math.floor((t.f - bbox.north) / dlat + SNAP), src.height)
-        row1 = _clamp(math.ceil((t.f - bbox.south) / dlat - SNAP), src.height)
-        if col1 <= col0 or row1 <= row0:
-            raise ValueError(f"{tif} does not overlap {bbox}")
+        col0 = math.floor((bbox.west - t.c) / dlon + SNAP)
+        col1 = math.ceil((bbox.east - t.c) / dlon - SNAP)
+        row0 = math.floor((t.f - bbox.north) / dlat + SNAP)
+        row1 = math.ceil((t.f - bbox.south) / dlat - SNAP)
+        if col0 < 0 or row0 < 0 or col1 > src.width or row1 > src.height:
+            raise ValueError(f"{tif} does not cover {bbox}")
         band = src.read(1, window=Window.from_slices((row0, row1), (col0, col1)), masked=True)
     values = np.ma.filled(band.astype(np.float64), 0.0)
     values[~np.isfinite(values) | (values < 0)] = 0.0
     return PopGrid(values, west=t.c + col0 * dlon, north=t.f - row0 * dlat, dlon=dlon, dlat=dlat)
-
-
-def _clamp(index: int, size: int) -> int:
-    return min(max(index, 0), size)
