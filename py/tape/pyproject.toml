@@ -2,7 +2,7 @@
 name = "twl-tape"
 version = "0.0.0"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = ["blake3>=1.0,<2", "zstandard>=0.25,<0.26"]
 
 [build-system]
 requires = ["uv_build>=0.12,<0.13"]

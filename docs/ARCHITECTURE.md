@@ -120,9 +120,10 @@ Binary, little-endian, sections independently zstd-compressed, 8-byte aligned. D
 ```
 Header
   magic "TWLT", u16 version, u16 flags
-  run_id (16 bytes), u64 seed, engine_version (32 bytes, git describe)
+  run_id (16 bytes), u64 seed, engine_version (32 bytes, zero-padded format version string)
   city_pack_hash (32 bytes), scenario_hash (32 bytes)
   u32 sim_minutes (43_200 for 30 days), u32 tick_minutes (15)
+  u32 residents, u32 stores, u32 chatter_rows, u32 delivery_rows, u32 stockout_pairs, u32 reserved (0)
   section table: [u32 kind, u64 offset, u64 length, u64 raw_length, u32 crc32] x n
 Sections
   RESIDENTS   SoA, count = residents in city pack order
@@ -142,6 +143,9 @@ Footer
 ```
 - Streaming: while a run is live, the runner appends day chunks; the client fetches ranges listed in `CHUNKS` and appends to GPU buffers (event arrays are append-friendly because rows are time-sorted or per-entity fixed slots).
 - Golden tests: `py/tape` writes `fixtures/tape/v1/*.twlt`; `packages/tape` decodes them and must reproduce the checksums and a set of probe values.
+- Reproducibility: the body of the tape is a pure function of `(city_pack_hash, scenario_hash, params_hash, seed)`. Header fields that could vary between runs with the same inputs are therefore fixed or derived: `run_id` is the first 16 bytes of `blake3(city_pack_hash ‖ scenario_hash ‖ params_hash ‖ seed as u64 LE)`, and `engine_version` is the engine's format-relevant version string padded with zeros (not a git describe), so identical inputs give identical bytes and one golden hash. The runner records the git sha and wall clock in its own run metadata, never in the tape.
+- Counts live in the header, never inferred from byte lengths: a reader sizes every column from `residents`, `stores`, `ticks = sim_minutes / tick_minutes`, `chatter_rows`, `delivery_rows` and `stockout_pairs`, and `raw_length` is a check, not a source of truth.
+- Section kinds: 1 RESIDENTS, 2 CHATTER, 3 DELIVERIES, 4 STORES, 5 AGGREGATES, 6 CHUNKS. `flags` bit0 = complete (footer present). Version 1 writes every column padded to 8 bytes as in the pack format (§5), with each section's compressed bytes 8-byte aligned in the file; `CHUNKS` is empty (one chunk, the whole tape) until streaming lands in P-014.
 - TS decode names (`packages/tape`): camelCase of the fields above (`awareAt`, `firstOrderAt`, `storesOut`, ...), times in minutes, `0xFFFFFFFF` = never. Per-store series are flat row-major `[store * ticks + tick]`; stockout intervals are CSR: `stockoutOffsets` (storeCount + 1) indexes (start, end) pairs in `stockoutIntervals`, so the last offset equals `stockoutIntervals.length / 2`. Header exposes `simMinutes`, `tickMinutes`, `seed`.
 
 ## 5. City pack format (one per city version)
