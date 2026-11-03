@@ -4,6 +4,8 @@ import { NEVER, type StageCity, type StageTape } from '../src/inputs'
 import { Fog } from '../src/layers/fog'
 import {
   eventMinutes,
+  glowDensity,
+  pointAndGlowQuads,
   ResidentsLayer,
   residentPositions,
   residentSubset,
@@ -62,6 +64,15 @@ describe('eventMinutes', () => {
   })
 })
 
+describe('glowDensity', () => {
+  it('holds the prototype gain up to 48k drawn residents and falls with the count above', () => {
+    expect(glowDensity(20_000)).toBe(1)
+    expect(glowDensity(48_000)).toBe(1)
+    expect(glowDensity(100_000)).toBeCloseTo(0.48)
+    expect(glowDensity(0)).toBe(1)
+  })
+})
+
 describe('ResidentsLayer', () => {
   const layer = new ResidentsLayer(residents, events, 2, new Fog())
   const attribute = (name: string) => layer.object.geometry.getAttribute(name) as BufferAttribute
@@ -70,6 +81,22 @@ describe('ResidentsLayer', () => {
     expect(layer.count).toBe(2)
     expect(layer.object.count).toBe(2)
     expect(layer.object.frustumCulled).toBe(false)
+  })
+
+  it('gives each instance a point quad and a glow quad in the same draw', () => {
+    expect(layer.object.geometry.index?.count).toBe(12)
+    expect(attribute('position').count).toBe(8)
+    expect(Array.from(attribute('glow').array)).toEqual([0, 0, 0, 0, 1, 1, 1, 1])
+  })
+
+  it('draws only the point quad when the tier has no bloom', () => {
+    const geometry = pointAndGlowQuads(false)
+    expect(geometry.index?.count).toBe(6)
+    expect(Array.from(geometry.getAttribute('glow').array)).toEqual([0, 0, 0, 0])
+    expect(Array.from(geometry.getAttribute('uv').array)).toEqual([0, 0, 1, 0, 1, 1, 0, 1])
+    const both = pointAndGlowQuads(true).getAttribute('position').array
+    expect(Array.from(both).every(Number.isFinite)).toBe(true)
+    expect(Array.from(both.slice(12))).toEqual(Array.from(both.slice(0, 12)))
   })
 
   it('uploads positions and event times once as instanced attributes', () => {
