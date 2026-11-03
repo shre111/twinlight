@@ -2,7 +2,8 @@
   "extends": "@twinlight/config/tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "allowJs": true
   },
   "include": ["src", "test"]
 }
