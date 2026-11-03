@@ -37,6 +37,7 @@ export class Stage {
   #pendingSize: ViewportSize | null = null
   #viewport: Viewport
   #disposed = false
+  #loads = 0
   #stats = new FrameStats()
   #hud: PerfHud | null
   #lastFrameAt = 0
@@ -89,12 +90,19 @@ export class Stage {
 
   async loadCity(city: StageCity): Promise<void> {
     if (this.#disposed) return
+    const load = ++this.#loads
     this.#city?.dispose()
     const layer = new CityLayer(city)
     this.#city = layer
     this.#scene.add(layer.group)
     this.#renderer.setClearColor(palette.skyTop, 1)
-    await this.#renderer.compileAsync(this.#scene, this.#camera)
+    try {
+      await this.#renderer.compileAsync(this.#scene, this.#camera)
+    } catch (error) {
+      if (!this.#disposed) throw error
+    }
+    // A newer load or a dispose may have landed while the materials compiled.
+    if (this.#disposed || load !== this.#loads) return
     this.#stats.reset()
   }
 
