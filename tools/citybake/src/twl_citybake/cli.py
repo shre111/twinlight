@@ -6,6 +6,7 @@ from pathlib import Path
 from twl_citybake.config import CityConfig, DataDirs, load_city
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
+from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import fetch
 
 
@@ -27,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     fetch_cmd.add_argument("city")
     osm_cmd = commands.add_parser("osm", help="extract buildings, roads, water and districts")
     osm_cmd.add_argument("city")
+    population_cmd = commands.add_parser(
+        "population", help="place WorldPop people in households per building, sample residents"
+    )
+    population_cmd.add_argument("city")
     return parser
 
 
@@ -59,6 +64,47 @@ def run_osm(city: str, dirs: DataDirs) -> None:
     print(stage / "layers")
 
 
+def run_population_command(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    if config.households is None:
+        raise SystemExit(f"{city} has no [households] census table")
+    layers = dirs.stage(city, "osm") / "layers"
+    if not (layers / "buildings").exists():
+        raise SystemExit(f"{layers} is missing; run `citybake osm {city}` first")
+    raster = worldpop_raster(config, dirs)
+    if not raster.exists():
+        raise SystemExit(f"{raster} is missing; run `citybake fetch {city}` first")
+    population = run_population(layers, raster, config)
+    out = dirs.stage(city, "population")
+    write_population_layers(population, out)
+    print(population_summary(population.report, config.households.mean_size))
+    print(out)
+
+
+def population_summary(report: dict, census_mean_size: float) -> str:
+    wp, cap, d = report["worldpop"], report["capacity"], report["districts"]
+    hh, fit, res = report["households"], report["ipf"], report["residents"]
+    outside = ", ".join(d["outside_1pct"]) or "none"
+    return "\n".join(
+        [
+            f"worldpop {wp['people_in_bbox']:,.0f} people in {wp['cells']} cells; "
+            f"{wp['people_without_buildings']:,.0f} in {wp['cells_without_buildings']} "
+            "cells without buildings are unplaced",
+            f"capacity {cap['people']:,} people in {cap['buildings_with_capacity']} buildings, "
+            f"{cap['buildings_over_capacity']} over capacity",
+            f"districts {d['count']}: marginal {d['marginal_people']:,.0f}, synthesised "
+            f"{d['synthesised_people']:,}, shortfall {d['shortfall_people']:,.0f}, max error "
+            f"{d['max_rel_error_1000_plus']:.2%} at 1,000+ people, outside 1% {outside}",
+            f"households {hh['count']:,}, {hh['people']:,} people, mean size "
+            f"{hh['mean_size']:.2f} (census {census_mean_size:.2f})",
+            f"ipf {fit['districts']} districts, max {fit['max_iterations']} iterations, "
+            f"max error {fit['max_rel_error']:.1e}, all converged {fit['all_converged']}",
+            f"residents {res['count']:,} from {res['households']:,} households, weight "
+            f"{res['weight']:.2f}, {res['adults_represented']:,.0f} adults represented",
+        ]
+    )
+
+
 def summary(report: dict) -> str:
     b, r, w, d = report["buildings"], report["roads"], report["water"], report["districts"]
     sources = ", ".join(f"{k.lower()} {v}" for k, v in b["by_height_source"].items())
@@ -87,4 +133,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_fetch(args.city, dirs)
     elif args.command == "osm":
         run_osm(args.city, dirs)
+    elif args.command == "population":
+        run_population_command(args.city, dirs)
     return 0
