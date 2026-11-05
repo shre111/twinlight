@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from twl_citybake.population.worldpop import PopGrid
+from twl_citybake.population.raster import PopGrid
 
 FloatArray = npt.NDArray[np.float64]
 

@@ -9,8 +9,8 @@ from population_fixture import CENSUS_COUNTS, CENSUS_SIZES, write_world
 from test_population_stage import tiny_config
 
 from twl_citybake.config import BBox, HouseholdConfig, load_city
+from twl_citybake.population.raster import PopGrid
 from twl_citybake.population.stage import edge_people, run_population, write_population_layers
-from twl_citybake.population.worldpop import PopGrid
 
 SIZES = (1, 2, 3, 4, 5, 6, 8, 12, 17)
 COUNTS = (37094, 97013, 176374, 310595, 229831, 143502, 158773, 18359, 4216)
@@ -65,8 +65,12 @@ def test_size_shrink_that_pushes_the_mean_below_the_smallest_size_is_rejected() 
 def test_ahmedabad_config_carries_the_population_provenance() -> None:
     city = load_city("ahmedabad")
     assert city.seed == 20260101
-    assert city.worldpop is not None
-    assert city.worldpop.md5 == "89905eed942228829cf21eee28eb12df"
+    assert city.population_raster is not None
+    assert city.population_raster.md5 == "15cc4641a1ac01352f09a7d9cccadcfe"
+    assert city.population_raster.member.endswith("_R7_C26.tif")
+    assert "GHS-POP" in city.population_raster.source
+    assert city.population_raster.licence == "CC BY 4.0"
+    assert city.population_total is None
     assert city.population.adult_share_source
     assert city.households is not None
     assert city.households.size_shrink == 1.0
@@ -137,7 +141,7 @@ def test_report_and_layer_json_carry_the_followup_fields(
     report = json.loads((out / "report.json").read_text())
     meta = json.loads((out / "layer.json").read_text())
 
-    assert report["worldpop"]["edge_people_beyond_bbox"] >= 0
+    assert report["raster"]["edge_people_beyond_bbox"] >= 0
     assert report["population"] == {
         "adult_share": 0.69,
         "adult_share_source": "",

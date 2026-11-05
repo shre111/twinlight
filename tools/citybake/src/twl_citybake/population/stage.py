@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -9,13 +9,13 @@ from twl_citybake.config import BBox, CityConfig
 from twl_citybake.population.allocate import Allocation, allocate
 from twl_citybake.population.capacity import residential_capacity
 from twl_citybake.population.households import Households, synthesise_households
+from twl_citybake.population.raster import PopGrid, read_boundary, read_raster, rescale_to_total
 from twl_citybake.population.residents import expected_adults, sample_residents
-from twl_citybake.population.worldpop import PopGrid, read_worldpop
 from twl_citybake.projection import LocalProjection
 from twl_citybake.rng import Stream, stream
 from twl_citybake.store import read_table, write_json, write_table
 
-ATTRIBUTION = ["WorldPop (CC BY 4.0)", "Census of India 2011 (HH-01, C-14)"]
+CENSUS_ATTRIBUTION = "Census of India 2011 (HH-01, C-14)"
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,10 @@ class PopulationLayers:
     meta: dict[str, Any]
 
 
-def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> PopulationLayers:
+def run_population(
+    osm_layers: Path, raster: Path, city: CityConfig, osm_pbf: Path | None = None
+) -> PopulationLayers:
+    """`osm_pbf` is read only when the city sets a `population_total`, for its boundary."""
     if city.households is None:
         raise ValueError(f"{city.slug} has no [households] census table")
     buildings = read_table(osm_layers / "buildings")
@@ -43,7 +46,10 @@ def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> Popula
         pop.min_floor_m2_per_person,
     )
     lon, lat = LocalProjection.for_bbox(city.bbox).inverse(buildings["x"], buildings["y"])
-    grid = read_worldpop(worldpop, city.bbox)
+    grid = read_raster(raster, city.bbox)
+    total = _total_override(city, grid, osm_pbf)
+    if total is not None:
+        grid = total.grid
     alloc = allocate(grid, lon, lat, capacity, buildings["district"], len(districts))
     counts = np.asarray(city.households.shrunk_counts(), np.float64)
     households = synthesise_households(
@@ -91,16 +97,24 @@ def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> Popula
             "census_mean_household_size": city.households.mean_size,
         }
     )
-    source = city.worldpop
+    report["population_total"] = None if total is None else _rounded(total.report)
+    source = city.population_raster
     meta = {
         "city": city.slug,
         "seed": city.seed,
-        "attribution": ATTRIBUTION,
+        "attribution": [
+            *([] if source is None else [f"{source.source}, {source.licence}"]),
+            *([] if city.population_total is None else [city.population_total.source]),
+            CENSUS_ATTRIBUTION,
+        ],
         "shopper_share": pop.shopper_share,
         "mean_weight": report["residents"]["weight"],
         "household_size_shrink": city.households.size_shrink,
         "source": {
-            "worldpop": None if source is None else {"url": source.url, "md5": source.md5},
+            "raster": None if source is None else asdict(source),
+            "population_total": None
+            if city.population_total is None
+            else asdict(city.population_total),
             "households": city.households.source,
         },
     }
@@ -114,6 +128,32 @@ def run_population(osm_layers: Path, worldpop: Path, city: CityConfig) -> Popula
         residents=residents,
         report=report,
         meta=meta,
+    )
+
+
+@dataclass(frozen=True)
+class _TotalOverride:
+    grid: PopGrid
+    report: dict[str, Any]
+
+
+def _total_override(city: CityConfig, grid: PopGrid, osm_pbf: Path | None) -> _TotalOverride | None:
+    total = city.population_total
+    if total is None:
+        return None
+    if osm_pbf is None:
+        raise ValueError(f"{city.slug} sets population_total, so its OSM extract is needed")
+    scaled, before = rescale_to_total(grid, total.people, read_boundary(osm_pbf, total.polygon))
+    return _TotalOverride(
+        scaled,
+        {
+            "people": total.people,
+            "source": total.source,
+            "polygon": total.polygon,
+            "as_of": total.as_of,
+            "raster_people_in_polygon": before,
+            "factor": total.people / before,
+        },
     )
 
 
@@ -139,7 +179,7 @@ def _report(
     districts = households.report["districts"]
     weight = residents["weight"].astype(np.float64)
     report = {
-        "worldpop": {
+        "raster": {
             "people_in_bbox": float(grid.values.sum()),
             "cells": int(grid.values.size),
             "cells_with_people": alloc.cells_with_people,

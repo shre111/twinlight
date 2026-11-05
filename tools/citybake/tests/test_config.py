@@ -1,4 +1,5 @@
 import hashlib
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -6,7 +7,7 @@ import pytest
 
 from twl_citybake.config import BBox, DataDirs, load_city
 from twl_citybake.projection import LocalProjection
-from twl_citybake.sources import fetch
+from twl_citybake.sources import extract_member, fetch
 
 
 def test_ahmedabad_config_is_pinned() -> None:
@@ -59,3 +60,47 @@ def test_fetch_verifies_checksum(tmp_path: Path) -> None:
         fetch(payload.as_uri(), "0" * 32, tmp_path / "other.bin")
     assert not (tmp_path / "other.bin").exists()
     assert not (tmp_path / "other.bin.part").exists()
+
+
+def make_zip(path: Path, members: dict[str, bytes]) -> Path:
+    with zipfile.ZipFile(path, "w") as zf:
+        for name, data in members.items():
+            zf.writestr(name, data)
+    return path
+
+
+def test_extract_member_unpacks_exactly_the_named_member(tmp_path: Path) -> None:
+    archive = make_zip(tmp_path / "a.zip", {"a.tif": b"AAA", "b.tif": b"BBB", "a.txt": b"T"})
+    dest = tmp_path / "out" / "a.tif"
+    assert extract_member(archive, "a.tif", dest) == dest
+    assert dest.read_bytes() == b"AAA"
+    assert [p.name for p in dest.parent.iterdir()] == ["a.tif"]
+
+
+def test_extract_member_leaves_an_existing_dest_untouched(tmp_path: Path) -> None:
+    archive = make_zip(tmp_path / "a.zip", {"a.tif": b"AAA"})
+    dest = tmp_path / "out" / "a.tif"
+    dest.parent.mkdir()
+    dest.write_bytes(b"keep")
+    assert extract_member(archive, "a.tif", dest) == dest
+    assert dest.read_bytes() == b"keep"
+
+
+def test_extract_member_missing_member_raises_and_leaves_nothing(tmp_path: Path) -> None:
+    archive = make_zip(tmp_path / "a.zip", {"a.tif": b"AAA"})
+    dest = tmp_path / "out" / "nope.tif"
+    with pytest.raises(ValueError, match=r"nope\.tif"):
+        extract_member(archive, "nope.tif", dest)
+    assert not dest.exists()
+    assert not dest.with_name("nope.tif.part").exists()
+
+
+def test_extract_member_with_path_segments_lands_only_at_dest(tmp_path: Path) -> None:
+    archive = make_zip(tmp_path / "a.zip", {"../evil/x.tif": b"X", "deep/dir/y.tif": b"Y"})
+    root = tmp_path / "root"
+    extract_member(archive, "deep/dir/y.tif", root / "y.tif")
+    extract_member(archive, "../evil/x.tif", root / "x.tif")
+    assert (root / "y.tif").read_bytes() == b"Y"
+    assert (root / "x.tif").read_bytes() == b"X"
+    assert sorted(p.name for p in root.rglob("*")) == ["x.tif", "y.tif"]
+    assert not (tmp_path / "evil").exists()

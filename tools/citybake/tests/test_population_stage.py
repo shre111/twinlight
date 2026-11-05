@@ -18,7 +18,7 @@ from twl_citybake.config import (
     HouseholdConfig,
     OsmSource,
     PopulationConfig,
-    WorldPopSource,
+    PopulationRaster,
 )
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.store import read_table
@@ -33,7 +33,12 @@ def tiny_config() -> CityConfig:
         bbox=BBOX,
         osm=OsmSource(url="https://example.invalid/tiny.osm.pbf", md5="0" * 32),
         seed=20260101,
-        worldpop=WorldPopSource(url="https://example.invalid/pop.tif", md5="1" * 32),
+        population_raster=PopulationRaster(
+            url="https://example.invalid/pop.tif",
+            md5="1" * 32,
+            source="Test raster",
+            licence="CC BY 4.0",
+        ),
         population=PopulationConfig(
             min_floor_m2_per_person=4.0,
             adult_share=0.69,
@@ -75,7 +80,7 @@ def test_report_meets_the_district_and_capacity_acceptance_criteria(report: dict
 
 
 def test_ring_cells_without_buildings_are_reported_as_unplaced_people(report: dict) -> None:
-    wp = report["worldpop"]
+    wp = report["raster"]
     assert wp["cells_without_buildings"] > 0
     assert wp["people_without_buildings"] > 0
     placed = report["districts"]["marginal_people"]
@@ -100,9 +105,12 @@ def test_written_layers_hold_the_documented_files(world: tuple[Path, Path], tmp_
     meta = json.loads((out / "layer.json").read_text())
     assert meta["city"] == "tinyville"
     assert meta["seed"] == 20260101
-    assert "WorldPop (CC BY 4.0)" in meta["attribution"]
+    assert "Test raster, CC BY 4.0" in meta["attribution"]
     assert "Census of India 2011 (HH-01, C-14)" in meta["attribution"]
-    assert meta["source"]["worldpop"] == {
+    assert meta["source"]["raster"] == {
+        "source": "Test raster",
+        "licence": "CC BY 4.0",
+        "member": "",
         "url": "https://example.invalid/pop.tif",
         "md5": "1" * 32,
     }
@@ -177,12 +185,12 @@ def run_command_on_tiny_city(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> tuple[CityConfig, Path, str]:
     city = tiny_config()
-    assert city.worldpop is not None
+    assert city.population_raster is not None
     monkeypatch.setattr("twl_citybake.cli.load_city", lambda slug: city)
     dirs = DataDirs(tmp_path)
     write_world(
         city.bbox,
-        dirs.raw / "worldpop" / city.worldpop.filename,
+        dirs.raw / "population" / city.population_raster.raster_name,
         dirs.stage(city.slug, "osm") / "layers",
         block=18,
     )
