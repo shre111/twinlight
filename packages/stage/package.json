@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./pack": "./src/pack.ts",
+    "./playback": "./src/playback.ts",
     "./synthetic": "./src/synthetic.ts"
   },
   "scripts": {

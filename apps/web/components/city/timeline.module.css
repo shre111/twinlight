@@ -1,0 +1,110 @@
+.timeline {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 24px 18px;
+  background: color-mix(in srgb, var(--color-dusk) 90%, transparent);
+  border-top: 1px solid var(--color-haze);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.play {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-lamp);
+  fill: var(--color-dusk);
+  cursor: pointer;
+}
+
+.speeds {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--color-haze);
+  border-radius: var(--radius-pill);
+}
+
+.speeds button,
+.speedCycle {
+  min-width: 44px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-mist);
+  font: inherit;
+  font-size: var(--text-14);
+  cursor: pointer;
+}
+
+.speeds button[aria-pressed="true"] {
+  background: var(--color-haze);
+  color: var(--color-paper);
+}
+
+.speedCycle {
+  display: none;
+  flex: none;
+  border: 1px solid var(--color-haze);
+  color: var(--color-paper);
+}
+
+.time {
+  flex: none;
+  width: 128px;
+  font-size: var(--text-16);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .speeds button {
+    height: 44px;
+  }
+}
+
+@media (max-width: 700px) {
+  .timeline {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 14px 16px 20px;
+    background: color-mix(in srgb, var(--color-dusk) 94%, transparent);
+  }
+
+  .play {
+    width: 44px;
+    height: 44px;
+  }
+
+  .speeds {
+    display: none;
+  }
+
+  .speedCycle {
+    display: block;
+    min-width: 52px;
+    height: 44px;
+  }
+
+  .time {
+    flex: 1;
+    width: auto;
+  }
+}
