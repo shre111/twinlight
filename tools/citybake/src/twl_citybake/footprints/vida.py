@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from twl_citybake.config import BBox
+from twl_citybake.parquet import kv_clause, sql_literal, stored_key
 
 SOURCE_CODES = {"google": 1, "microsoft": 2}
 
@@ -17,10 +18,18 @@ class VidaRows(NamedTuple):
     wkb: list[bytes]
 
 
+def vida_cache_key(etag: str, bbox: BBox) -> dict[str, str]:
+    return {"etag": etag, "bbox": repr((bbox.west, bbox.south, bbox.east, bbox.north))}
+
+
 def fetch_vida(url: str, etag: str, bbox: BBox, dest: Path) -> Path:
     """Google and Microsoft footprints whose bbox meets the city bbox, cached once as Parquet
-    (source, confidence, area_m2, wkb) in a total row order so every read sees the same rows."""
+    (source, confidence, area_m2, wkb) in a total row order so every read sees the same rows. The
+    pin and bbox sit in the file's metadata: a matching cache is kept, any other cache raises."""
+    key = vida_cache_key(etag, bbox)
     if dest.exists():
+        if (cached := stored_key(dest, key)) != key:
+            raise ValueError(f"{dest} holds {cached}, not {key}; delete it to fetch again")
         return dest
     if (actual := _etag(url)) != etag:
         raise ValueError(f"{url} has ETag {actual}, pinned {etag}")
@@ -31,11 +40,11 @@ def fetch_vida(url: str, etag: str, bbox: BBox, dest: Path) -> Path:
     query = f"""
         COPY (
             SELECT bf_source AS source, confidence, area_in_meters AS area_m2, geometry AS wkb
-            FROM read_parquet({_literal(url)})
+            FROM read_parquet({sql_literal(url)})
             WHERE bf_source IN ({sources})
                 AND bbox.xmin <= {e} AND bbox.xmax >= {w} AND bbox.ymin <= {n} AND bbox.ymax >= {s}
             ORDER BY source, bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, area_m2, confidence, wkb
-        ) TO {_literal(str(partial))} (FORMAT parquet, COMPRESSION zstd)
+        ) TO {sql_literal(str(partial))} (FORMAT parquet, COMPRESSION zstd, {kv_clause(key)})
     """
     try:
         with duckdb.connect() as con:
@@ -73,7 +82,3 @@ def _etag(url: str) -> str | None:
     request = urllib.request.Request(url, method="HEAD")
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.headers.get("ETag")
-
-
-def _literal(text: str) -> str:
-    return "'" + text.replace("'", "''") + "'"

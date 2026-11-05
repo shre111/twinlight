@@ -114,11 +114,25 @@ class Tile:
         return shapely.box(self.x0, y1, x1, self.y0)
 
 
+def mosaic_key(manifest_url: str, bbox: BBox, cell_m: float) -> dict[str, str]:
+    return {
+        "manifest": manifest_url,
+        "bbox": repr((bbox.west, bbox.south, bbox.east, bbox.north)),
+        "cell_m": repr(float(cell_m)),
+    }
+
+
 def fetch_height_mosaic(manifest_url: str, bbox: BBox, cell_m: float, dest: Path) -> Path:
     """The manifest's building height band over the bbox at `cell_m`, read from the tiles' own
     overviews and cached once as a GeoTIFF in the manifest CRS. Where tiles overlap, the first by
-    URI with data wins."""
+    URI with data wins. What it was built from sits in the file's tags: a matching cache is kept,
+    any other cache raises."""
+    key = mosaic_key(manifest_url, bbox, cell_m)
     if dest.exists():
+        with rasterio.open(dest) as src:
+            tags = src.tags()
+        if (cached := {name: tags[name] for name in key if name in tags}) != key:
+            raise ValueError(f"{dest} holds {cached}, not {key}; delete it to fetch again")
         return dest
     manifest = _get_json(manifest_url)
     band, missing = _height_band(manifest)
@@ -135,7 +149,7 @@ def fetch_height_mosaic(manifest_url: str, bbox: BBox, cell_m: float, dest: Path
     with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR"):
         for tile in tiles:
             _paste(values, transform, tile, band, missing, cell_m)
-    _write_mosaic(dest, values, transform, crs, manifest_url, [t.uri for t in tiles])
+    _write_mosaic(dest, values, transform, crs, key, [t.uri for t in tiles])
     return dest
 
 
@@ -229,7 +243,12 @@ def _paste(
 
 
 def _write_mosaic(
-    dest: Path, values: FloatArray, transform: Affine, crs: str, manifest: str, tiles: list[str]
+    dest: Path,
+    values: FloatArray,
+    transform: Affine,
+    crs: str,
+    key: dict[str, str],
+    tiles: list[str],
 ) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     partial = dest.with_name(dest.name + ".part")
@@ -251,7 +270,7 @@ def _write_mosaic(
     try:
         with rasterio.open(partial, "w", **profile) as dst:
             dst.write(values, 1)
-            dst.update_tags(manifest=manifest, tiles=json.dumps(tiles))
+            dst.update_tags(**key, tiles=json.dumps(tiles))
         partial.rename(dest)
     finally:
         partial.unlink(missing_ok=True)

@@ -15,7 +15,8 @@ from footprints_fixture import (
 )
 from osm_fixture import BBOX
 
-from twl_citybake.footprints.vida import fetch_vida, read_vida
+from twl_citybake.config import BBox
+from twl_citybake.footprints.vida import fetch_vida, read_vida, vida_cache_key
 from twl_citybake.projection import LocalProjection
 
 PROJ = LocalProjection.for_bbox(BBOX)
@@ -72,10 +73,29 @@ def test_reading_twice_gives_identical_results(tmp_path: Path) -> None:
 
 @pytest.mark.usefixtures("no_network")
 def test_fetch_vida_with_an_existing_cache_returns_it_without_any_request(tmp_path: Path) -> None:
-    dest = write_vida_cache(tmp_path / "vida.parquet", tiny_cache_rows(), PROJ)
+    key = vida_cache_key('"etag"', BBOX)
+    dest = write_vida_cache(tmp_path / "vida.parquet", tiny_cache_rows(), PROJ, key)
     before = dest.read_bytes()
 
     result = fetch_vida("https://example.invalid/vida.parquet", '"etag"', BBOX, dest)
 
     assert result == dest
     assert dest.read_bytes() == before
+
+
+@pytest.mark.usefixtures("no_network")
+@pytest.mark.parametrize(
+    "key",
+    [
+        vida_cache_key('"other"', BBOX),
+        vida_cache_key('"etag"', BBox(BBOX.west, BBOX.south, BBOX.east, BBOX.north + 0.01)),
+        None,
+    ],
+)
+def test_fetch_vida_refuses_a_cache_built_from_anything_else(
+    tmp_path: Path, key: dict[str, str] | None
+) -> None:
+    dest = write_vida_cache(tmp_path / "vida.parquet", tiny_cache_rows(), PROJ, key)
+
+    with pytest.raises(ValueError, match="delete it to fetch again"):
+        fetch_vida("https://example.invalid/vida.parquet", '"etag"', BBOX, dest)
