@@ -12,11 +12,12 @@ import numpy as np
 from twl_engine.awareness import decay_awareness, paid_exposure
 from twl_engine.events import EventQueue, Events
 from twl_engine.state import Sim
+from twl_engine.wom import word_of_mouth
 
 Streams = dict[str, np.random.Generator]
 TickHook = Callable[[Sim, Streams, EventQueue, int, int, Events], None]
 
-HOOKS: tuple[TickHook, ...] = (decay_awareness, paid_exposure)
+HOOKS: tuple[TickHook, ...] = (decay_awareness, paid_exposure, word_of_mouth)
 
 
 def advance_tick(
