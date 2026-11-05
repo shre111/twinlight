@@ -19,8 +19,9 @@ SEEDS = range(1, 9)
 BASS_P = 0.008
 BASS_Q = 0.30
 PAID_ONLY_P = 0.06
-PARITY_DAYS = (6, 13, 30)
-PROTOTYPE_TARGETS = {6: (23.0, 4.5), 13: (41.7, 10.8), 30: (63.1, 23.0)}
+PARITY_DAYS = (6, 13, 20, 30)
+# Days 6 and 13 are fitted, day 30 informed the model choice (D-029), day 20 is held out.
+PROTOTYPE_TARGETS = {6: (23.0, 4.5), 13: (41.7, 10.8), 20: (51.9, 16.1), 30: (63.1, 23.0)}
 PARITY_TOLERANCE = 3.0
 WEST_EAST_TARGETS = (33.5, 12.0)
 

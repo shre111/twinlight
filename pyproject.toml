@@ -30,4 +30,7 @@ include = ["py", "services", "tools"]
 [tool.pytest.ini_options]
 addopts = ["-ra", "--import-mode=importlib"]
 testpaths = ["py", "services", "tools"]
-markers = ["golden: determinism goldens (tape hashes across worker counts)"]
+markers = [
+  "golden: determinism goldens (tape hashes across worker counts)",
+  "anchor: model anchor tests (Bass limit, prototype parity; D-027)",
+]
