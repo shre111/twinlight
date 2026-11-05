@@ -1,25 +1,26 @@
-"""Per-tick behaviour hooks over the resident struct of arrays.
+"""Per-tick behaviour hooks, run in MODEL.md section 11 order.
 
-Each hook is a plain function `(state, streams, queue, start, end, events)`: `events` are the ones
-due in `[start, end)`, already drained, and hooks schedule later ones on `queue`. P-012 adds
-awareness and purchase updates here, P-013 the supply coupling. Nothing runs yet.
+Each hook is a plain function `(sim, streams, queue, start, end, events)`: `sim` holds the static
+world and the mutable state, `events` are the ones due in `[start, end)`, already drained, and
+hooks schedule later ones on `queue`. P-013 adds the supply coupling here.
 """
 
 from collections.abc import Callable
 
 import numpy as np
 
+from twl_engine.awareness import decay_awareness, paid_exposure
 from twl_engine.events import EventQueue, Events
-from twl_engine.state import ResidentState
+from twl_engine.state import Sim
 
 Streams = dict[str, np.random.Generator]
-TickHook = Callable[[ResidentState, Streams, EventQueue, int, int, Events], None]
+TickHook = Callable[[Sim, Streams, EventQueue, int, int, Events], None]
 
-HOOKS: tuple[TickHook, ...] = ()
+HOOKS: tuple[TickHook, ...] = (decay_awareness, paid_exposure)
 
 
 def advance_tick(
-    state: ResidentState,
+    sim: Sim,
     streams: Streams,
     queue: EventQueue,
     start: int,
@@ -28,4 +29,4 @@ def advance_tick(
 ) -> None:
     """Apply every hook for the tick window `[start, end)` after its events were drained."""
     for hook in HOOKS:
-        hook(state, streams, queue, start, end, events)
+        hook(sim, streams, queue, start, end, events)

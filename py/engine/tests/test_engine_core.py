@@ -78,7 +78,7 @@ def test_new_resident_state_starts_unaware_with_documented_dtypes() -> None:
     assert s.order_count.dtype == np.uint16 and not s.order_count.any()
     assert s.first_source.dtype == np.uint8 and not s.first_source.any()
     assert s.outcome_flags.dtype == np.uint8 and not s.outcome_flags.any()
-    assert s.awareness.dtype == np.float32 and not s.awareness.any()
+    assert s.awareness.dtype == np.float64 and not s.awareness.any()
 
 
 def test_new_resident_state_columns_are_independent_arrays() -> None:
