@@ -4,18 +4,29 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import shapely
 
 from twl_citybake.config import BBox, CityConfig
 from twl_citybake.population.allocate import Allocation, allocate
-from twl_citybake.population.capacity import residential_capacity
+from twl_citybake.population.capacity import residential_capacity, storeys
+from twl_citybake.population.check import load_wards, population_check
+from twl_citybake.population.correction import Correction, correct_raster
 from twl_citybake.population.households import Households, synthesise_households
-from twl_citybake.population.raster import PopGrid, read_boundary, read_raster, rescale_to_total
+from twl_citybake.population.raster import (
+    PopGrid,
+    read_boundaries,
+    read_boundary,
+    read_raster,
+    rescale_to_total,
+)
 from twl_citybake.population.residents import expected_adults, sample_residents
 from twl_citybake.projection import LocalProjection
 from twl_citybake.rng import Stream, stream
 from twl_citybake.store import read_table, write_json, write_table
 
 CENSUS_ATTRIBUTION = "Census of India 2011 (HH-01, C-14)"
+# More than the rest of the report: a ratio just outside a band should not read as on its edge.
+CHECK_DIGITS = 6
 
 
 @dataclass(frozen=True)
@@ -28,11 +39,18 @@ class PopulationLayers:
 
 
 def run_population(
-    osm_layers: Path, raster: Path, city: CityConfig, osm_pbf: Path | None = None
+    osm_layers: Path,
+    raster: Path,
+    city: CityConfig,
+    osm_pbf: Path | None = None,
+    wards: Path | None = None,
 ) -> PopulationLayers:
-    """`osm_pbf` is read only when the city sets a `population_total`, for its boundary."""
+    """`osm_pbf` is read only for the boundaries of a `population_total`, a `population_correction`
+    or a `population_check`. `wards` is the check's ward file, validation only."""
     if city.households is None:
         raise ValueError(f"{city.slug} has no [households] census table")
+    if city.population_check is not None and wards is None:
+        raise ValueError(f"{city.slug} sets population_check, so its ward file is needed")
     buildings = read_table(osm_layers / "buildings")
     districts = json.loads((osm_layers / "districts.json").read_text(encoding="utf-8"))
     if [d["id"] for d in districts] != list(range(len(districts))):
@@ -50,7 +68,21 @@ def run_population(
     total = _total_override(city, grid, osm_pbf)
     if total is not None:
         grid = total.grid
-    alloc = allocate(grid, lon, lat, capacity, buildings["district"], len(districts))
+    boundaries = _boundaries(city, osm_pbf)
+    correction = _correction(city, grid, buildings, capacity, lon, lat, boundaries)
+    alloc = allocate(
+        grid if correction is None else correction.grid,
+        lon,
+        lat,
+        capacity,
+        buildings["district"],
+        len(districts),
+    )
+    raster_alloc = (
+        alloc
+        if correction is None
+        else allocate(grid, lon, lat, capacity, buildings["district"], len(districts))
+    )
     counts = np.asarray(city.households.shrunk_counts(), np.float64)
     households = synthesise_households(
         alloc.placed,
@@ -85,7 +117,15 @@ def run_population(
         for size, n in zip(city.households.sizes, census, strict=True)
     }
     report = _report(
-        grid, alloc, building_population, households, residents, names, edge, census_shares
+        grid,
+        raster_alloc,
+        alloc,
+        building_population,
+        households,
+        residents,
+        names,
+        edge,
+        census_shares,
     )
     report["population"] = _rounded(
         {
@@ -98,6 +138,21 @@ def run_population(
         }
     )
     report["population_total"] = None if total is None else _rounded(total.report)
+    report["correction"] = None if correction is None else _rounded(correction.report, CHECK_DIGITS)
+    report["check"] = None
+    if city.population_check is not None and wards is not None:
+        check = population_check(
+            city.population_check,
+            persons,
+            raster_alloc.placed,
+            lon,
+            lat,
+            buildings["x"],
+            buildings["y"],
+            load_wards(wards, city.population_check.name_property),
+            boundaries,
+        )
+        report["check"] = _rounded(check, CHECK_DIGITS)
     source = city.population_raster
     meta = {
         "city": city.slug,
@@ -115,6 +170,16 @@ def run_population(
             "population_total": None
             if city.population_total is None
             else asdict(city.population_total),
+            "population_correction": None
+            if city.population_correction is None
+            else asdict(city.population_correction),
+            "population_check": None
+            if city.population_check is None
+            else {
+                "url": city.population_check.url,
+                "md5": city.population_check.md5,
+                "source": city.population_check.source,
+            },
             "households": city.households.source,
         },
     }
@@ -157,6 +222,50 @@ def _total_override(city: CityConfig, grid: PopGrid, osm_pbf: Path | None) -> _T
     )
 
 
+def _boundaries(city: CityConfig, osm_pbf: Path | None) -> dict[str, shapely.Geometry]:
+    corrected = city.population_correction
+    checked = city.population_check
+    polygons = [
+        *(() if corrected is None else corrected.reference_polygons),
+        *(() if checked is None else (r.polygon for r in checked.regions if r.polygon)),
+    ]
+    if corrected is not None and osm_pbf is None:
+        raise ValueError(f"{city.slug} sets population_correction, so its OSM extract is needed")
+    if not polygons:
+        return {}
+    if osm_pbf is None:
+        raise ValueError(
+            f"{city.slug} sets population_check polygons, so its OSM extract is needed"
+        )
+    return read_boundaries(osm_pbf, polygons)
+
+
+def _correction(
+    city: CityConfig,
+    grid: PopGrid,
+    buildings: dict[str, np.ndarray],
+    capacity: np.ndarray,
+    lon: np.ndarray,
+    lat: np.ndarray,
+    boundaries: dict[str, shapely.Geometry],
+) -> Correction | None:
+    config = city.population_correction
+    if config is None:
+        return None
+    union = shapely.union_all([boundaries[polygon] for polygon in config.reference_polygons])
+    shapely.prepare(union)
+    return correct_raster(
+        grid,
+        lon,
+        lat,
+        buildings["area_m2"],
+        buildings["floors"] if "floors" in buildings else storeys(buildings["height_m"]),
+        capacity.astype(np.float64) * city.population.min_floor_m2_per_person,
+        shapely.contains_xy(union, *grid.centres()),
+        config,
+    )
+
+
 def write_population_layers(layers: PopulationLayers, out_dir: Path) -> None:
     write_table(out_dir / "building_population", layers.building_population)
     write_table(out_dir / "households", layers.households)
@@ -167,6 +276,7 @@ def write_population_layers(layers: PopulationLayers, out_dir: Path) -> None:
 
 def _report(
     grid: PopGrid,
+    raster_alloc: Allocation,
     alloc: Allocation,
     building_population: dict[str, np.ndarray],
     households: Households,
@@ -182,9 +292,9 @@ def _report(
         "raster": {
             "people_in_bbox": float(grid.values.sum()),
             "cells": int(grid.values.size),
-            "cells_with_people": alloc.cells_with_people,
-            "cells_without_buildings": alloc.cells_without_buildings,
-            "people_without_buildings": alloc.people_without_buildings,
+            "cells_with_people": raster_alloc.cells_with_people,
+            "cells_without_buildings": raster_alloc.cells_without_buildings,
+            "people_without_buildings": raster_alloc.people_without_buildings,
             "edge_people_beyond_bbox": edge_people_beyond_bbox,
         },
         "capacity": {
@@ -232,9 +342,9 @@ def edge_people(grid: PopGrid, bbox: BBox, lon: np.ndarray, lat: np.ndarray) -> 
     return float((grid.values * (1 - inside))[housed].sum())
 
 
-def _rounded(value: Any) -> Any:
+def _rounded(value: Any, digits: int = 3) -> Any:
     if isinstance(value, dict):
-        return {k: _rounded(v) for k, v in value.items()}
+        return {k: _rounded(v, digits) for k, v in value.items()}
     if isinstance(value, list):
-        return [_rounded(v) for v in value]
-    return round(value, 3) if isinstance(value, float) else value
+        return [_rounded(v, digits) for v in value]
+    return round(value, digits) if isinstance(value, float) else value

@@ -5,7 +5,14 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
-from twl_citybake.config import CityConfig, DataDirs, PopulationRaster, load_city
+from twl_citybake.config import (
+    ALL_TARGETS,
+    CityConfig,
+    DataDirs,
+    PopulationCheck,
+    PopulationRaster,
+    load_city,
+)
 from twl_citybake.footprints.raster import fetch_height_mosaic
 from twl_citybake.footprints.stage import build_buildings, write_building_layers
 from twl_citybake.footprints.vida import fetch_vida
@@ -33,7 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     fetch_cmd = commands.add_parser(
-        "fetch", help="download the pinned OSM extract and clip it, and the population raster"
+        "fetch",
+        help="download the pinned OSM extract and clip it, the population raster and the ward file",
     )
     fetch_cmd.add_argument("city")
     osm_cmd = commands.add_parser("osm", help="extract buildings, roads, water and districts")
@@ -70,6 +78,14 @@ def run_fetch(city: str, dirs: DataDirs) -> None:
     if config.population_raster is not None:
         raster = fetch_population_raster(config.population_raster, dirs)
         print(f"{raster} ({raster.stat().st_size / 1e6:.1f} MB)")
+    if config.population_check is not None:
+        check = config.population_check
+        wards = fetch(check.url, check.md5, ward_file_path(city, check, dirs))
+        print(f"{wards} ({wards.stat().st_size / 1e6:.1f} MB)")
+
+
+def ward_file_path(city: str, check: PopulationCheck, dirs: DataDirs) -> Path:
+    return dirs.raw / "population_check" / city / check.filename
 
 
 def fetch_population_raster(source: PopulationRaster, dirs: DataDirs) -> Path:
@@ -176,23 +192,39 @@ def run_population_command(city: str, dirs: DataDirs) -> None:
     if not raster.exists():
         raise SystemExit(f"{raster} is missing; run `citybake fetch {city}` first")
     pbf = dirs.stage(city, "osm") / f"{city}.osm.pbf"
-    population = run_population(layers, raster, config, pbf if config.population_total else None)
+    uses_pbf = config.population_total or config.population_correction or config.population_check
+    extra: dict[str, Path] = {}
+    if config.population_check is not None:
+        extra["wards"] = ward_file_path(city, config.population_check, dirs)
+        if not extra["wards"].exists():
+            raise SystemExit(f"{extra['wards']} is missing; run `citybake fetch {city}` first")
+    population = run_population(layers, raster, config, pbf if uses_pbf else None, **extra)
     print(f"buildings from {layers}")
     out = dirs.stage(city, "population")
     write_population_layers(population, out)
     print(population_summary(population.report, config.households.mean_size))
     print(out)
+    check = population.report["check"]
+    if check is not None and not check["within_targets"][ALL_TARGETS]:
+        failed = [k for k, ok in check["within_targets"].items() if k != ALL_TARGETS and not ok]
+        raise SystemExit(
+            f"population check failed: {', '.join(failed)}; the layers and report were written "
+            f"to {out}"
+        )
 
 
 def population_summary(report: dict, census_mean_size: float) -> str:
     raster, cap, d = report["raster"], report["capacity"], report["districts"]
     hh, fit, res = report["households"], report["ipf"], report["residents"]
     outside = ", ".join(d["outside_1pct"]) or "none"
+    correction, check = report.get("correction"), report.get("check")
+    fate = "are redistributed by the correction" if correction else "are unplaced"
     return "\n".join(
         [
             f"raster {raster['people_in_bbox']:,.0f} people in {raster['cells']} cells; "
             f"{raster['people_without_buildings']:,.0f} in {raster['cells_without_buildings']} "
-            "cells without buildings are unplaced",
+            f"cells without buildings {fate}",
+            *([] if correction is None else [correction_summary(correction)]),
             f"capacity {cap['people']:,} people in {cap['buildings_with_capacity']} buildings, "
             f"{cap['buildings_over_capacity']} over capacity",
             f"districts {d['count']}: marginal {d['marginal_people']:,.0f}, synthesised "
@@ -204,7 +236,73 @@ def population_summary(report: dict, census_mean_size: float) -> str:
             f"max error {fit['max_rel_error']:.1e}, all converged {fit['all_converged']}",
             f"residents {res['count']:,} from {res['households']:,} households, weight "
             f"{res['weight']:.2f}, {res['adults_represented']:,.0f} adults represented",
+            *([] if check is None else check_summary(check)),
         ]
+    )
+
+
+def correction_summary(correction: dict) -> str:
+    classes, folds = correction["classes"], correction["fold_variation"]
+    low, high = correction["weight_range"]
+    variation = (
+        f"{folds['floor_weighted']:.3f} floor-weighted, max {folds['max']:.3f} over "
+        f"{folds['classes']} classes holding {folds['floor_share']:.1%} of reference floor"
+        if folds["classes"]
+        else "not measurable, no class qualifies"
+    )
+    return (
+        f"correction weight {correction['weight']} (range {low} to {high}): "
+        f"{len(classes['used'])} classes, {len(classes['pooled'])} pooled, "
+        f"{len(classes['capped'])} capped on {correction['reference_cells']:,} reference cells; "
+        f"fold variation {variation}; {correction['people_moved']:,.0f} people moved"
+    )
+
+
+def check_summary(check: dict) -> list[str]:
+    total = check["total"]
+    low, high = total["band"]
+    return [
+        *(_group_line(name, group) for name, group in check["groups"].items()),
+        f"check 48-ward total {total['people']:,.0f}, {total['ratio_to_2011']:.3f} x 2011 "
+        f"(band {low} to {high}), raster {total['raster_ratio_to_2011']:.3f}; "
+        f"{check['outside_wards_people']:,.0f} people outside the wards",
+        *(
+            f"check {name} {region['people']:,.0f} people "
+            f"(band {region['band'][0]:,} to {region['band'][1]:,}), "
+            f"raster {region['raster_people']:,.0f}"
+            for name, region in check["regions"].items()
+        ),
+    ]
+
+
+def _group_line(name: str, group: dict) -> str:
+    band = "no band" if group["band"] is None else f"band {group['band'][0]} to {group['band'][1]}"
+    misses = [
+        f"{label} misses {', '.join(group[key])}"
+        for label, key in (("known", "known_misses"), ("unexpected", "unexpected_misses"))
+        if group[key]
+    ]
+    return "; ".join(
+        [
+            f"check {name} mean {group['mean_ratio']:.3f} of a 2011 ward ({band}), "
+            f"raster {group['raster_mean_ratio']:.3f}",
+            *misses,
+        ]
+    )
+
+
+def refuse_failed_population(population: Path, city: str) -> None:
+    """A failed check still writes its layers, for diagnosis; nothing may build on them."""
+    report = population / "report.json"
+    if not report.exists():
+        return
+    check = json.loads(report.read_text(encoding="utf-8")).get("check")
+    if check is None or check["within_targets"][ALL_TARGETS]:
+        return
+    failed = [k for k, ok in check["within_targets"].items() if k != ALL_TARGETS and not ok]
+    raise SystemExit(
+        f"{population} failed its checks: {', '.join(failed)}; "
+        f"resolve them and rerun `citybake population {city}` first"
     )
 
 
@@ -213,6 +311,7 @@ def run_personas_command(city: str, dirs: DataDirs) -> None:
     if config.personas is None:
         raise SystemExit(f"{city} has no [personas] section")
     population = dirs.stage(city, "population")
+    refuse_failed_population(population, city)
     if not (population / "residents").exists():
         raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
     out = dirs.stage(city, "personas")
@@ -251,6 +350,7 @@ def personas_summary(report: dict) -> str:
 def run_graph_command(city: str, dirs: DataDirs) -> None:
     config = load_city(city)
     population = dirs.stage(city, "population")
+    refuse_failed_population(population, city)
     if not (population / "residents").exists():
         raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
     personas = dirs.stage(city, "personas")
@@ -291,6 +391,7 @@ def graph_summary(report: dict) -> str:
 def run_stores_command(city: str, dirs: DataDirs) -> None:
     config = load_city(city)
     population = dirs.stage(city, "population")
+    refuse_failed_population(population, city)
     if not _has_table(population / "residents"):
         raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
     osm_layers = dirs.stage(city, "osm") / "layers"

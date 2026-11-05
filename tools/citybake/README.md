@@ -3,7 +3,7 @@
 Bakes a city pack from open data. Each stage writes under `data/cache/citybake/<city>/<stage>` and is byte-identical on rerun. `TWL_DATA_DIR` overrides `data`.
 
 ```
-citybake fetch <city>        pinned OSM extract (clipped to the bbox) and population raster
+citybake fetch <city>        pinned OSM extract (clipped to the bbox), population raster, check ward file
 citybake osm <city>          buildings, roads, water, banks, districts
 citybake footprints <city>   VIDA footprints merged in, 2.5D heights corrected (D-021, D-024)
 citybake population <city>   households per building, residents (D-025)
@@ -23,3 +23,5 @@ GHS-POP (D-025) comes first, but it has to be checked for each city. Before baki
 If the total is off but the shape is right, set `[population_total]` (`people`, `source`, `polygon`, `as_of`). It rescales the cells inside that OSM boundary, not the bbox, so a census figure can replace a projection. The boundary must lie inside the raster window (the bbox out to whole cells), because a total cannot be spread over part of its polygon.
 
 If the shape is also wrong, the documented fallback (D-025, not built) is to distribute the sourced total by residential floor area: footprints x D-024 floors, excluding commercial and industrial buildings, instead of rescaling the raster.
+
+`[population_correction]` (D-030) blends each raster cell with people per housing floor area by built form, `raster^(1-w) * fit^w`, at a `weight` the city states with its evidence; `[population_check]` tests the bake against ward polygons that are validation only, credited in `report.json` and never in a stage table, `layer.json`'s attribution or a pack.
