@@ -71,3 +71,39 @@ sizes = [1, 2, 3, 4, 5, 6, 8, 12, 17]
 counts = [37094, 97013, 176374, 310595, 229831, 143502, 158773, 18359, 4216]
 # scales the 2011 mean size for 2025 households; 1.0 keeps the census
 size_shrink = 1.0
+
+[personas]
+# Nemotron-Personas-India dataset commit; the source spells the district "Ahmadabad"
+revision = "adefeefcc0fc3f85726d20bed0e4ed8d66372a54"
+state = "Gujarat"
+district = "Ahmadabad"
+no_occupation = "No Occupation / Retired / Homemaker"
+married = "Currently Married"
+# D-026: first match wins; bump the version when a rule changes
+segments_version = 1
+
+[[personas.segments]]
+name = "senior"
+min_age = 60
+
+[[personas.segments]]
+name = "young_single"
+max_age = 29
+marital = ["Never Married"]
+
+[[personas.segments]]
+name = "homemaker"
+sex = "Female"
+occupied = false
+
+[[personas.segments]]
+name = "working_graduate"
+occupied = true
+education = ["Graduate & above", "Technical diploma or certificate not equal to degree"]
+
+[[personas.segments]]
+name = "working_other"
+occupied = true
+
+[[personas.segments]]
+name = "other_adult"
