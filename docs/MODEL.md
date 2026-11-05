@@ -107,6 +107,8 @@ Every constant below is a field of the run parameters with this default, so test
 - An order's minute is uniform between the latest of (tick start, `aware_at`, the last talk received) and the tick's end, so `aware_at <= first_order_at` and a nudged talk never follows the order it nudged. With `order_on_awareness`, `first_order_at = aware_at`.
 - The nudge window is a fixed 72 hours whatever the talk decay time, and a nudged talk can predate `aware_at` (a talk that came before a paid crossing).
 - `presence` is per campaign (24 hourly weights) in v1; per-segment presence arrives with P-030.
+- A resident who becomes aware during a tick gets that tick's full occasion probability (up to 15 minutes more exposure than strictly due). Occasions are drawn as one binomial count over the aware pool, which is exact only while every aware resident shares one rate; per-segment profiles (P-031) need per-resident rates.
+- `order_on_awareness` is for the reduced Bass configuration, which runs with occasions off; with occasions on, a resident could place a first and a repeat order in one tick.
 - Until P-013: an order is counted at its occasion, `avail = 1`, `satisfaction = 0`, and the DELIVERIES section stays empty.
 
 **Defaults**
