@@ -2,6 +2,7 @@
 
 import type { BackendPreference, Stage, StageTape, TierOption } from '@twinlight/stage'
 import { useState } from 'react'
+import { Readouts } from '../../../components/city/readouts'
 import { Timeline } from '../../../components/city/timeline'
 import { StageHost } from '../../../components/stage-host'
 import type { TimelineEvent } from '../../../lib/timeline-track'
@@ -83,7 +84,12 @@ export function DevStage(props: {
         still={props.still}
         onReady={(stage) => loadRun(stage, props.source, props.minutes, setRun)}
       />
-      {props.ui && run && <Timeline stage={run.stage} tape={run.tape} events={run.events} />}
+      {props.ui && run && (
+        <>
+          <Readouts stage={run.stage} tape={run.tape} />
+          <Timeline stage={run.stage} tape={run.tape} events={run.events} />
+        </>
+      )}
     </main>
   )
 }
