@@ -26,7 +26,9 @@ from test_population_stage import tiny_config as tiny_population_config
 from twl_citybake.cli import main
 from twl_citybake.config import CityConfig, DataDirs
 from twl_citybake.footprints.correction import fit_correction
+from twl_citybake.footprints.raster import mosaic_key
 from twl_citybake.footprints.stage import build_buildings, write_building_layers
+from twl_citybake.footprints.vida import vida_cache_key
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import OsmLayers, extract_osm, write_osm_layers
 from twl_citybake.osm.tags import BuildingKind, HeightSource
@@ -112,8 +114,19 @@ def world(
     config = footprints_config(city_config)
     osm_layers = root / "osm" / "layers"
     write_osm_layers(layers, osm_layers)
-    cache = write_vida_cache(root / VIDA_FILE, tiny_cache_rows(), tiny_city.projection)
-    heights = paint_heights(layers.buildings, tiny_city.projection).write(root / HEIGHTS_FILE)
+    assert config.footprints is not None
+    cache = write_vida_cache(
+        root / VIDA_FILE,
+        tiny_cache_rows(),
+        tiny_city.projection,
+        vida_cache_key(config.footprints.vida_etag, config.bbox),
+    )
+    heights = paint_heights(layers.buildings, tiny_city.projection).write(
+        root / HEIGHTS_FILE,
+        mosaic_key(
+            config.footprints.heights_manifest, config.bbox, config.footprints.raster_cell_m
+        ),
+    )
     built = build_buildings(osm_layers, tiny_city.path, cache, heights, config)
     out = root / "buildings" / "layers"
     write_building_layers(built, out)

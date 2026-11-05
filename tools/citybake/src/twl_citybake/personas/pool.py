@@ -7,6 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from twl_citybake.config import PersonasConfig
+from twl_citybake.parquet import kv_clause, sql_literal, stored_key
 
 DATASET = "nvidia/Nemotron-Personas-India"
 PARTS = 11
@@ -56,13 +57,12 @@ def fetch_pool(config: PersonasConfig, dest: Path, urls: Sequence[str] | None = 
     file's key-value metadata: a matching cache is kept, any other cache raises."""
     key = {"revision": config.revision, "state": config.state, "district": config.district}
     if dest.exists():
-        if (cached := _cache_key(dest)) != key:
+        if (cached := stored_key(dest, key)) != key:
             raise ValueError(f"{dest} holds {cached}, not {key}; delete it to fetch again")
         return dest
     sources = [str(url) for url in urls] if urls is not None else parquet_urls(config.revision)
     dest.parent.mkdir(parents=True, exist_ok=True)
     partial = dest.with_name(dest.name + ".part")
-    metadata = ", ".join(f"{name}: {_literal(value)}" for name, value in key.items())
     try:
         with duckdb.connect() as con:
             if any(source.startswith(("http://", "https://")) for source in sources):
@@ -76,8 +76,8 @@ def fetch_pool(config: PersonasConfig, dest: Path, urls: Sequence[str] | None = 
             if found is None or found[0] == 0:
                 raise ValueError(f"no personas for {config.district}, {config.state}")
             con.execute(
-                f"COPY (SELECT * FROM slice ORDER BY uuid) TO {_literal(str(partial))} "
-                f"(FORMAT parquet, COMPRESSION zstd, KV_METADATA {{{metadata}}})"
+                f"COPY (SELECT * FROM slice ORDER BY uuid) TO {sql_literal(str(partial))} "
+                f"(FORMAT parquet, COMPRESSION zstd, {kv_clause(key)})"
             )
         partial.rename(dest)
     finally:
@@ -132,14 +132,3 @@ def _coded[T: np.unsignedinteger](
     if len(categories) > int(np.iinfo(dtype).max) + 1:
         raise ValueError(f"{len(categories)} categories do not fit {dtype.__name__}")
     return codes.astype(dtype), categories.tolist()
-
-
-def _cache_key(path: Path) -> dict[str, str]:
-    with duckdb.connect() as con:
-        rows = con.execute("SELECT key, value FROM parquet_kv_metadata(?)", [str(path)]).fetchall()
-    metadata = {bytes(name).decode(): bytes(value).decode() for name, value in rows}
-    return {name: metadata[name] for name in ("revision", "state", "district") if name in metadata}
-
-
-def _literal(text: str) -> str:
-    return "'" + text.replace("'", "''") + "'"

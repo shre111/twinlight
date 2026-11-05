@@ -24,6 +24,11 @@ class BBox:
             raise ValueError(f"invalid bbox {self}")
 
     @property
+    def cache_key(self) -> str:
+        """Stable text for equal bboxes, whether the TOML wrote integers or floats."""
+        return repr(tuple(float(v) for v in (self.west, self.south, self.east, self.north)))
+
+    @property
     def centre(self) -> tuple[float, float]:
         return (self.west + self.east) / 2, (self.south + self.north) / 2
 

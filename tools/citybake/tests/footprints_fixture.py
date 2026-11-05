@@ -78,8 +78,15 @@ def to_lonlat_wkb(geom: Geometry, proj: LocalProjection) -> bytes:
     return bytes(shapely.to_wkb(shapely.transform(geom, forward)))
 
 
-def write_vida_cache(path: Path, rows: Sequence[CacheRow], proj: LocalProjection) -> Path:
+def write_vida_cache(
+    path: Path,
+    rows: Sequence[CacheRow],
+    proj: LocalProjection,
+    key: dict[str, str] | None = None,
+) -> Path:
     import duckdb
+
+    from twl_citybake.parquet import kv_clause
 
     records = [
         (r.source, r.confidence, float(abs(shapely.area(r.geom))), to_lonlat_wkb(r.geom, proj))
@@ -90,7 +97,8 @@ def write_vida_cache(path: Path, rows: Sequence[CacheRow], proj: LocalProjection
     con.execute("CREATE TABLE cache (source VARCHAR, confidence FLOAT, area_m2 DOUBLE, wkb BLOB)")
     if records:
         con.executemany("INSERT INTO cache VALUES (?, ?, ?, ?)", records)
-    con.execute(f"COPY (SELECT * FROM cache ORDER BY rowid) TO '{path}' (FORMAT PARQUET)")
+    options = f"FORMAT PARQUET, {kv_clause(key)}" if key else "FORMAT PARQUET"
+    con.execute(f"COPY (SELECT * FROM cache ORDER BY rowid) TO '{path}' ({options})")
     con.close()
     return path
 
@@ -126,7 +134,7 @@ class HeightGrid:
         x, y = self.proj.forward(lon, lat)
         return float(x), float(y)
 
-    def write(self, path: Path) -> Path:
+    def write(self, path: Path, tags: dict[str, str] | None = None) -> Path:
         import rasterio
 
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -144,6 +152,8 @@ class HeightGrid:
             compress="deflate",
         ) as dst:
             dst.write(self.values, 1)
+            if tags:
+                dst.update_tags(**tags)
         return path
 
 

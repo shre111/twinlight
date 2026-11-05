@@ -1,11 +1,14 @@
+from pathlib import Path
+
 import numpy as np
 import numpy.typing as npt
+import pytest
 import shapely
 from footprints_fixture import CELL_M, UTM, HeightGrid, empty_height_grid, square
 from rasterio.crs import CRS
 
 from twl_citybake.config import BBox
-from twl_citybake.footprints.raster import HeightRaster
+from twl_citybake.footprints.raster import HeightRaster, fetch_height_mosaic, mosaic_key
 from twl_citybake.projection import LocalProjection
 
 MIN_HEIGHT = 1.0
@@ -108,3 +111,35 @@ def test_footprints_are_matched_in_the_raster_crs_not_in_local_metres() -> None:
     shifted = square(A[0] + 60.0, A[1], side=12.0)
     assert np.isnan(medians(grid, shifted)).all()
     assert medians(grid, square(*A)).tolist() == [7.0]
+
+
+MANIFEST = "https://example.invalid/manifest.json"
+MOSAIC_BBOX = BBox(72.0, 23.0, 72.1, 23.1)
+
+
+def test_a_mosaic_cache_built_from_the_same_inputs_is_kept(tmp_path: Path) -> None:
+    grid = empty_height_grid(LocalProjection.for_bbox(MOSAIC_BBOX), 100.0)
+    dest = grid.write(tmp_path / "heights.tif", mosaic_key(MANIFEST, MOSAIC_BBOX, CELL_M))
+    before = dest.read_bytes()
+
+    assert fetch_height_mosaic(MANIFEST, MOSAIC_BBOX, CELL_M, dest) == dest
+    assert dest.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "tags",
+    [
+        mosaic_key("https://example.invalid/other.json", MOSAIC_BBOX, CELL_M),
+        mosaic_key(MANIFEST, BBox(72.0, 23.0, 72.2, 23.1), CELL_M),
+        mosaic_key(MANIFEST, MOSAIC_BBOX, CELL_M * 2),
+        None,
+    ],
+)
+def test_a_mosaic_cache_built_from_anything_else_is_refused(
+    tmp_path: Path, tags: dict[str, str] | None
+) -> None:
+    grid = empty_height_grid(LocalProjection.for_bbox(MOSAIC_BBOX), 100.0)
+    dest = grid.write(tmp_path / "heights.tif", tags)
+
+    with pytest.raises(ValueError, match="delete it to fetch again"):
+        fetch_height_mosaic(MANIFEST, MOSAIC_BBOX, CELL_M, dest)
