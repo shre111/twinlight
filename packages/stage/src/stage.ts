@@ -8,7 +8,7 @@ import { ResidentsLayer } from './layers/residents'
 import { FLICKER_PERIOD_SECONDS, StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
-import { advanceMinutes, ClockChannel, type ClockState, type Speed } from './playback'
+import { advanceMinutes, ClockChannel, type ClockState, SPEEDS, type Speed } from './playback'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
 import { clampTime, warmFraction } from './time'
@@ -125,7 +125,7 @@ export class Stage {
   /** Plays the tape forward from the current time, or from the start if the run has ended. */
   play(): void {
     const tape = this.#tape
-    if (!tape || this.#playing) return
+    if (this.#disposed || !tape || this.#playing) return
     if (this.#time >= tape.simMinutes) {
       this.#time = 0
       this.#applyTime()
@@ -141,6 +141,8 @@ export class Stage {
   }
 
   setSpeed(speed: Speed): void {
+    // A bad speed would turn the sim time into NaN for good.
+    if (this.#disposed || speed === this.#speed || !SPEEDS.includes(speed)) return
     this.#speed = speed
     this.#publishClock()
   }
@@ -154,10 +156,12 @@ export class Stage {
     void this.#compile().catch((error: unknown) => console.error(error))
   }
 
-  /** Replaces the city. Its tape is cleared, so call `setTape` again for the new one. */
+  /** Replaces the city. Its tape is cleared and the clock returns to 0, so call `setTape` again. */
   async loadCity(city: StageCity): Promise<void> {
     if (this.#disposed) return
-    this.pause()
+    this.#playing = false
+    this.#time = 0
+    this.#publishClock()
     const load = ++this.#loads
     this.#tape = null
     this.#residents?.dispose()
@@ -241,6 +245,8 @@ export class Stage {
   dispose(): void {
     if (this.#disposed) return
     this.#disposed = true
+    this.#playing = false
+    this.#clockChannel.clear()
     void this.#renderer.setAnimationLoop(null)
     document.removeEventListener('visibilitychange', this.#restartClock)
     this.#viewport.stop()
