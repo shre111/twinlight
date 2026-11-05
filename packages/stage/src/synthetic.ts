@@ -14,6 +14,12 @@ const TOY_DELIVERY_RADIUS_M = 900
 const TOY_RAIN_HOURS = { from: 264, to: 336 }
 const TOY_NEVER_HOURS = 1e9
 
+/** The toy run's campaign moments, in sim minutes, as the timeline names them. */
+export const TOY_EVENTS = [
+  { label: 'Instagram ad', short: 'Ad', at: 9 * 60 },
+  { label: 'Creator campaign', short: 'Creators', at: 186 * 60 },
+]
+
 export function synthesizeToyRun(residents: number): { city: StageCity; tape: StageTape } {
   const world = buildWorld(residents)
   return { city: toyCity(world), tape: toyTape(world) }

@@ -4,6 +4,7 @@ import type { BackendPreference, Stage, StageTape, TierOption } from '@twinlight
 import { useState } from 'react'
 import { Timeline } from '../../../components/city/timeline'
 import { StageHost } from '../../../components/stage-host'
+import type { TimelineEvent } from '../../../lib/timeline-track'
 
 declare global {
   interface Window {
@@ -19,6 +20,7 @@ export type RunSource = { pack: string } | { residents: number }
 interface LoadedRun {
   stage: Stage
   tape: StageTape
+  events: TimelineEvent[]
 }
 
 // A generated pack has no tape until P-014, so it shows the city before anyone has heard.
@@ -26,10 +28,10 @@ async function runFor(source: RunSource) {
   if ('pack' in source) {
     const { fetchPack, idleTape } = await import('@twinlight/stage')
     const city = await fetchPack(`/dev/packs/${source.pack}`)
-    return { city, tape: idleTape(city) }
+    return { city, tape: idleTape(city), events: [] }
   }
-  const { synthesizeToyRun } = await import('@twinlight/stage/synthetic')
-  return synthesizeToyRun(source.residents)
+  const { synthesizeToyRun, TOY_EVENTS } = await import('@twinlight/stage/synthetic')
+  return { ...synthesizeToyRun(source.residents), events: TOY_EVENTS }
 }
 
 function loadRun(
@@ -40,14 +42,14 @@ function loadRun(
 ) {
   let cancelled = false
   runFor(source)
-    .then(async ({ city, tape }) => {
+    .then(async ({ city, tape, events }) => {
       if (cancelled) return
       await stage.loadCity(city)
       if (cancelled) return
       await stage.setTape(tape)
       if (cancelled) return
       stage.setTime(minutes)
-      onLoaded({ stage, tape })
+      onLoaded({ stage, tape, events })
       window.__twinlightStage = stage
     })
     .catch((error: unknown) => {
@@ -81,7 +83,7 @@ export function DevStage(props: {
         still={props.still}
         onReady={(stage) => loadRun(stage, props.source, props.minutes, setRun)}
       />
-      {props.ui && run && <Timeline stage={run.stage} tape={run.tape} />}
+      {props.ui && run && <Timeline stage={run.stage} tape={run.tape} events={run.events} />}
     </main>
   )
 }
