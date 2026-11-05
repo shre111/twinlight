@@ -47,7 +47,7 @@ def run_seed(inputs: RunInputs) -> Tape:
         start = clock.tick_start(tick)
         end = start + clock.tick_minutes
         events = queue.pop_until(end - 1)
-        advance_tick(state, streams, start, end, events)
+        advance_tick(state, streams, queue, start, end, events)
         record_aggregates(state, aggregates, tick)
     return Tape(
         header=tape_header(inputs, clock),
