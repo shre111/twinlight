@@ -24,8 +24,6 @@ interface LoadedRun {
   events: TimelineEvent[]
 }
 
-const LOAD_FAILURE = 'This run could not load. If its pack is missing, run just fixture-pack.'
-
 // A generated pack has no tape until P-014, so it shows the city before anyone has heard.
 // The fixture stands in for that tape with the toy sim's launch; P-014 replaces it with a file.
 async function runFor(source: RunSource) {
@@ -67,7 +65,7 @@ function loadRun(
       console.error(error)
       if (cancelled) return
       window.__twinlightStageError = String(error)
-      onFailed(LOAD_FAILURE)
+      onFailed(`${error}. If a pack is missing, run just fixture-pack.`)
     })
   return () => {
     cancelled = true
