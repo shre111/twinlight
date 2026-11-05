@@ -42,6 +42,6 @@ presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 
 
 # Fitted by `python -m twl_engine.fit_prototype` on days 6 and 13 only; never edit by hand.
 [params]
-paid_scale = 1.141
-q = 0.01279
-alpha_0 = -6.141
+paid_scale = 1.161
+q = 0.00658
+alpha_0 = -6.092
