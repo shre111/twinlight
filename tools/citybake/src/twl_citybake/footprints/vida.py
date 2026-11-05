@@ -19,7 +19,7 @@ class VidaRows(NamedTuple):
 
 
 def vida_cache_key(etag: str, bbox: BBox) -> dict[str, str]:
-    return {"etag": etag, "bbox": repr((bbox.west, bbox.south, bbox.east, bbox.north))}
+    return {"etag": etag, "bbox": bbox.cache_key}
 
 
 def fetch_vida(url: str, etag: str, bbox: BBox, dest: Path) -> Path:

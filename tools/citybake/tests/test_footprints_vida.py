@@ -99,3 +99,9 @@ def test_fetch_vida_refuses_a_cache_built_from_anything_else(
 
     with pytest.raises(ValueError, match="delete it to fetch again"):
         fetch_vida("https://example.invalid/vida.parquet", '"etag"', BBOX, dest)
+
+
+def test_the_cache_key_is_the_same_for_equal_integer_and_float_bboxes() -> None:
+    assert vida_cache_key('"e"', BBox(72, 23, 73, 24)) == vida_cache_key(
+        '"e"', BBox(72.0, 23.0, 73.0, 24.0)
+    )

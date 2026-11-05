@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 import duckdb
@@ -14,8 +14,8 @@ def kv_clause(key: Mapping[str, str]) -> str:
     return f"KV_METADATA {{{pairs}}}"
 
 
-def stored_key(path: Path, names: Mapping[str, str]) -> dict[str, str]:
-    """The entries of a cached file's metadata that `names` also has; none on an unkeyed file."""
+def stored_key(path: Path, names: Iterable[str]) -> dict[str, str]:
+    """The named entries of a cached file's metadata; none on an unkeyed file."""
     with duckdb.connect() as con:
         rows = con.execute("SELECT key, value FROM parquet_kv_metadata(?)", [str(path)]).fetchall()
     metadata = {bytes(name).decode(): bytes(value).decode() for name, value in rows}

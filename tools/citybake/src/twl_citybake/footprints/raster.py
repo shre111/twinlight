@@ -117,7 +117,7 @@ class Tile:
 def mosaic_key(manifest_url: str, bbox: BBox, cell_m: float) -> dict[str, str]:
     return {
         "manifest": manifest_url,
-        "bbox": repr((bbox.west, bbox.south, bbox.east, bbox.north)),
+        "bbox": bbox.cache_key,
         "cell_m": repr(float(cell_m)),
     }
 
