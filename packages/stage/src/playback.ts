@@ -25,7 +25,7 @@ const PLAYBACK_PUBLISH_MS = 100
 export class ClockChannel {
   #state: ClockState = { minutes: 0, playing: false, speed: 1 }
   #listeners = new Set<() => void>()
-  #lastPlaybackPublish = Number.NEGATIVE_INFINITY
+  #lastPublishAt = Number.NEGATIVE_INFINITY
 
   get state(): ClockState {
     return this.#state
@@ -38,15 +38,25 @@ export class ClockChannel {
     }
   }
 
-  publish(state: ClockState): void {
+  publish(state: ClockState, now = performance.now()): void {
     this.#state = state
-    for (const listener of this.#listeners) listener()
+    this.#lastPublishAt = now
+    for (const listener of this.#listeners) {
+      // A failing listener must not take the render loop down with it.
+      try {
+        listener()
+      } catch (error) {
+        console.error(error)
+      }
+    }
   }
 
-  /** Whether a playback frame at `now` should publish; checked first so idle frames allocate nothing. */
+  /** Whether a playback frame at `now` should publish; asked first so other frames allocate nothing. */
   playbackDue(now: number): boolean {
-    if (now - this.#lastPlaybackPublish < PLAYBACK_PUBLISH_MS) return false
-    this.#lastPlaybackPublish = now
-    return true
+    return now - this.#lastPublishAt >= PLAYBACK_PUBLISH_MS
+  }
+
+  clear(): void {
+    this.#listeners.clear()
   }
 }
