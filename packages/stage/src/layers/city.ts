@@ -26,7 +26,7 @@ export class CityLayer {
     this.#layers = [
       this.#sky,
       createGround(this.fog, this.warm, this.extent),
-      ...createRoads(city.roads, this.fog),
+      ...createRoads(city.roads, this.fog, this.extent.scale),
       createBuildings(city.buildings, this.fog, this.warm),
     ]
     this.group.add(...this.#layers.map((layer) => layer.object))

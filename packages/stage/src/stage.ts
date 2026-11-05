@@ -134,7 +134,13 @@ export class Stage {
     this.#scene.add(layer.group)
     this.#rig.fit(layer.extent)
     if (city.stores.count > 0) {
-      this.#stores = new StoresLayer(city.stores, layer.fog, this.#clock, this.#reducedMotion)
+      this.#stores = new StoresLayer(
+        city.stores,
+        layer.fog,
+        this.#clock,
+        this.#reducedMotion,
+        layer.extent.scale,
+      )
       this.#scene.add(this.#stores.object)
     }
     this.#renderer.setClearColor(palette.skyTop, 1)
@@ -220,7 +226,7 @@ export class Stage {
       tape.residents,
       TIERS[this.#tier].residents,
       city.fog,
-      TIERS[this.#tier].bloomScale > 0,
+      { glow: TIERS[this.#tier].bloomScale > 0, scale: city.extent.scale },
     )
     this.#residents = layer
     this.#scene.add(layer.object)

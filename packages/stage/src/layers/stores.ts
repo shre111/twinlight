@@ -81,7 +81,14 @@ export class StoresLayer {
   readonly #materials: NodeMaterial[] = []
 
   /** `clock` is wall-clock seconds for the flicker, which reduced motion holds steady. */
-  constructor(stores: Stores, fog: Fog, clock: Node<'float'>, reducedMotion: boolean) {
+  /** `heightScale` stretches the toy-tuned beam height for larger cities; widths stay in metres. */
+  constructor(
+    stores: Stores,
+    fog: Fog,
+    clock: Node<'float'>,
+    reducedMotion: boolean,
+    heightScale = 1,
+  ) {
     this.count = stores.count
     this.#stockout = new InstancedBufferAttribute(new Float32Array(stores.count), 1)
     const centre = new InstancedBufferAttribute(storeCentres(stores), 3)
@@ -98,6 +105,7 @@ export class StoresLayer {
     this.#mount(this.#beams(shared, tint.mul(gain).mul(clear(0.8)), segmented), 2)
     this.#mount(this.#bases(shared, tint.mul(gain).mul(clear(1))), 1)
     this.#mount(this.#rings(shared, tint.mul(clear(1)).mul(RING_GAIN)), 1)
+    this.object.scale.y = heightScale
   }
 
   update(camera: PerspectiveCamera): void {
