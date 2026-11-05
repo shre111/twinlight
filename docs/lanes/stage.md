@@ -6,6 +6,7 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - `/dev/fixture` is in: `just fixture-pack` writes the toy pack to `data/cache/packs/toy`, the default for `TWL_PACK_DIR`, and `just shots` runs it first. No auth, dev only. Shows a message if the pack is missing.
 - Not ticked. There is no TS tape decoder yet, so the tape is `synthesizeTapeFor(city)`: the toy sim's campaign over the pack's residents and stores, with traits drawn as the prototype draws them. Day 14 reads 43% heard, 11.5% ordered; day 30 reads 63%, 23%.
 - To finish after P-014: swap `synthesizeTapeFor` in `apps/web/app/dev/stage/dev-stage.tsx` for the decoded fixture tape, move the shots stills to this route, then record the 20-second capture. Hold the capture until the tape has orders, so "Orders today" is not 0. MinIO can come later.
+- Timeline event labels use short names below 1400 px, a breakpoint tuned to the toy run's two campaigns and monsoon. When real events feed the timeline, labels need collision handling from their measured widths, and every event needs a `short` name.
 - Frames on the M4 in Chrome, WebGPU, tier high, one full run at 16x with the readouts card visible in every frame:
   - 48k residents on `/dev/fixture`: p50 16.7, p95 17.6, worst 17.8 ms, 60 fps, none over 20 ms.
   - 100k residents on `/dev/stage`: p50 16.7, p95 17.6, worst 33 ms, 60 fps, 2 of 2,697 over 20 ms.
