@@ -7,6 +7,7 @@ citybake fetch <city>        pinned OSM extract (clipped to the bbox) and popula
 citybake osm <city>          buildings, roads, water, banks, districts
 citybake footprints <city>   VIDA footprints merged in, 2.5D heights corrected (D-021, D-024)
 citybake population <city>   households per building, residents (D-025)
+citybake personas <city>     Nemotron persona uuids and segments per resident (D-026)
 ```
 
 City settings live in `src/twl_citybake/cities/<city>.toml`.

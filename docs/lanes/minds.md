@@ -3,7 +3,35 @@
 Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
-- D-024 merged (#55). D-025 population from GHS-POP: this PR. Next: P-022, then footprint cache keys.
+- D-024 merged (#55). D-025 merged (#57). P-022: pool and segments (#60), assignment (#61), and the stage and CLI in this PR. Its AC holds on the real run below. Next: footprint cache keys, then P-023 and P-024.
+
+## P-022 real run (Ahmedabad, 100,002 residents, seed 20260101)
+- Pool: 6,604 Ahmadabad personas, Nemotron-Personas-India `en_IN` at revision `adefeef`. Only 9 demographic columns are read; no persona text is read or written. The source spells the district "Ahmadabad".
+- Segment shares, pool then residents:
+
+| Segment | Pool | Residents |
+|---|---|---|
+| senior | 11.36% | 11.10% |
+| young_single | 14.32% | 14.22% |
+| homemaker | 28.24% | 28.60% |
+| working_graduate | 10.66% | 10.68% |
+| working_other | 32.25% | 32.26% |
+| other_adult | 3.16% | 3.14% |
+
+- The largest difference is 0.36 points. All 200 other seeds tried stay within 1 point (worst 0.45).
+- Total variation distance: sex 0.001, age band 0.009, education 0.004, occupied or not 0.001.
+- Married: 76.48% in the pool, 76.83% of residents. Free draws use a married probability of 65.46% to hold that share (D-026's conditional spouse draw would otherwise inflate it).
+- 32,140 couples hold 64,280 residents. Gap p10/p50/p90 is 0/3/7 years; the husband is older or equal in 93.9%.
+- Runtime about 10 s with the fetch, 1 s cached. Output is 1.5 MB and byte-identical across reruns and across a fresh fetch.
+- `layer.json` carries the attribution, dataset revision and parquet list, plus `population_residents_sha256` so a later stage can spot a stale assignment.
+
+## P-022 known limits, for P-023 and P-061b
+Within tolerance, so left as they are:
+- 16.3% of married residents have no spouse at home, and only 66.8% of 2-adult households hold a couple. P-023 must not assume married means a spouse is present.
+- Couples are matched on age only: same first language 59.7%, same education 14.1%. About 40% of couples differ in first language, which interviews and voice could expose. Worth conditioning in P-061b.
+- A husband's target age below 18 lands on the youngest wives, so the 38 married women aged 18 to 19 average 44 uses against about 15 overall. That is most of the age-band distance.
+- Personas repeat across residents (median 15 uses); 14 of 30,595 households hold the same persona twice.
+- Seed 20260101 sits 2.85 SD high on couples (32,140 against 31,915 ± 79 over 1,000 seeds). The solver is unbiased over seeds. I did not reseed, because picking a seed by its outcome is fishing.
 
 ## D-025 real run (Ahmedabad, combined corrected buildings)
 - 8,080,000 people in the bbox, 7,959,302 synthesised, 120,700 in cells without buildings.
