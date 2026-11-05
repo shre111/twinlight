@@ -1,7 +1,7 @@
 import { uniform } from 'three/tsl'
 import { describe, expect, it } from 'vitest'
 import { Fog } from '../src/layers/fog'
-import { createRiver, waterMesh } from '../src/layers/river'
+import { createRiver, RING_TRIANGLE_TARGET, waterMesh } from '../src/layers/river'
 
 const square = {
   offsets: Uint32Array.of(0, 4),
@@ -141,6 +141,18 @@ describe('waterMesh with a longest edge', () => {
 
   it('keeps the ring on the bank', () => {
     expect(Array.from(banks.subarray(0, 4))).toEqual([0, 0, 0, 0])
+  })
+
+  it('refines a very large water body more coarsely instead of without limit', () => {
+    const side = 100_000
+    const sea = {
+      offsets: Uint32Array.of(0, 4),
+      x: Float32Array.of(0, side, side, 0),
+      y: Float32Array.of(0, 0, side, side),
+    }
+    const large = waterMesh(sea, 40)
+    expect(large.indices.length / 3).toBeLessThan(RING_TRIANGLE_TARGET * 4)
+    expect(large.banks.length).toBe(large.positions.length / 3)
   })
 })
 

@@ -36,6 +36,8 @@ const BANK_MARGIN_M = 40
 const SHEEN_RATE = 10 * AMBIENT_RATE
 const SHEEN_SWELL_RATE = 5 * AMBIENT_RATE
 const MIDPOINT_KEY_BASE = 2 ** 26
+/** A ring's triangles stay within four times this, so a very large water body cannot stall load. */
+export const RING_TRIANGLE_TARGET = 50_000
 
 export function createRiver(
   river: StageCity['river'],
@@ -111,12 +113,13 @@ export function waterMesh(
     }
     // Drops a closing point that repeats the first, so read the ring only after this.
     const faces = ShapeUtils.triangulateShape(ring, [])
-    const refined = refine(ring, faces, maxEdge)
+    const coarsest = Math.sqrt((2 * Math.abs(ShapeUtils.area(ring))) / RING_TRIANGLE_TARGET)
+    const refined = refine(ring, faces, Math.max(maxEdge, coarsest))
     const first = positions.length / 3
     refined.x.forEach((x, i) => {
       positions.push(x, 0, -(refined.y[i] ?? 0))
+      banks.push(refined.banks[i] ?? 0)
     })
-    banks.push(...refined.banks)
     for (const corner of refined.triangles) indices.push(first + corner)
   }
   return {
