@@ -10,6 +10,7 @@ from twl_engine.fixtures.types import (
     Ties,
     ToyCity,
 )
+from twl_engine.fixtures.uniform import build_uniform_city
 
 __all__ = [
     "Buildings",
@@ -21,5 +22,6 @@ __all__ = [
     "Ties",
     "ToyCity",
     "build_toy_city",
+    "build_uniform_city",
     "write_pack",
 ]

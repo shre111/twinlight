@@ -13,14 +13,14 @@ resident_x_sum = -2174347.764502242
 resident_y_sum = 210379.91088458896
 
 [engine.empty_seed1]
-hash = "8bd00a1346131935c445957c4ff24bd36d4c282e3915fa34e169a079ea5363a6"
+hash = "29380f87e9b0308bcf7a6ef45d49bc09e7df19158497f4804cbd8a5aa1f23cde"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
 tape_bytes = 536
 
 [engine.empty_seed2]
-hash = "843d183b3f8cf20251b07a1f06a288d47c0376546220cc15e8b041d8ee6d2731"
+hash = "f85a4231417a1d7cfb007a305dc5276e42d1a22482c0624c75e05619a9e8d9e6"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0

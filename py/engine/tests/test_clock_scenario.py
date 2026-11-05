@@ -21,7 +21,13 @@ def test_clock_rejects_partial_ticks_and_out_of_range_ticks() -> None:
 
 
 def test_empty_scenario_canonical_form_is_stable() -> None:
-    assert json.loads(EMPTY.canonical_json()) == {"days": 30, "tick_minutes": 15}
+    assert json.loads(EMPTY.canonical_json()) == {
+        "campaigns": [],
+        "days": 30,
+        "price": 49.0,
+        "ref_price": 49.0,
+        "tick_minutes": 15,
+    }
     assert EMPTY.sim_minutes == 43_200
     assert EMPTY.hash() == Scenario().hash()
     assert Scenario(days=1).hash() != EMPTY.hash()
