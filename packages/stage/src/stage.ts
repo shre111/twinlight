@@ -154,7 +154,7 @@ export class Stage {
 
   setTier(tier: TierName): void {
     this.#tier = tier
-    this.#stats.reset()
+    this.#restartFrames()
     this.#viewport.remeasure()
     this.#mountResidents()
     // Compile the remounted residents now rather than on the next frame.
@@ -192,7 +192,7 @@ export class Stage {
     await this.#compile()
     // A newer load or a dispose may have landed while the materials compiled.
     if (this.#disposed || load !== this.#loads) return
-    this.#stats.reset()
+    this.#restartFrames()
   }
 
   /** Uploads the residents' event times once; the shaders evaluate them at `setTime` (D-004). */
@@ -222,7 +222,7 @@ export class Stage {
       throw new Error('A new city loaded while its tape was being set; set the tape again')
     }
     // Frames rendered while the residents compiled are not the scene's steady frame time.
-    this.#stats.reset()
+    this.#restartFrames()
   }
 
   /** Clamps to the tape, updates uniforms and each store's stock state; no work grows with residents. */
@@ -356,5 +356,11 @@ export class Stage {
   // A hidden tab pauses the loop; the gap is not a frame.
   #restartClock = () => {
     this.#lastFrameAt = 0
+  }
+
+  // Heavy work such as a shader compile spans the next gap, which is not a frame either.
+  #restartFrames(): void {
+    this.#stats.reset()
+    this.#restartClock()
   }
 }
