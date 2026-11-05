@@ -31,7 +31,7 @@ Milestones are vertical slices. M1 exists to get a city playing a launch on scre
 Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end through engine, tape, stage and timeline. No LLM, no OSM yet.
 - [x] **P-010 Toy city generator** Lane A. Port the prototype's procedural city (`design/prototype/toy-sim.mjs`: `buildCity`, `placeResidents`, `placeStores`, `buildTies`) to Python in `twl_engine.fixtures`, vectorised where it can be, using the engine's seeded streams. Sizes: 48,000 residents and 14 stores to match the prototype, 5,000 for fast tests. Writes a city pack (minimal subset of the real format).
   AC: same seed produces a byte-identical pack; at 48,000 residents the building count is within 3% of the prototype's 7,253 and ties per resident within 3% of its 4.5; pack loads in the stage. `[tests]`
-- [ ] **P-011 Engine core** Lane A. Integer clock, `SeedSequence` streams, NumPy struct-of-arrays residents, vectorised tick loop, Numba event queue. `[tests] [deep]`
+- [x] **P-011 Engine core** Lane A. Integer clock, `SeedSequence` streams, NumPy struct-of-arrays residents, vectorised tick loop, Numba event queue. `[tests] [deep]`
   AC: determinism golden across 1/4/8 worker processes; empty scenario produces a valid empty tape.
 - [ ] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
   AC: Bass-limit test (MODEL.md section 4) within 2%; monotonicity property tests (hypothesis) pass; the prototype's launch scenario (`simulate` in `design/prototype/toy-sim.mjs`) lands within 3 points of its numbers on days 6, 13 and 30 (23/4.5, 42/11, 63/23 percent heard/ordered; `node design/prototype/toy-sim.mjs` prints them).
@@ -52,7 +52,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 ## M2 Real city
 - [x] **P-020 OSM bake** Lane C. Geofabrik extract clipped to the Ahmedabad bbox -> buildings with heights, road graph, river polygon, districts. `[tests]`
   AC: counts and height distribution reported; pack renders in the stage.
-- [ ] **P-021 Population synthesis** Lane C. WorldPop raster -> households per building with iterative proportional fitting to district marginals. `[tests] [deep]`
+- [x] **P-021 Population synthesis** Lane C. WorldPop raster -> households per building with iterative proportional fitting to district marginals. `[tests] [deep]`
   AC: district totals within 1% of marginals; no building over capacity.
 - [ ] **P-022 Persona assignment** Lane C. Sample from Nemotron-Personas-India (Gujarat slice, Ahmedabad district first) to residents by age, sex, education and occupation marginals; derive segments. `[tests]`
   AC: segment shares within tolerance of source marginals; attribution written to the manifest.
