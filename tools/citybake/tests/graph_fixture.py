@@ -1,9 +1,14 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+
+from twl_citybake.config import CityConfig, DataDirs, load_city
+from twl_citybake.osm.tags import BuildingKind
+from twl_citybake.store import table_digest, write_json, write_table
 
 KIND_NAMES = ("household", "neighbour", "friend", "work")
 HOUSEHOLD, NEIGHBOUR, FRIEND, WORK = range(4)
@@ -155,3 +160,125 @@ def graph_report(graph: Any, bank: Any, segment: Any, x: Any, y: Any) -> dict[st
         np.asarray(y, np.float64),
         n,
     )
+
+
+@dataclass(frozen=True)
+class Built:
+    city: CityConfig
+    dirs: DataDirs
+    population: Path
+    personas: Path
+    buildings: Path
+    residents: int
+
+
+def small_city(seed: int = 20260101) -> CityConfig:
+    return replace(load_city("ahmedabad"), seed=seed)
+
+
+def build_inputs(root: Path, residents: int = 3000, seed: int = 4) -> Built:
+    """Population, personas and OSM building stages for a small two-bank world, written as the
+    earlier stages write them."""
+    city = small_city()
+    assert city.personas is not None
+    dirs = DataDirs(root)
+    rng = np.random.default_rng(seed)
+    sizes = rng.choice([1, 2, 3, 4], residents // 2, p=[0.15, 0.35, 0.3, 0.2])
+    sizes = sizes[: int(np.searchsorted(np.cumsum(sizes), residents)) + 1]
+    n = int(sizes.sum())
+    household = np.repeat(np.arange(len(sizes), dtype=np.uint32), sizes)
+    hx = rng.uniform(-3000, 3000, len(sizes))
+    hy = rng.uniform(-3000, 3000, len(sizes))
+    x, y = hx[household], hy[household]
+    bank = (x > 0).astype(np.uint8)
+    district = np.clip((x // 1500 + 2).astype(np.int64), 0, 3).astype(np.uint16)
+
+    population = dirs.stage(city.slug, "population")
+    write_table(
+        population / "residents",
+        {
+            "household": household,
+            "building": np.zeros(n, np.uint32),
+            "district": district,
+            "bank": bank,
+            "x": x.astype(np.float32),
+            "y": y.astype(np.float32),
+            "z": np.zeros(n, np.float32),
+            "weight": np.ones(n, np.float32),
+        },
+    )
+
+    pool_n = 60
+    vocab = {
+        "occupation": sorted(["Driver", "Teacher", "Clerk", city.personas.no_occupation]),
+        "segment": ["a", "b", "c"],
+    }
+    occupation = rng.integers(0, 4, pool_n).astype(np.uint16)
+    pool_segment = rng.integers(0, 3, pool_n).astype(np.uint16)
+    persona_ref = rng.integers(0, pool_n, n).astype(np.uint32)
+    spouse = np.full(n, NONE, np.uint32)
+    first = np.flatnonzero(np.r_[True, household[1:] != household[:-1]])
+    for start, size in zip(first, sizes, strict=True):
+        if size >= 2:
+            spouse[start], spouse[start + 1] = start + 1, start
+    personas = dirs.stage(city.slug, "personas")
+    write_table(
+        personas / "pool",
+        {
+            "uuid": np.array([f"p{i}" for i in range(pool_n)]),
+            "occupation": occupation,
+            "segment": pool_segment,
+        },
+    )
+    write_table(
+        personas / "assignment",
+        {"persona_ref": persona_ref, "segment": pool_segment[persona_ref], "spouse": spouse},
+    )
+    write_json(personas / "vocab.json", vocab)
+    write_json(
+        personas / "layer.json",
+        {
+            "city": city.slug,
+            "seed": city.seed,
+            "population_residents_sha256": table_digest(population / "residents"),
+        },
+    )
+
+    nb = 250
+    bx = rng.uniform(-3000, 3000, nb)
+    kinds = rng.choice(
+        [
+            BuildingKind.RESIDENTIAL,
+            BuildingKind.COMMERCIAL,
+            BuildingKind.INDUSTRIAL,
+            BuildingKind.CIVIC,
+            BuildingKind.UNKNOWN,
+        ],
+        nb,
+    )
+    floors = rng.integers(1, 6, nb).astype(np.uint8)
+    buildings = dirs.stage(city.slug, "osm") / "layers"
+    write_table(
+        buildings / "buildings",
+        {
+            "x": bx,
+            "y": rng.uniform(-3000, 3000, nb),
+            "area_m2": rng.uniform(100, 3000, nb).astype(np.float32),
+            "height_m": floors.astype(np.float32) * np.float32(3.2),
+            "floors": floors,
+            "kind": kinds.astype(np.uint8),
+            "district": np.clip((bx // 1500 + 2).astype(np.int64), 0, 3).astype(np.uint16),
+            "bank": (bx > 0).astype(np.uint8),
+        },
+    )
+    write_json(
+        buildings / "districts.json",
+        [{"id": i, "name": f"District {i}"} for i in range(4)],
+    )
+    return Built(city, dirs, population, personas, buildings, n)
+
+
+def snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()
+    }
