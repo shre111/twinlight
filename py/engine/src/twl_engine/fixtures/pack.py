@@ -26,6 +26,20 @@ def write_pack(city: ToyCity, out_dir: Path) -> str:
 
     Returns `pack_hash`, the blake3 of the manifest bytes.
     """
+    files, manifest = _pack_bytes(city)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for name, data in sorted(files.items()):
+        (out_dir / name).write_bytes(data)
+    (out_dir / "manifest.json").write_bytes(manifest)
+    return blake3(manifest).hexdigest()
+
+
+def pack_hash(city: ToyCity) -> str:
+    """The `pack_hash` `write_pack` would return, without writing anything."""
+    return blake3(_pack_bytes(city)[1]).hexdigest()
+
+
+def _pack_bytes(city: ToyCity) -> tuple[dict[str, bytes], bytes]:
     counts = _counts(city)
     files = _files(city, counts)
     manifest = _json(
@@ -42,11 +56,7 @@ def write_pack(city: ToyCity, out_dir: Path) -> str:
             "version": PACK_VERSION,
         }
     )
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for name, data in sorted(files.items()):
-        (out_dir / name).write_bytes(data)
-    (out_dir / "manifest.json").write_bytes(manifest)
-    return blake3(manifest).hexdigest()
+    return files, manifest
 
 
 def _counts(city: ToyCity) -> dict[str, int]:
