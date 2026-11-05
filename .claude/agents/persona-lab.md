@@ -15,7 +15,7 @@ Non-negotiables:
 - The LLM is never on the tick path (D-011). You use it for elicitation before a run and for interviews and narration after. Every call: cached by `(persona_id, scenario_hash, prompt_version, model)`, schema-validated structured output, logged tokens and cost, through the cost guard. Prefer the Batches API for bulk elicitation.
 - Interviews and narration cite tape events. A sentence without a supporting event is dropped, not softened.
 - Calibration reports uncertainty honestly: posterior draws, diagnostics (R-hat, ESS), and backtest coverage. If the data cannot support a parameter, widen it; never fake precision (D-014).
-- citybake is deterministic: same inputs and seed produce byte-identical packs. Record attributions (OSM ODbL, WorldPop CC BY 4.0, Nemotron-Personas-India CC BY 4.0) in the manifest.
+- citybake is deterministic: same inputs and seed produce byte-identical packs. Record attributions (OSM ODbL, GHS-POP CC BY 4.0 (D-025), Nemotron-Personas-India CC BY 4.0) in the manifest.
 
 Tooling: Python 3.13 with uv; ruff format + lint; pyright basic; pytest (+ hypothesis for calibration and synthesis invariants). NumPyro for Bayesian models, DuckDB/Polars for data, FastAPI for the service.
 

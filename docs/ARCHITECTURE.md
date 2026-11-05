@@ -169,7 +169,8 @@ Coordinates are local metres in a city-specific projection with the origin at th
 - `stores.bin`: `f32 x, y`, `u32 hex`, `f32 radius_m`, `u16 district`. Count `stores`.
 - `roads.bin`: `u32 offsets[roads + 1]` into points, `f32 x[roadPoints]`, `f32 y[roadPoints]`, `u8 class[roads]`.
 - `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake). One exterior ring per polygon, no holes in v1.
-- `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add polygons and marginals.
+- `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add `name_local` (the OSM name when the display name is its English form), polygons (a district can have several parts) and marginals.
+- `segment` in `residents.bin` indexes `manifest.json` `segments`, the ordered list of segment names (for Ahmedabad per D-026: senior, young_single, homemaker, working_graduate, working_other, other_adult); the engine and calibration key parameters by that list, never by a hard-coded order.
 - `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
 - Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
 
