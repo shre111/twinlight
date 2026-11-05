@@ -138,3 +138,42 @@ clustering = [0.10, 0.50]
 cross_river_non_household = [0.05, 0.25]
 largest_component_min = 0.95
 isolated_max = 0.02
+
+[stores]
+# delivery radius
+radius_m = 2500.0
+# stop placing once this share of residents is within a radius
+coverage_target = 0.92
+max_stores = 80
+# candidates are road nodes, at most one per grid cell
+candidate_cell_m = 500.0
+
+[travel]
+h3_resolution = 9
+# two-wheeler km/h by road class at a band factor of 1
+# bands and speeds are assumptions until the owner's hand check against Google Maps (D-022)
+speed_kmh = { major = 40.0, primary = 30.0, secondary = 26.0, tertiary = 22.0, local = 16.0, service = 12.0 }
+
+[[travel.bands]]
+name = "night"
+# minute of day; 22:00 to 08:00, wraps midnight
+start_minute = 1320
+factor = 1.25
+
+[[travel.bands]]
+name = "morning_peak"
+# 08:00
+start_minute = 480
+factor = 0.8
+
+[[travel.bands]]
+name = "midday"
+# 11:00
+start_minute = 660
+factor = 1.0
+
+[[travel.bands]]
+name = "evening_peak"
+# 17:00
+start_minute = 1020
+factor = 0.7
