@@ -25,6 +25,11 @@ const TOY_SEED = 49
 const TOY_DELIVERY_RADIUS_M = 900
 const TOY_RAIN_HOURS = { from: 264, to: 336 }
 const TOY_NEVER_HOURS = 1e9
+const TOY_RIVER_STEP_M = 30
+const TOY_RIVER_REACH_M = 6000
+const toyRiverX = (z: number) =>
+  520 + 230 * Math.sin(z / 1250 + 0.6) + 110 * Math.sin(z / 470 + 2.1)
+const toyRiverHalfWidth = (z: number) => 88 + 18 * Math.sin(z / 800 + 1.0)
 const TOY_AGE_SHARE_WEST = [0.2, 0.27, 0.27, 0.16, 0.1]
 const TOY_AGE_SHARE_EAST = [0.16, 0.22, 0.28, 0.21, 0.13]
 const TOY_AGE_AFFINITY = [1.35, 1.2, 0.9, 0.6, 0.38]
@@ -149,6 +154,7 @@ function toyCity(world: ToyWorld): StageCity {
       [arterials, ROAD_KIND.arterial],
       [bridges, ROAD_KIND.bridge],
     ]),
+    river: toyRiver(),
     residents: {
       count: res.count,
       x: res.x,
@@ -164,6 +170,22 @@ function toyCity(world: ToyWorld): StageCity {
     },
     bounds: TOY_BOUNDS,
   }
+}
+
+// One ring: the west bank north to south, then the east bank back north.
+function toyRiver(): NonNullable<StageCity['river']> {
+  const samples = (2 * TOY_RIVER_REACH_M) / TOY_RIVER_STEP_M + 1
+  const x = new Float32Array(samples * 2)
+  const y = new Float32Array(samples * 2)
+  for (let s = 0; s < samples; s++) {
+    const z = s * TOY_RIVER_STEP_M - TOY_RIVER_REACH_M
+    const back = samples * 2 - 1 - s
+    x[s] = toyRiverX(z) - toyRiverHalfWidth(z)
+    x[back] = toyRiverX(z) + toyRiverHalfWidth(z)
+    y[s] = -z
+    y[back] = -z
+  }
+  return { offsets: Uint32Array.of(0, samples * 2), x, y }
 }
 
 function toyTape(sim: ToySim, residents: number): StageTape {
