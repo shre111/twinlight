@@ -250,8 +250,15 @@ def correction_summary(correction: dict) -> str:
         if folds["classes"]
         else "not measurable, no class qualifies"
     )
+    excluded = correction["excluded"]
+    removed = (
+        ""
+        if excluded is None
+        else f"{excluded['buildings']:,} non-residential buildings excluded, "
+        f"{excluded['capacity_share']:.1%} of capacity; "
+    )
     return (
-        f"correction weight {correction['weight']} (range {low} to {high}): "
+        f"correction weight {correction['weight']} (range {low} to {high}): {removed}"
         f"{len(classes['used'])} classes, {len(classes['pooled'])} pooled, "
         f"{len(classes['capped'])} capped on {correction['reference_cells']:,} reference cells; "
         f"fold variation {variation}; {correction['people_moved']:,.0f} people moved"

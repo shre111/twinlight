@@ -17,6 +17,7 @@ from twl_citybake.config import (
     PopulationCheck,
     WardGroup,
 )
+from twl_citybake.population.raster import repaired_polygon
 
 FloatArray = npt.NDArray[np.float64]
 
@@ -49,14 +50,9 @@ def _ward(feature: Any, name_property: str, path: Path) -> Ward:
     geometry = feature.get("geometry")
     if not isinstance(geometry, dict):
         raise ValueError(f"{path}: ward {name!r} has no geometry")
-    return Ward(name, _repaired(shapely.force_2d(shapely.from_geojson(json.dumps(geometry)))))
-
-
-def _repaired(geometry: shapely.Geometry) -> shapely.Geometry:
-    if shapely.is_valid(geometry):
-        return geometry
-    parts = shapely.get_parts(shapely.make_valid(geometry))
-    return shapely.union_all(parts[shapely.get_dimensions(parts) == 2])
+    return Ward(
+        name, repaired_polygon(shapely.force_2d(shapely.from_geojson(json.dumps(geometry))))
+    )
 
 
 def assign_wards(

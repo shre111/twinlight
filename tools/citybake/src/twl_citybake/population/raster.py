@@ -108,6 +108,14 @@ def _scan_boundaries(pbf: Path, polygons: Sequence[str]) -> dict[str, shapely.Ge
     return found
 
 
+def repaired_polygon(geometry: shapely.Geometry) -> shapely.Geometry:
+    """The polygonal part of a valid version of `geometry`."""
+    if shapely.is_valid(geometry):
+        return geometry
+    parts = shapely.get_parts(shapely.make_valid(geometry))
+    return shapely.union_all(parts[shapely.get_dimensions(parts) == 2])
+
+
 def rescale_to_total(
     grid: PopGrid, people: float, boundary: shapely.Geometry
 ) -> tuple[PopGrid, float]:
