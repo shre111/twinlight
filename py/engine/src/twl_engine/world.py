@@ -77,6 +77,7 @@ class SupplyPlan:
     scenario's rate times the store's catchment, rounded.
     """
 
+    serviceable: NDArray[np.bool_]
     own_store: NDArray[np.int64]
     spill_store: NDArray[np.int64]
     own_distance: NDArray[np.float64]
@@ -238,6 +239,7 @@ def build_supply_plan(city: ToyCity, supply: Supply) -> SupplyPlan:
     )
     catchment = np.bincount(own_store[own_store != NO_STORE], minlength=radius.shape[1])
     return SupplyPlan(
+        serviceable=own_store != NO_STORE,
         own_store=own_store,
         spill_store=spill_store,
         own_distance=own_distance,
