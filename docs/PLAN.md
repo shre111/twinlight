@@ -34,7 +34,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-011 Engine core** Lane A. Integer clock, `SeedSequence` streams, NumPy struct-of-arrays residents, vectorised tick loop, Numba event queue. `[tests] [deep]`
   AC: determinism golden across 1/4/8 worker processes; empty scenario produces a valid empty tape.
 - [ ] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
-  AC: Bass-limit test (MODEL.md section 4) within 2%; monotonicity property tests (hypothesis) pass; the prototype's launch scenario (`simulate` in `design/prototype/toy-sim.mjs`) lands within 3 points of its numbers on days 6, 13 and 30 (23/4.5, 42/11, 63/23 percent heard/ordered; `node design/prototype/toy-sim.mjs` prints them).
+  AC: Bass-limit test (MODEL.md section 4, conditions and tolerance in D-027); monotonicity property tests (hypothesis) pass; the prototype's launch scenario (`simulate` in `design/prototype/toy-sim.mjs`) lands within 3 points of its numbers on days 6, 13 and 30 (23/4.5, 42/11, 63/23 percent heard/ordered; `node design/prototype/toy-sim.mjs` prints them).
 - [ ] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
   AC: conservation tests pass; a scenario with low stock produces stockout intervals.
 - [ ] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
@@ -44,7 +44,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
   AC: scrubbing anywhere in 30 days updates instantly; 20k residents at 60 fps on the reference laptop.
 - [x] **P-017 Stores layer** Lane B. Beams, radius rings, red flicker during stockout intervals from the tape.
-- [ ] **P-018 Timeline and readouts** Lane B. Docked timeline with play/pause, speeds, scrubber with day ticks, event markers and adoption sparkline; readouts card.
+- [x] **P-018 Timeline and readouts** Lane B. Docked timeline with play/pause, speeds, scrubber with day ticks, event markers and adoption sparkline; readouts card.
   AC: keyboard accessible; works at 390 px wide.
 - [ ] **P-019 Fixture route** Lane B. `/dev/fixture` loads the toy city pack and fixture tape from MinIO (or local files) without auth.
   AC: the M1 demo: open the route, press play, watch the city warm. Record a 20-second capture for MEMORY.md.
@@ -56,7 +56,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: district totals within 1% of marginals; no building over capacity.
 - [x] **P-022 Persona assignment** Lane C. Sample from Nemotron-Personas-India (Gujarat slice, Ahmedabad district first) to residents by age, sex, education and occupation marginals; derive segments. `[tests]`
   AC: segment shares within tolerance of source marginals; attribution written to the manifest.
-- [ ] **P-023 Social graph** Lane C. Households, neighbours (distance decay), friends (homophily on segment), work ties (long range), target mean degree 5 to 8. `[tests] [deep]`
+- [x] **P-023 Social graph** Lane C. Households, neighbours (distance decay), friends (homophily on segment), work ties (long range), target mean degree 5 to 8. `[tests] [deep]`
   AC: degree distribution, clustering and share of cross-river ties reported and within targets.
 - [ ] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
   AC: coverage of residents >= 90%; travel table complete.
