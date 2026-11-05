@@ -9,6 +9,7 @@ citybake footprints <city>   VIDA footprints merged in, 2.5D heights corrected (
 citybake population <city>   households per building, residents (D-025)
 citybake personas <city>     Nemotron persona uuids and segments per resident (D-026)
 citybake graph <city>        social graph: household, neighbour, friend and work ties
+citybake stores <city>       synthetic dark stores (D-013), travel minutes per store, hex and band (D-022)
 ```
 
 City settings live in `src/twl_citybake/cities/<city>.toml`.

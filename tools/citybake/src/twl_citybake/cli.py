@@ -16,7 +16,8 @@ from twl_citybake.personas.pool import fetch_pool
 from twl_citybake.personas.stage import run_personas, write_persona_layers
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import extract_member, fetch
-from twl_citybake.store import table_digest
+from twl_citybake.store import META, table_digest
+from twl_citybake.stores.stage import StoresError, run_stores, write_store_layers
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,6 +54,10 @@ def build_parser() -> argparse.ArgumentParser:
         "graph", help="build the social graph: household, neighbour, friend and work ties"
     )
     graph_cmd.add_argument("city")
+    stores_cmd = commands.add_parser(
+        "stores", help="place synthetic dark stores and compute travel minutes to every hex"
+    )
+    stores_cmd.add_argument("city")
     return parser
 
 
@@ -123,6 +128,8 @@ def building_layers(city: str, dirs: DataDirs) -> Path:
     osm = dirs.stage(city, "osm") / "layers"
     if not (combined / "buildings").exists():
         return osm
+    if not (combined / "layer.json").exists():
+        raise SystemExit(f"{combined} is incomplete; rerun `citybake footprints {city}`")
     meta = json.loads((combined / "layer.json").read_text(encoding="utf-8"))
     if meta.get("osm_buildings_sha256") != table_digest(osm / "buildings"):
         raise SystemExit(f"{combined} predates the OSM layers; rerun `citybake footprints {city}`")
@@ -281,6 +288,63 @@ def graph_summary(report: dict) -> str:
     )
 
 
+def run_stores_command(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    population = dirs.stage(city, "population")
+    if not _has_table(population / "residents"):
+        raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
+    osm_layers = dirs.stage(city, "osm") / "layers"
+    needed = ("road_nodes", "road_edges", "buildings")
+    if not all(_has_table(osm_layers / name) for name in needed):
+        raise SystemExit(f"{osm_layers} is incomplete; run `citybake osm {city}` first")
+    layers = building_layers(city, dirs)
+    if not _has_table(layers / "buildings") or not (layers / "districts.json").exists():
+        rerun = "footprints" if layers.parent.name == "buildings" else "osm"
+        raise SystemExit(f"{layers} is incomplete; run `citybake {rerun} {city}` first")
+    try:
+        stores = run_stores(population, osm_layers, layers, config)
+    except StoresError as failure:
+        raise SystemExit(str(failure)) from failure
+    out = dirs.stage(city, "stores")
+    write_store_layers(stores, out)
+    print(stores_summary(stores.report))
+    print(out)
+
+
+def _has_table(path: Path) -> bool:
+    if not (path / META).exists():
+        return False
+    columns = json.loads((path / META).read_text(encoding="utf-8"))["columns"]
+    return all((path / f"{column['name']}.npy").exists() for column in columns)
+
+
+def stores_summary(report: dict) -> str:
+    stores, hexes, travel = report["stores"], report["hexes"], report["travel"]
+    distance = hexes["node_distance_m"]
+    bands = [
+        f"  {name} p50 {b['p50']:g} p90 {b['p90']:g} max {b['max']:g}, within radius "
+        f"p50 {b['within_radius_p50']:g} p90 {b['within_radius_p90']:g}"
+        for name, b in travel["bands"].items()
+    ]
+    missed = [name for name, ok in report["within_targets"].items() if not ok]
+    return "\n".join(
+        [
+            f"stores {stores['count']} cover {stores['coverage']:.1%} of resident weight within "
+            f"{stores['radius_m']:g} m, west {stores['by_bank']['west']}, "
+            f"east {stores['by_bank']['east']}",
+            f"hexes {hexes['count']:,}, median {hexes['residents_per_hex_p50']:g} residents, road "
+            f"node p50 {distance['p50']:g} m p90 {distance['p90']:g} m max {distance['max']:g} m",
+            f"travel minutes by {travel['backend']}:",
+            *bands,
+            f"table {travel['table_bytes']:,} bytes, zstd {travel['table_zstd_bytes']:,}, in "
+            f"radius {travel['table_in_radius_share']:.1%}, complete {travel['complete']}",
+            f"road nodes {report['graph']['nodes']:,}, main component "
+            f"{report['graph']['main_component_share']:.1%}",
+            f"targets {'all met' if not missed else 'missed: ' + ', '.join(missed)}",
+        ]
+    )
+
+
 def summary(report: dict) -> str:
     b, r, w, d = report["buildings"], report["roads"], report["water"], report["districts"]
     sources = ", ".join(f"{k.lower()} {v}" for k, v in b["by_height_source"].items())
@@ -318,4 +382,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_personas_command(args.city, dirs)
     elif args.command == "graph":
         run_graph_command(args.city, dirs)
+    elif args.command == "stores":
+        run_stores_command(args.city, dirs)
     return 0
