@@ -2,37 +2,63 @@
 
 Worktree `.claude/worktrees/minds`. Lead folds this into MEMORY.md at each wrap.
 
-## P-024 stores and travel times (ready to tick; results provisional on the D-025 question)
+## D-030 population correction (merged #86 to #90; the lead records the decision)
 
-`citybake stores ahmedabad` on the real city. Both acceptance criteria hold: 92.3% of residents within 2.5 km, and the travel table is complete.
+GHS-POP gave the five north-west wards a mean of 0.32 of their 2011 size. `citybake population` now corrects each raster cell as `raster^0.25 * fit^0.75`, with `fit` from people per housing floor by built form on five OSM talukas, rescaled to 8.08M. Buildings in OSM commercial, retail, industrial, university, college, school and hospital areas house nobody. The weight was chosen after seeing the ward data, so the checks below are not out-of-sample.
 
-- 15 stores: west 5, east 10. 2,982 hexes, median 22 residents.
-- Table: 357,840 bytes raw, 48,603 zstd, 5.8% of pairs inside a radius.
-- Road graph: 99.6% of 88,744 nodes in the main strong component. Hex to road node: p50 39 m, p90 110 m, max 881 m.
-- About 2 s, byte-identical on rerun on this machine. `layer.json` records every input digest and the store and travel config.
-- Greedy matches a brute-force run on the real candidates, and a separate heap Dijkstra matched the table for store 0 in all bands (persona-lab). 38 deliberate bugs across the six modules are all caught by the tests.
+| Check, real step | Result | Band | Raster before |
+|---|---|---|---|
+| Walled-city mean (4 wards) | 0.817 | 0.75 to 1.25 | 1.100 |
+| 48-ward total / 2011 | 1.300 | 1.27 to 1.6 | 1.358 |
+| Ghatlodiya taluka | 706,515 | 405,000 to 830,000 | 163,094 |
+| North-west box | 1,085,718 | 970,000 to 1,420,000 | 359,444 |
+| Daskroi part in the bbox | 197,509 | up to 409,000 | 116,359 |
+
+- North-west five, reported only: 1.365 (raster 0.321): Gota 1.90, Thaltej 1.78, Bodakdev 1.53, Chandlodia 1.02, Ghatlodia 0.60.
+- Navrangpura: raster 5.79, corrected 2.75, with the exclusion 2.69.
+- 48 wards: median 1.09, p10 0.73, p90 1.98, min 0.56 (Dariyapur), max 2.78 (Nikol), log std 0.403 (raster 0.749). Known miss: Dariyapur 0.56. Jamalpur is 0.78, inside the band.
+- Passing weight range on the real step: 0.68 to 0.84. 0.67 fails the box; 0.85 fails the walled city and the taluka. 0.75 sits near the middle, and is not an optimum.
+- Stability: fold variation 25.1% floor-weighted, max 78.3%, so class rates differ across the city. Removing any reference taluka moves the walled mean and the north-west five by at most 3.0%, Navrangpura by 6.3%, and fails no band.
+- Population stage on real data: 8,080,001 people against 8,080,000 (household rounding), 0 over capacity, IPF converged. All four stages are byte-identical across two runs on this machine.
+
+Limits:
+- Before and after use different measures: `raster_*` is fractional people, the checks are integer households. Same bake, a ward can differ by up to 0.158; Dariyapur is 0.60 against 0.53 before the exclusion.
+- The bands rest on my growth and ward-count assumptions, and the 118,001 ward figure on search summaries attributed to the State Election Commission. AMC's ward-wise 2011 file or Census 2027 would tighten them.
+- Minimising spread assumes equal growth, so the weight likely understates the north-west. Ghatlodia at 0.60 is low, and 5 wards sit under 0.75.
+- The exclusion is by area: a home inside a mapped commercial or industrial polygon is removed. It took 13.8% of capacity and moved Ramol from 3.02 to 1.86 and Baherampura from 1.56 to 0.88.
+
+## P-024 stores and travel times after D-030 (still needs the D-022 hand check)
+
+`citybake stores ahmedabad`, `coverage_target` unchanged at 0.92: 24 stores cover 92.5%, west 11, east 13. It was 15 stores, west 5.
+
+| District | Covered | Median nearest store | Before D-030 |
+|---|---|---|---|
+| Bodakdev | 100.0% | 905 m | 0% |
+| Thaltej | 100.0% | 1,195 m | 0% |
+| Vastrapur | 94.9% | 1,693 m | 0% |
+| Memnagar | 100.0% | 1,961 m | 0% |
+| Gota | 97.9% | 1,349 m | 0% |
+| Sola | 34.5% | 2,726 m | 0% |
+
+Districts are our own polygons. By the real ward polygons: Bodakdev 99.2%, Thaltej 91.1%, Chandlodia 97.3%, Ghatlodia 100%, Gota 63.4%. Gota is the largest uncovered ward (a 33.8 km2 ward), then Jodhpur 59.6%.
 
 | Band | p50 | p90 | Max | Within radius p50 | Within radius p90 |
 |---|---|---|---|---|---|
-| morning_peak | 34 | 55 | 90 | 9 | 13 |
-| midday | 27 | 44 | 72 | 8 | 11 |
-| evening_peak | 39 | 63 | 103 | 11 | 15 |
-| night | 22 | 35 | 58 | 6 | 9 |
+| morning_peak | 39 | 61 | 105 | 10 | 14 |
+| midday | 31 | 49 | 84 | 8 | 11 |
+| evening_peak | 44 | 70 | 120 | 11 | 15 |
+| night | 25 | 39 | 67 | 6 | 9 |
 
-### Questions for the lead
-
-1. **Population step (D-025), sent separately.** GHS-POP gives Bodakdev 7,069 and Navrangpura 83,819 people per km2 on almost the same building stock (158 vs 15 m2 of floor area per person), with a sharp north-south edge between them. P-021 reproduces the raster faithfully, so the step comes from the raster. Not confirmed from outside: the AMC ward-wise census page fails TLS verification and I did not bypass it. Next step: compare the AMC 2011 ward table with baked counts.
-2. **Western corridor at 0% coverage.** In Bodakdev, Thaltej, Vastrapur, Memnagar, Sola, Gota, South Bopal, Chanakyapuri and Santej, no resident has a store within 2.5 km. I kept `coverage_target` at 0.92 for now, because a corrected population should move stores there by itself. If the raster stays, I recommend 0.95: 18 stores, 95.5% coverage.
-3. **Keep the full travel table for P-025.** At 48,603 bytes zstd it is already small, so an in-radius table saves little. Your call.
-4. **Radius definition for P-025 and the engine.** Coverage is by resident point; `within_radius_*` is by hex centre. 0.80% of weight is covered by point but its hex centre is outside every radius, and 0.58% the reverse (persona-lab). Pick one.
-5. **Travel crowds the promise.** MODEL's 10 to 20 minutes covers queue, picking, rider wait and travel. Evening travel alone is p50 11 and p90 15, so a 10-minute promise fails for much of the city in the evening before any queueing.
-6. **Load per store is uneven.** By nearest store, represented shoppers per store are min 31,007, median 87,447, max 214,517. Placement ignores capacity, so stock and rider pools must absorb it.
-
-Smaller limits: minutes stop at the road node, with no snap distance added. Rounding up adds about 0.5 minute on average, 6 to 7% of a median pair. 4 of 15 stores stand on dead-end road nodes, and greedy can place a store for ring coverage with few people nearby. `travel.complete` can only be false for an empty table, because a missing pair raises. Byte-identity is checked on one machine only.
+- Table: 769,344 bytes raw, 99,012 zstd, 4.0% of pairs inside a radius. 4,007 hexes, median 19 residents.
+- Hex to road node: p50 45 m, p90 140 m, max 1678 m (881 m before): the correction fills fringe hexes further from a road. 37 hexes are over 500 m from a road node, holding 174 residents. Minutes stop at the node.
+- Load by nearest store, in represented shoppers: min 21,166, median 62,430, max 124,107. 5 of 24 stores stand on dead-end road nodes.
+- Graph after the rebake, all targets met: mean degree 5.95, clustering 0.218, non-household cross-river 0.136, largest component 0.9996. Workers: west 25,583, east 27,699 (was 22,984 and 30,277).
+- Evening travel alone is still p50 11 and p90 15 within radius, against MODEL's 10 to 20 minute promise including queue, picking and rider wait.
+- Full travel table for P-025 is still small, and is the lead's call.
 
 ### Hand check for the owner (D-022)
 
-Open each link, read Google's two-wheeler time, and compare with the band matching the time you look it up: morning 08:00 to 11:00, midday 11:00 to 17:00, evening 17:00 to 22:00, night 22:00 to 08:00. The gate is a median error under 20%. Bands and speeds stay assumptions until this is done. It tests road speeds, not store sites, so it stays valid if the population changes. Pairs are store to hex in `check_pairs.json`, 10 in each distance stratum.
+Open each link, read Google's two-wheeler time, and compare with the band matching the time you look it up: morning 08:00 to 11:00, midday 11:00 to 17:00, evening 17:00 to 22:00, night 22:00 to 08:00. The gate is a median error under 20%. Bands and speeds stay assumptions until this is done. It tests road speeds, not store sites, so D-030 did not invalidate it: all 32 times below were recomputed on the current road graph and none differ. The store and hex numbers are from the bake before D-030; `check_pairs.json` now holds a fresh draw.
 
 | # | Store to hex | km, straight | Morning / midday / evening / night (min) | Route |
 |---|---|---|---|---|
