@@ -33,13 +33,14 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: same seed produces a byte-identical pack; at 48,000 residents the building count is within 3% of the prototype's 7,253 and ties per resident within 3% of its 4.5; pack loads in the stage. `[tests]`
 - [x] **P-011 Engine core** Lane A. Integer clock, `SeedSequence` streams, NumPy struct-of-arrays residents, vectorised tick loop, Numba event queue. `[tests] [deep]`
   AC: determinism golden across 1/4/8 worker processes; empty scenario produces a valid empty tape.
-- [ ] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
+- [x] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
   AC: Bass-limit test (MODEL.md section 4, conditions and tolerance in D-027); monotonicity property tests (hypothesis) pass; the prototype's launch scenario (`simulate` in `design/prototype/toy-sim.mjs`) lands within 3 points of its numbers on days 6, 13 and 30 (23/4.5, 42/11, 63/23 percent heard/ordered; `node design/prototype/toy-sim.mjs` prints them).
+  Day 20 (51.9/16.1) is asserted too, as the held-out check (D-029).
 - [ ] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
   AC: conservation tests pass; a scenario with low stock produces stockout intervals.
 - [ ] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
   AC: TS decodes Python-written fixtures with matching checksums and probe values; streaming decode of day chunks works.
-- [ ] **P-015 Stage core** Lane B. `Stage.create`, WebGPU with WebGL2 fallback, render loop, resize, DPR caps, quality tiers, perf HUD (dev only).
+- [x] **P-015 Stage core** Lane B. `Stage.create`, WebGPU with WebGL2 fallback, render loop, resize, DPR caps, quality tiers, perf HUD (dev only).
   AC: runs on Chrome, Safari 26, Firefox; HUD shows backend and frame time.
 - [x] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
   AC: scrubbing anywhere in 30 days updates instantly; 20k residents at 60 fps on the reference laptop.
@@ -48,6 +49,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: keyboard accessible; works at 390 px wide.
 - [ ] **P-019 Fixture route** Lane B. `/dev/fixture` loads the toy city pack and fixture tape from MinIO (or local files) without auth.
   AC: the M1 demo: open the route, press play, watch the city warm. Record a 20-second capture for MEMORY.md.
+  Progress: route and pack loading merged on a synthetic tape; waits for the P-014 decoder and a tape with orders before the capture.
 
 ## M2 Real city
 - [x] **P-020 OSM bake** Lane C. Geofabrik extract clipped to the Ahmedabad bbox -> buildings with heights, road graph, river polygon, districts. `[tests]`
@@ -58,14 +60,16 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: segment shares within tolerance of source marginals; attribution written to the manifest.
 - [x] **P-023 Social graph** Lane C. Households, neighbours (distance decay), friends (homophily on segment), work ties (long range), target mean degree 5 to 8. `[tests] [deep]`
   AC: degree distribution, clustering and share of cross-river ties reported and within targets.
-- [ ] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
+- [x] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
   AC: coverage of residents >= 90%; travel table complete.
+  Results are provisional until the D-030 population correction is baked; the owner's hand check of 30 travel pairs (D-022) is pending.
 - [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with meshopt-compressed buildings; Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
 
 ## M3 Full engine
 - [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels. `[tests]`
 - [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift. `[tests]`
+  Must replace the shared-rate binomial occasion draw in `twl_engine.orders` with per-resident rates (it is exact only while every aware resident shares one rate).
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
 - [ ] **P-034 Scenario events** Lane A. rain, festival, match night, price change, store closed. `[tests]`

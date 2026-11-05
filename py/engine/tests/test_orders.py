@@ -108,10 +108,25 @@ def test_a_hopeless_repeat_intercept_stops_repeats(toy: ToyCity) -> None:
     assert tape.residents.order_count.max() == 1
 
 
-def test_a_much_higher_price_sells_less(toy: ToyCity) -> None:
-    cheap = run(toy, burst(RESIDENTS, days=4), LIVELY)
-    dear = run(toy, burst(RESIDENTS, days=4, price=147.0), LIVELY)
-    assert dear.aggregates.adopted[-1] < 0.5 * cheap.aggregates.adopted[-1]
+def test_tripling_the_price_cuts_first_orders_by_the_logit_shift() -> None:
+    """With rare orders the adopter ratio is close to exp(-beta * (147 - 49) / 49) = e^-2."""
+    city = build_uniform_city(40_000)
+    rare = Params(
+        impression_gain=1.0,
+        kappa=(1.0,),
+        alpha_segment=(0.0,),
+        alpha_0=-4.5,
+        gamma=0.0,
+        affinity_sd=0.0,
+        rho_sd=0.0,
+        q=0.0,
+        awareness_half_life_days=None,
+    )
+    cheap = run(city, burst(40_000, per_resident=5.0, days=2), rare)
+    dear = run(city, burst(40_000, per_resident=5.0, days=2, price=147.0), rare)
+    ratio = dear.aggregates.adopted[-1] / cheap.aggregates.adopted[-1]
+    assert cheap.aggregates.adopted[-1] > 1_500
+    assert ratio == pytest.approx(np.exp(-2.0), rel=0.25)
 
 
 def test_order_on_awareness_orders_in_the_minute_of_awareness() -> None:

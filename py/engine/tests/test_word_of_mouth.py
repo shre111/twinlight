@@ -50,9 +50,12 @@ def test_talker_rates_follow_role_decay_and_the_tick_start_rule() -> None:
     pull = np.array([2.0, 2.0, 3.0, 2.0, 0.0])
     cum = np.zeros(5)
     decay = 1.0 / (72.0 * 60.0)
-    total = talker_rates(aware_at, first_order_at, last_order_at, pull, start, 0.15, decay, cum)
+    floor = 0.35
+    total = talker_rates(
+        aware_at, first_order_at, last_order_at, pull, start, 0.15, floor, decay, cum
+    )
     hearsay = 0.15 * 2.0 * math.exp(-(start - 1_000) * decay)
-    adopter = 3.0 * math.exp(-(start - 5_000) * decay)
+    adopter = 3.0 * (floor + (1.0 - floor) * math.exp(-(start - 5_000) * decay))
     assert np.diff(cum, prepend=0.0) == pytest.approx([0.0, hearsay, adopter, 0.0, 0.0])
     assert total == pytest.approx(hearsay + adopter)
 
@@ -60,7 +63,7 @@ def test_talker_rates_follow_role_decay_and_the_tick_start_rule() -> None:
 def test_talker_rates_without_decay_are_the_pull() -> None:
     cum = np.zeros(2)
     total = talker_rates(
-        u32([10, 10]), u32([NEVER, 20]), u32([NEVER, 20]), np.ones(2), 9_000, 0.5, 0.0, cum
+        u32([10, 10]), u32([NEVER, 20]), u32([NEVER, 20]), np.ones(2), 9_000, 0.5, 0.35, 0.0, cum
     )
     assert cum.tolist() == [0.5, 1.5] and total == 1.5
 
@@ -214,3 +217,47 @@ def test_more_talk_never_means_fewer_people_heard(toy: ToyCity) -> None:
     quiet = run(toy, day_one_burst(RESIDENTS), Params(q=0.005, occasions_per_day=0.0))
     loud = run(toy, day_one_burst(RESIDENTS), Params(q=0.2, occasions_per_day=0.0))
     assert loud.aggregates.aware[-1] > quiet.aggregates.aware[-1]
+
+
+def test_talks_split_across_talkers_and_ties_in_proportion_to_their_rates() -> None:
+    """One Poisson total split by rate must equal independent per-tie counts (MODEL.md 11)."""
+    n, draws = 6, 400_000
+    offsets = np.array([0, 2, 5, 5, 5, 5, 5], dtype=np.int64)
+    targets = np.array([2, 3, 3, 4, 5], dtype=np.int64)
+    tie_weight = np.array([1.0, 3.0, 0.5, 0.5, 2.0])
+    pull = np.array([4.0, 3.0, 0.0, 0.0, 0.0, 0.0])
+    rate = np.array([4.0 * 0.25, 3.0 * 1.0, 0.0, 0.0, 0.0, 0.0])
+    awareness = np.zeros(n)
+    log = np.zeros(2 * n, dtype=np.uint32)
+    apply_talks(
+        np.random.default_rng(5).random((draws, 3)),
+        np.cumsum(rate),
+        0,
+        15,
+        False,
+        offsets,
+        targets,
+        tie_weight,
+        np.ones(5),
+        pull,
+        1.0,
+        1e18,
+        awareness,
+        np.full(n, NEVER, dtype=np.uint32),
+        np.zeros(n, dtype=np.uint8),
+        np.full(n, NEVER, dtype=np.uint32),
+        np.full(n, NEVER, dtype=np.uint32),
+        np.full(n, NEVER, dtype=np.uint32),
+        log,
+        log.copy(),
+        log.copy(),
+        np.zeros(2 * n, dtype=np.uint8),
+        0,
+    )
+    talker_share = rate / rate.sum()
+    expected = np.zeros(n)
+    expected[2] = talker_share[0] * 1.0 / 4.0
+    expected[3] = talker_share[0] * 3.0 / 4.0 + talker_share[1] * 0.5 / 3.0
+    expected[4] = talker_share[1] * 0.5 / 3.0
+    expected[5] = talker_share[1] * 2.0 / 3.0
+    assert awareness / draws == pytest.approx(expected, abs=0.004)

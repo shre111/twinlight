@@ -13,15 +13,33 @@ resident_x_sum = -2174347.764502242
 resident_y_sum = 210379.91088458896
 
 [engine.empty_seed1]
-hash = "29380f87e9b0308bcf7a6ef45d49bc09e7df19158497f4804cbd8a5aa1f23cde"
+hash = "cf3dda24cdc7974bdd386317ed3024deebdce58ff923e33c1275a09a9d9ca6db"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
 tape_bytes = 536
+chatter_rows = 0
 
 [engine.empty_seed2]
-hash = "f85a4231417a1d7cfb007a305dc5276e42d1a22482c0624c75e05619a9e8d9e6"
+hash = "0b9c118bdb48a0555641fed917c0b018990530616d439d5e047b27a38c702762"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
 tape_bytes = 536
+chatter_rows = 0
+
+[engine.prototype_small_seed1]
+hash = "4fd500efe8dc83f0a5962b93dbe5309f57c939421972756d727bfcdb0fb38a97"
+aware_day30 = 3096
+adopted_day30 = 1266
+orders_total = 3303
+tape_bytes = 44400
+chatter_rows = 1992
+
+[engine.prototype_small_seed2]
+hash = "f50b17ed83e6509944aa9203368d9912e45dae8d6831b95b508a37b3d762ce2b"
+aware_day30 = 3038
+adopted_day30 = 1271
+orders_total = 3275
+tape_bytes = 44280
+chatter_rows = 1992

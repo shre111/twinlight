@@ -2,7 +2,10 @@ import dataclasses
 import json
 import math
 import operator
+import tomllib
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from blake3 import blake3
 
@@ -103,7 +106,8 @@ class Params:
 
     theta_aware: float = 1.0
     impression_gain: float = 0.6
-    talk_gain: float = 0.9
+    talk_gain: float = 1.0
+    talk_floor: float = 0.35
     hearsay_factor: float = 0.15
     talk_decay_hours: float | None = 72.0
     awareness_half_life_days: float | None = 4.0
@@ -113,13 +117,7 @@ class Params:
     occasions_per_day: float = 3.0
     occasion_profile: tuple[float, ...] = PROTOTYPE_TOD
     alpha_0: float = -3.0
-    alpha_segment: tuple[float, ...] = (
-        math.log(1.35),
-        math.log(1.2),
-        math.log(0.9),
-        math.log(0.6),
-        math.log(0.38),
-    )
+    alpha_segment: tuple[float, ...] = (0.3001, 0.1823, -0.1054, -0.5108, -0.9676)
     affinity_sd: float = 0.3
     gamma: float = 2.5
     beta: float = 1.0
@@ -137,6 +135,7 @@ class Params:
                 "theta_aware",
                 "impression_gain",
                 "talk_gain",
+                "talk_floor",
                 "hearsay_factor",
                 "q",
                 "occasions_per_day",
@@ -155,9 +154,12 @@ class Params:
         object.__setattr__(self, "order_on_awareness", bool(self.order_on_awareness))
         if self.theta_aware <= 0:
             raise ValueError("theta_aware must be positive")
+        if self.talk_floor > 1:
+            raise ValueError("talk_floor is a share of the talk rate, at most 1")
         for name in (
             "impression_gain",
             "talk_gain",
+            "talk_floor",
             "hearsay_factor",
             "q",
             "occasions_per_day",
@@ -222,6 +224,31 @@ def _require_weights(label: str, values: tuple[float, ...]) -> None:
 
 def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def load_scenario(path: Path) -> tuple[Scenario, Params]:
+    """Read `[scenario]`, `[[scenario.campaigns]]` and `[params]` from TOML; unknown keys raise."""
+    data = tomllib.loads(path.read_text())
+    _reject_unknown(str(path), data, ("scenario", "params"))
+    scenario_table = dict(data.get("scenario", {}))
+    campaign_tables = scenario_table.pop("campaigns", [])
+    campaigns = tuple(
+        _from_table(Campaign, f"campaign {index}", table)
+        for index, table in enumerate(campaign_tables)
+    )
+    scenario = _from_table(Scenario, "[scenario]", scenario_table, campaigns=campaigns)
+    return scenario, _from_table(Params, "[params]", data.get("params", {}))
+
+
+def _from_table[T](cls: type[T], label: str, table: dict[str, Any], **extra: Any) -> T:
+    _reject_unknown(label, table, tuple(f.name for f in dataclasses.fields(cls)))  # type: ignore[arg-type]
+    return cls(**table, **extra)
+
+
+def _reject_unknown(label: str, table: dict[str, Any], known: tuple[str, ...]) -> None:
+    unknown = sorted(key for key in table if key not in known)
+    if unknown:
+        raise ValueError(f"{label}: unknown keys {unknown}")
 
 
 EMPTY = Scenario()

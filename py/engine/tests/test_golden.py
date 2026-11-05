@@ -1,6 +1,7 @@
 import dataclasses
 import os
 import tomllib
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from functools import lru_cache
 from multiprocessing import get_context
@@ -11,9 +12,9 @@ import blake3
 import numpy as np
 import pytest
 
-from twl_engine.goldens import golden_inputs, golden_run_pid
+from twl_engine.goldens import golden_inputs, golden_run_pid, prototype_small_inputs
 from twl_engine.montecarlo import run_seeds
-from twl_engine.run import run_seed_bytes
+from twl_engine.run import RunInputs, run_seed_bytes
 from twl_tape.format import SectionKind
 from twl_tape.reader import read_tape
 
@@ -21,7 +22,11 @@ GOLDEN = Path(__file__).resolve().parents[3] / "fixtures" / "golden" / "hashes.t
 STRICT = os.environ.get("TWL_GOLDEN_STRICT") == "1"
 PINNED_SEEDS = [1, 2]
 WORKER_SEEDS = list(range(1, 9))
-PROBE_KEYS = ["aware_day30", "adopted_day30", "orders_total", "tape_bytes"]
+PROBE_KEYS = ["aware_day30", "adopted_day30", "orders_total", "tape_bytes", "chatter_rows"]
+PINNED: dict[str, Callable[[int], RunInputs]] = {
+    "empty": golden_inputs,
+    "prototype_small": prototype_small_inputs,
+}
 
 pytestmark = pytest.mark.golden
 
@@ -42,6 +47,7 @@ def probes(data: bytes) -> dict[str, int]:
         "adopted_day30": int(tape.aggregates.adopted[-1]) if len(tape.aggregates.adopted) else 0,
         "orders_total": int(tape.aggregates.orders.astype(np.int64).sum()),
         "tape_bytes": len(data),
+        "chatter_rows": len(tape.chatter.at),
     }
 
 
@@ -72,8 +78,8 @@ def first_difference(a: bytes, b: bytes) -> str:
     return f"bytes differ at offset {offset}"
 
 
-def golden_table(seed: int) -> dict[str, Any]:
-    key = f"empty_seed{seed}"
+def golden_table(name: str, seed: int) -> dict[str, Any]:
+    key = f"{name}_seed{seed}"
     table = golden().get("engine", {}).get(key)
     if table is None:
         pytest.fail(
@@ -85,14 +91,14 @@ def golden_table(seed: int) -> dict[str, Any]:
 
 @pytest.fixture(scope="module")
 def in_process() -> dict[int, bytes]:
-    return {seed: run_seed_bytes(golden_inputs(seed)) for seed in WORKER_SEEDS}
+    return {seed: run_seed_bytes(prototype_small_inputs(seed)) for seed in WORKER_SEEDS}
 
 
 @pytest.mark.parametrize("workers", [1, 4, 8])
 def test_hashes_are_identical_across_worker_counts_and_in_process_runs(
     workers: int, in_process: dict[int, bytes]
 ) -> None:
-    tapes = run_seeds(golden_inputs, WORKER_SEEDS, workers=workers)
+    tapes = run_seeds(prototype_small_inputs, WORKER_SEEDS, workers=workers)
     assert len(tapes) == len(WORKER_SEEDS)
     for seed, got in zip(WORKER_SEEDS, tapes, strict=True):
         want = in_process[seed]
@@ -109,20 +115,31 @@ def test_worker_pools_spread_seeds_over_that_many_processes(workers: int) -> Non
 
 
 def test_two_in_process_runs_of_a_seed_are_identical(in_process: dict[int, bytes]) -> None:
-    again = run_seed_bytes(golden_inputs(1))
+    again = run_seed_bytes(prototype_small_inputs(1))
     assert digest(again) == digest(in_process[1]), first_difference(again, in_process[1])
 
 
+def test_prototype_small_run_consumes_the_streams(in_process: dict[int, bytes]) -> None:
+    assert probes(in_process[1])["adopted_day30"] > 0
+    assert digest(in_process[1]) != digest(in_process[2])
+
+
+@pytest.mark.parametrize("name", list(PINNED))
 @pytest.mark.parametrize("seed", PINNED_SEEDS)
-def test_empty_run_matches_the_checked_in_golden(seed: int, in_process: dict[int, bytes]) -> None:
-    expected = golden_table(seed)
-    data = in_process[seed]
+def test_run_matches_the_checked_in_golden(
+    name: str, seed: int, in_process: dict[int, bytes]
+) -> None:
+    expected = golden_table(name, seed)
+    data = in_process[seed] if name == "prototype_small" else run_seed_bytes(PINNED[name](seed))
     actual = probes(data)
+    label = f"[engine.{name}_seed{seed}]"
     if STRICT:
         assert digest(data) == expected["hash"], (
-            f"empty seed {seed} hash is {digest(data)}, golden {expected['hash']}; probes {actual}"
+            f"{label} hash is {digest(data)}, golden {expected['hash']}; probes {actual}"
         )
         return
     for key in PROBE_KEYS:
-        assert key in expected, f"[engine.empty_seed{seed}] is missing probe {key}"
-        assert actual[key] == expected[key], f"{key}: {actual[key]} vs golden {expected[key]}"
+        assert key in expected, f"{label} is missing probe {key}"
+        assert actual[key] == expected[key], (
+            f"{label} {key}: {actual[key]} vs golden {expected[key]}"
+        )

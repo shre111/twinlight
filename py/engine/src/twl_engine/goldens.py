@@ -5,24 +5,24 @@ environment, and CI confirms the values. Tables other than `engine` are kept as 
 """
 
 import argparse
+import dataclasses
 import json
 import os
 import tomllib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from twl_engine.fixtures import build_toy_city
+from twl_engine.fixtures import build_toy_city, pack_hash
 from twl_engine.run import RunInputs, run_seed_bytes
-from twl_engine.scenario import EMPTY, Params, Scenario
+from twl_engine.scenario import EMPTY, Params, Scenario, load_scenario
 from twl_tape import read_tape, tape_hash
 
-GOLDEN_PATH = Path(__file__).resolve().parents[4] / "fixtures" / "golden" / "hashes.toml"
+FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
+GOLDEN_PATH = FIXTURES / "golden" / "hashes.toml"
+PROTOTYPE_SCENARIO_PATH = FIXTURES / "scenarios" / "prototype_launch.toml"
+PROTOTYPE_RESIDENTS = 48_000
 TOY_PACK_KEY = "seed49_residents5000"
 GOLDEN_RESIDENTS = 5_000
-GOLDEN_RUNS: tuple[tuple[str, Scenario, int], ...] = (
-    ("empty_seed1", EMPTY, 1),
-    ("empty_seed2", EMPTY, 2),
-)
 HEADER = (
     "# Strict hashes are checked on the pinned CI platform (TWL_GOLDEN_STRICT=1); "
     "elsewhere the probes are compared with tolerance.\n"
@@ -41,14 +41,40 @@ def toy_pack_hash(path: Path = GOLDEN_PATH) -> bytes:
     return bytes.fromhex(str(read_goldens(path)["toy_pack"][TOY_PACK_KEY]["hash"]))
 
 
-def golden_inputs(seed: int, scenario: Scenario = EMPTY) -> RunInputs:
+def golden_inputs(seed: int, scenario: Scenario = EMPTY, params: Params | None = None) -> RunInputs:
     return RunInputs(
         city=build_toy_city(seed=49, residents=GOLDEN_RESIDENTS),
         city_pack_hash=toy_pack_hash(),
         scenario=scenario,
-        params=Params(),
+        params=Params() if params is None else params,
         seed=seed,
     )
+
+
+def prototype_inputs(seed: int) -> RunInputs:
+    """The prototype's launch on the 48,000-resident toy city (D-027 parity fixture)."""
+    city = build_toy_city(seed=49, residents=PROTOTYPE_RESIDENTS)
+    scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
+    return RunInputs(city, bytes.fromhex(pack_hash(city)), scenario, params, seed)
+
+
+def prototype_small_inputs(seed: int) -> RunInputs:
+    """The prototype launch on the 5,000-resident toy city: goldens and fast tests.
+
+    Budgets are absolute, so paid reach is scaled by the resident ratio to keep the same
+    impressions per resident as the 48,000-resident run.
+    """
+    scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
+    reach = params.paid_scale * GOLDEN_RESIDENTS / PROTOTYPE_RESIDENTS
+    return golden_inputs(seed, scenario, dataclasses.replace(params, paid_scale=reach))
+
+
+GOLDEN_RUNS: tuple[tuple[str, Callable[[int], RunInputs], int], ...] = (
+    ("empty_seed1", golden_inputs, 1),
+    ("empty_seed2", golden_inputs, 2),
+    ("prototype_small_seed1", prototype_small_inputs, 1),
+    ("prototype_small_seed2", prototype_small_inputs, 2),
+)
 
 
 def golden_run_pid(seed: int) -> int:
@@ -66,13 +92,14 @@ def tape_probes(data: bytes) -> Probes:
         "adopted_day30": int(aggregates.adopted[-1]),
         "orders_total": int(aggregates.orders.sum()),
         "tape_bytes": len(data),
+        "chatter_rows": tape.header.chatter_rows,
     }
 
 
 def compute_engine_goldens() -> dict[str, Probes]:
     return {
-        name: tape_probes(run_seed_bytes(golden_inputs(seed, scenario)))
-        for name, scenario, seed in GOLDEN_RUNS
+        name: tape_probes(run_seed_bytes(inputs_for(seed)))
+        for name, inputs_for, seed in GOLDEN_RUNS
     }
 
 

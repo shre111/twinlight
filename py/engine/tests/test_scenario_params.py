@@ -25,10 +25,11 @@ def campaign(**overrides: object) -> Campaign:
 
 def test_params_defaults_are_the_model_section_11_values() -> None:
     p = Params()
-    assert (p.theta_aware, p.impression_gain, p.talk_gain, p.hearsay_factor) == (
+    assert (p.theta_aware, p.impression_gain, p.talk_gain, p.talk_floor, p.hearsay_factor) == (
         1.0,
         0.6,
-        0.9,
+        1.0,
+        0.35,
         0.15,
     )
     assert (p.talk_decay_hours, p.awareness_half_life_days) == (72.0, 4.0)
@@ -36,7 +37,8 @@ def test_params_defaults_are_the_model_section_11_values() -> None:
     assert (p.q, p.talk_kind) == (0.02, (1.0, 0.6, 1.0, 0.5))
     assert p.occasions_per_day == 3.0 and p.occasion_profile == PROTOTYPE_TOD
     assert p.alpha_0 == -3.0
-    assert p.alpha_segment == tuple(math.log(v) for v in (1.35, 1.2, 0.9, 0.6, 0.38))
+    prototype_affinity = [math.log(v) for v in (1.35, 1.2, 0.9, 0.6, 0.38)]
+    assert p.alpha_segment == pytest.approx(prototype_affinity, abs=5e-5)
     assert (p.affinity_sd, p.gamma, p.beta, p.delta) == (0.3, 2.5, 1.0, 1.0)
     assert (p.alpha_rep, p.rho_sd, p.paid_scale) == (-2.3, 0.3, 1.0)
     assert p.wom_mixing == "graph" and p.order_on_awareness is False
