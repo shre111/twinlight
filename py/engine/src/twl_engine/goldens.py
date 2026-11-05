@@ -12,10 +12,12 @@ import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+import numpy as np
+
 from twl_engine.fixtures import build_toy_city, pack_hash
 from twl_engine.run import RunInputs, run_seed_bytes
-from twl_engine.scenario import EMPTY, Params, Scenario, load_scenario
-from twl_tape import read_tape, tape_hash
+from twl_engine.scenario import EMPTY, Params, Scenario, Supply, load_scenario
+from twl_tape import DELIVERY_LATE, FLAG_GAVE_UP, read_tape, tape_hash
 
 FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
 GOLDEN_PATH = FIXTURES / "golden" / "hashes.toml"
@@ -23,6 +25,7 @@ PROTOTYPE_SCENARIO_PATH = FIXTURES / "scenarios" / "prototype_launch.toml"
 PROTOTYPE_RESIDENTS = 48_000
 TOY_PACK_KEY = "seed49_residents5000"
 GOLDEN_RESIDENTS = 5_000
+LOW_STOCK = Supply(initial_stock=0.004, reorder_point=0.001, order_up_to=0.004, lead_minutes=2880)
 HEADER = (
     "# Strict hashes are checked on the pinned CI platform (TWL_GOLDEN_STRICT=1); "
     "elsewhere the probes are compared with tolerance.\n"
@@ -69,12 +72,33 @@ def prototype_small_inputs(seed: int) -> RunInputs:
     return golden_inputs(seed, scenario, dataclasses.replace(params, paid_scale=reach))
 
 
+def supply_small_inputs(seed: int) -> RunInputs:
+    """The small prototype launch with supply on at the MODEL.md section 12 defaults."""
+    return _with_supply(prototype_small_inputs(seed), Supply())
+
+
+def low_stock_inputs(seed: int) -> RunInputs:
+    """The same launch with a ninth of the default stock and a two-day lead time, so stores
+    stock out (P-013 acceptance)."""
+    return _with_supply(prototype_small_inputs(seed), LOW_STOCK)
+
+
+def _with_supply(inputs: RunInputs, supply: Supply) -> RunInputs:
+    scenario = dataclasses.replace(inputs.scenario, supply=supply)
+    return dataclasses.replace(inputs, scenario=scenario)
+
+
 GOLDEN_RUNS: tuple[tuple[str, Callable[[int], RunInputs], int], ...] = (
     ("empty_seed1", golden_inputs, 1),
     ("empty_seed2", golden_inputs, 2),
     ("prototype_small_seed1", prototype_small_inputs, 1),
     ("prototype_small_seed2", prototype_small_inputs, 2),
+    ("supply_small_seed1", supply_small_inputs, 1),
+    ("supply_small_seed2", supply_small_inputs, 2),
+    ("low_stock_seed1", low_stock_inputs, 1),
+    ("low_stock_seed2", low_stock_inputs, 2),
 )
+SUPPLY_RUNS = ("supply_small", "low_stock")
 
 
 def golden_run_pid(seed: int) -> int:
@@ -96,11 +120,26 @@ def tape_probes(data: bytes) -> Probes:
     }
 
 
-def compute_engine_goldens() -> dict[str, Probes]:
+def supply_probes(data: bytes) -> Probes:
+    """What supply left on the tape. `lost` counts residents with the gave-up flag, which is
+    what a tape can show; a resident who lost several sales counts once."""
+    tape = read_tape(data)
     return {
-        name: tape_probes(run_seed_bytes(inputs_for(seed)))
-        for name, inputs_for, seed in GOLDEN_RUNS
+        "deliveries": tape.header.delivery_rows,
+        "late": int(np.count_nonzero(tape.deliveries.outcome & DELIVERY_LATE)),
+        "stockout_pairs": tape.header.stockout_pairs,
+        "lost": int(np.count_nonzero(tape.residents.outcome_flags & FLAG_GAVE_UP)),
     }
+
+
+def compute_engine_goldens() -> dict[str, Probes]:
+    goldens: dict[str, Probes] = {}
+    for name, inputs_for, seed in GOLDEN_RUNS:
+        data = run_seed_bytes(inputs_for(seed))
+        goldens[name] = tape_probes(data)
+        if name.startswith(SUPPLY_RUNS):
+            goldens[name] |= supply_probes(data)
+    return goldens
 
 
 def render_toml(tables: dict[str, dict[str, Probes]]) -> str:
