@@ -101,7 +101,7 @@ Tape writer/reader (section 4). Also used by the engine's golden tests.
 - Narration: run summary where every sentence links to tape event ids.
 
 ### tools/citybake (Python batch)
-OSM extract plus VIDA's combined Google + Microsoft footprints where OSM has gaps (D-021) -> buildings with heights, road graph; WorldPop raster -> households per building (iterative proportional fitting to district marginals); persona pool -> residents; social graph; dark-store placement; travel-time tables by Dijkstra on the baked road graph (D-022); writes a city pack (section 5).
+OSM extract plus VIDA's combined Google + Microsoft footprints where OSM has gaps (D-021) -> buildings with heights, road graph; GHS-POP raster (D-025) -> households per building (iterative proportional fitting to district marginals); persona pool -> residents; social graph; dark-store placement; travel-time tables by Dijkstra on the baked road graph (D-022); writes a city pack (section 5).
 
 ## 3. The run lifecycle (Temporal `LaunchRun` workflow)
 1. `resolveScenario(scenarioId)` -> canonical JSON + `scenario_hash`.
@@ -146,7 +146,7 @@ Footer
 - Reproducibility: the body of the tape is a pure function of `(city_pack_hash, scenario_hash, params_hash, seed)`. Header fields that could vary between runs with the same inputs are therefore fixed or derived: `run_id` is the first 16 bytes of `blake3(city_pack_hash ‖ scenario_hash ‖ params_hash ‖ seed as u64 LE)`, and `engine_version` is the engine's format-relevant version string padded with zeros (not a git describe), so identical inputs give identical bytes and one golden hash. The runner records the git sha and wall clock in its own run metadata, never in the tape.
 - Counts live in the header, never inferred from byte lengths: a reader sizes every column from `residents`, `stores`, `ticks = sim_minutes / tick_minutes`, `chatter_rows`, `delivery_rows` and `stockout_pairs`, and `raw_length` is a check, not a source of truth.
 - Section kinds: 1 RESIDENTS, 2 CHATTER, 3 DELIVERIES, 4 STORES, 5 AGGREGATES, 6 CHUNKS. `flags` bit0 = complete (footer present). Version 1 writes every column padded to 8 bytes as in the pack format (§5), with each section's compressed bytes 8-byte aligned in the file; `CHUNKS` is empty (one chunk, the whole tape) until streaming lands in P-014.
-- TS decode names (`packages/tape`): camelCase of the fields above (`awareAt`, `firstOrderAt`, `storesOut`, ...), times in minutes, `0xFFFFFFFF` = never. Per-store series are flat row-major `[store * ticks + tick]`; stockout intervals are CSR: `stockoutOffsets` (storeCount + 1) indexes (start, end) pairs in `stockoutIntervals`, so the last offset equals `stockoutIntervals.length / 2`. Header exposes `simMinutes`, `tickMinutes`, `seed`.
+- TS decode names (`packages/tape`): camelCase of the fields above (`awareAt`, `firstOrderAt`, `storesOut`, ...), times in minutes, `0xFFFFFFFF` = never. Per-store series are flat row-major `[store * ticks + tick]`; stockout intervals are CSR: `stockoutOffsets` (storeCount + 1) indexes (start, end) pairs in `stockoutIntervals`, so the last offset equals `stockoutIntervals.length / 2`. Per store the pairs are sorted by start, disjoint and end-exclusive (out of stock while `start <= t < end`; adjacent intervals are merged); a stockout still open at the end of the run has `end = sim_minutes`. Header exposes `simMinutes`, `tickMinutes`, `seed`.
 
 ## 5. City pack format (one per city version)
 ```
@@ -211,7 +211,7 @@ All request and response shapes are zod schemas in `packages/contracts`.
 - **Observability:** OpenTelemetry in every service (NestJS and FastAPI). Dev runs the Grafana LGTM container. Trace ids flow from the gateway through Temporal into runner and minds. The stage reports frame-time percentiles and tier to the gateway (sampled) for real-device performance data.
 - **Security:** sessions are httpOnly cookies; tapes and packs via presigned URLs with short TTLs; LLM and voice keys only in minds; uploads limited in size and validated by schema; per-org quotas on seeds and LLM spend; no PII anywhere (residents are synthetic).
 - **Costs:** LLM use is bounded per run (deep personas x questions, cached); interviews metered per minute; the cost guard rejects work that would exceed the org's daily cap.
-- **Attribution:** OSM (ODbL), VIDA combined building footprints with Google Open Buildings and Microsoft Global ML Building Footprints (D-021), WorldPop (CC BY 4.0), Nemotron-Personas-India (CC BY 4.0) credited in the app footer and in `manifest.json`.
+- **Attribution:** OSM (ODbL), VIDA combined building footprints with Google Open Buildings and Microsoft Global ML Building Footprints (D-021), GHS-POP R2023A (CC BY 4.0, © European Union, JRC; D-025), Nemotron-Personas-India (CC BY 4.0) credited in the app footer and in `manifest.json`.
 
 ## 9. Performance budgets
 | Area | Budget |

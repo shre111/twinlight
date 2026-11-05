@@ -43,7 +43,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: runs on Chrome, Safari 26, Firefox; HUD shows backend and frame time.
 - [x] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
   AC: scrubbing anywhere in 30 days updates instantly; 20k residents at 60 fps on the reference laptop.
-- [ ] **P-017 Stores layer** Lane B. Beams, radius rings, red flicker during stockout intervals from the tape.
+- [x] **P-017 Stores layer** Lane B. Beams, radius rings, red flicker during stockout intervals from the tape.
 - [ ] **P-018 Timeline and readouts** Lane B. Docked timeline with play/pause, speeds, scrubber with day ticks, event markers and adoption sparkline; readouts card.
   AC: keyboard accessible; works at 390 px wide.
 - [ ] **P-019 Fixture route** Lane B. `/dev/fixture` loads the toy city pack and fixture tape from MinIO (or local files) without auth.
@@ -96,6 +96,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 ## M6 Minds
 - [ ] **P-060 Deep persona sampling** Lane C. Stratified sample of ~300 per city run from the persona pool. `[tests]`
 - [ ] **P-061 Elicitation** Lane C. Instrument, JSON schemas, Batches API client, cache, cost guard. `[tests]`
+- [ ] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
 - [ ] **P-062 Calibration** Lane C. Answer-to-parameter mapping with intent deflator; NumPyro hierarchical model; posterior draws to object storage; diagnostics. `[tests] [deep]`
 - [ ] **P-063 Backtests and honesty meter** Lane C. CSV upload, fit days 1 to 10, forecast 11 to 30, coverage and MAPE. `[tests] [deep]`
 - [ ] **P-064 Resident life logs** Lane C. Compile a resident's tape events + profile into a retrievable memory. `[tests]`
