@@ -62,7 +62,10 @@ def small_tape(residents: int = 3, stores: int = 2, ticks: int = 4) -> Tape:
             outcome_flags=np.zeros(residents, "<u1"),
         ),
         chatter=ChatterSection(
-            from_=np.array([0], "<u4"), to=np.array([1], "<u4"), at=np.array([30], "<u4")
+            from_=np.array([0], "<u4"),
+            to=np.array([1], "<u4"),
+            at=np.array([30], "<u4"),
+            kind=np.array([1], "<u1"),
         ),
         deliveries=DeliveriesSection(
             store=np.zeros(0, "<u2"),
@@ -104,11 +107,16 @@ def reseal(body: bytearray) -> bytes:
 def test_odd_row_counts_round_trip_through_padding() -> None:
     header = small_header()
     chatter = ChatterSection(
-        from_=np.array([3], "<u4"), to=np.array([4], "<u4"), at=np.array([5], "<u4")
+        from_=np.array([3], "<u4"),
+        to=np.array([4], "<u4"),
+        at=np.array([5], "<u4"),
+        kind=np.array([2], "<u1"),
     )
     raw = encode_chatter(chatter, header)
-    assert len(raw) == 3 * 8
-    assert decode_chatter(raw, header).at.tolist() == [5]
+    assert len(raw) == 4 * 8
+    decoded = decode_chatter(raw, header)
+    assert decoded.at.tolist() == [5]
+    assert decoded.kind.tolist() == [2] and decoded.kind.dtype == np.uint8
 
 
 def test_header_is_352_bytes_and_every_section_is_aligned() -> None:

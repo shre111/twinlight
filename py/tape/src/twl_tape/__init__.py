@@ -1,6 +1,12 @@
 from twl_tape.format import (
+    CHATTER_HEARD,
+    CHATTER_NUDGED,
     MINUTES_30_DAYS,
     NEVER,
+    SOURCE_NONE,
+    SOURCE_PAID,
+    SOURCE_SEEN,
+    SOURCE_WOM,
     TAPE_VERSION,
     TICK_MINUTES,
     AggregatesSection,
@@ -18,8 +24,14 @@ from twl_tape.reader import read_tape
 from twl_tape.writer import tape_hash, write_tape
 
 __all__ = [
+    "CHATTER_HEARD",
+    "CHATTER_NUDGED",
     "MINUTES_30_DAYS",
     "NEVER",
+    "SOURCE_NONE",
+    "SOURCE_PAID",
+    "SOURCE_SEEN",
+    "SOURCE_WOM",
     "TAPE_VERSION",
     "TICK_MINUTES",
     "AggregatesSection",

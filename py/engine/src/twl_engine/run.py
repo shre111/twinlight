@@ -53,7 +53,10 @@ def run_seed(inputs: RunInputs) -> Tape:
         header=tape_header(inputs, clock),
         residents=residents_section(state),
         chatter=ChatterSection(
-            from_=np.zeros(0, np.uint32), to=np.zeros(0, np.uint32), at=np.zeros(0, np.uint32)
+            from_=np.zeros(0, np.uint32),
+            to=np.zeros(0, np.uint32),
+            at=np.zeros(0, np.uint32),
+            kind=np.zeros(0, np.uint8),
         ),
         deliveries=DeliveriesSection(
             store=np.zeros(0, np.uint16),
