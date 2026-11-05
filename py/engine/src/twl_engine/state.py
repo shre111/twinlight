@@ -13,6 +13,7 @@ class ResidentState:
 
     `awareness` is A_r (MODEL.md section 3). `impressions_today` is [campaign, resident] for the
     frequency cap. `last_talk_*` is the last talk received, kept for nudged rows (D-028).
+    `talk_rate_cum` is scratch: the running sum of this tick's talker rates.
     """
 
     aware_at: NDArray[np.uint32]
@@ -26,6 +27,7 @@ class ResidentState:
     last_talk_from: NDArray[np.uint32]
     last_talk_at: NDArray[np.uint32]
     impressions_today: NDArray[np.int32]
+    talk_rate_cum: NDArray[np.float64]
 
     @property
     def count(self) -> int:
@@ -46,6 +48,7 @@ def new_resident_state(n: int, campaigns: int = 0) -> ResidentState:
         last_talk_from=np.full(n, NEVER, dtype=np.uint32),
         last_talk_at=np.full(n, NEVER, dtype=np.uint32),
         impressions_today=np.zeros((campaigns, n), dtype=np.int32),
+        talk_rate_cum=np.zeros(n, dtype=np.float64),
     )
 
 

@@ -24,12 +24,32 @@ class PaidPlan:
 
 
 @dataclass(frozen=True, eq=False)
+class TalkGraph:
+    """Who a talker reaches. `pull` is a talker's summed tie weight `w_uv * talk_kind`, so a
+    talker emits `q * pull * dt` expected talks per tick before decay and the hearsay factor.
+    With uniform mixing every talker has pull 1 and listeners are drawn from all residents.
+    """
+
+    uniform: bool
+    talks_per_pull: float
+    hearsay: float
+    decay_per_minute: float
+    pull: NDArray[np.float64]
+    offsets: NDArray[np.int64]
+    targets: NDArray[np.int64]
+    tie_weight: NDArray[np.float64]
+    tie_gain: NDArray[np.float64]
+    uniform_gain: float
+
+
+@dataclass(frozen=True, eq=False)
 class World:
     scenario: Scenario
     params: Params
     clock: Clock
     residents: int
     paid: PaidPlan
+    talk: TalkGraph
     decay_per_tick: float
     affinity: NDArray[np.float64]
     repeat_taste: NDArray[np.float64]
@@ -47,6 +67,7 @@ def build_world(
         clock=clock,
         residents=n,
         paid=build_paid_plan(city, scenario, params, clock),
+        talk=build_talk_graph(city, params, clock),
         decay_per_tick=awareness_decay_per_tick(params, clock),
         affinity=rng.standard_normal(n) * params.affinity_sd,
         repeat_taste=rng.standard_normal(n) * params.rho_sd,
@@ -102,6 +123,28 @@ def tick_shares(campaign: Campaign, clock: Clock) -> NDArray[np.float64]:
     day = starts // MINUTES_PER_DAY
     day_total = np.bincount(day, weights=weight)[day]
     return np.divide(weight, day_total, out=np.zeros(clock.ticks), where=day_total > 0)
+
+
+def build_talk_graph(city: ToyCity, params: Params, clock: Clock) -> TalkGraph:
+    n = city.residents.x.shape[0]
+    ties = city.ties
+    uniform = params.wom_mixing == "uniform"
+    tie_weight = ties.strength.astype(np.float64) * np.asarray(params.talk_kind)[ties.kind]
+    owner = np.repeat(np.arange(n), np.diff(ties.offsets.astype(np.int64)))
+    graph_pull = np.bincount(owner, weights=tie_weight, minlength=n)
+    decay_hours = params.talk_decay_hours
+    return TalkGraph(
+        uniform=uniform,
+        talks_per_pull=params.q * clock.tick_minutes / 60.0,
+        hearsay=params.hearsay_factor,
+        decay_per_minute=0.0 if decay_hours is None else 1.0 / (decay_hours * 60.0),
+        pull=np.full(n, 1.0 if n > 1 else 0.0) if uniform else graph_pull,
+        offsets=ties.offsets.astype(np.int64),
+        targets=ties.targets.astype(np.int64),
+        tie_weight=tie_weight,
+        tie_gain=params.talk_gain * ties.strength.astype(np.float64),
+        uniform_gain=params.talk_gain,
+    )
 
 
 def _lookup(campaign: Campaign, field: str, ids: NDArray[np.int64]) -> NDArray[np.float64]:
