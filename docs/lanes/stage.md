@@ -6,8 +6,12 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - Done with this PR (#58, #59, #65 and readouts). Keyboard: Space, arrows, page keys, Home, End, visible focus. 390 px: two figures, single speed button, 44 px targets. Checked in Chrome and in just shots; real touch and Firefox not checked.
 - Readouts use the type scale, 32 and 24 px values with 12 px labels; the design's 36, 28 and 11 px are not on it.
 - Figures show the last finished tick, so they are never ahead of the city. Stores out is counted from intervals at the exact minute, so it always matches the beacons.
-- Numbers are one run's, with no interval yet: ranges and weighted people arrive with P-053.
+- Numbers are one run's, with no interval: the "every number carries an interval" rule is unmet on this toy route. Ranges arrive when real runs feed the card (P-053), with the bands from P-055.
 - Firefox keeps the scrubber's own focus ring; it is the last browser for P-015 too, pending the user's call on the 100 MB download.
+
+## For Lane A
+- The engine writes only `aware` and `adopted` (`record_aggregates` in `run.py`), so on a real tape "Orders today" reads 0 and the track shows no rain until `orders` and `rain_intensity` are filled.
+- Please state in ARCHITECTURE section 4 that aggregates are end-of-tick values, and whether `orders` is per tick. The card assumes per tick, while `aware` and `adopted` are cumulative.
 
 ## For P-040 (D-028)
 - Add chatter with `kind` to `StageTape` and the synthetic tape, and draw nudged rows fainter.
