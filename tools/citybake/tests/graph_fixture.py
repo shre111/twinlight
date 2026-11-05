@@ -92,3 +92,52 @@ def uniform_world(
     household = (np.arange(n) // household_size).astype(np.uint32)
     segment = rng.choice(len(shares), n, p=list(shares)).astype(np.uint16)
     return World(hx[household], hy[household], household, segment)
+
+
+def building_table(
+    rows: Sequence[tuple[float, float, int, float, int, int, int]],
+) -> dict[str, NDArray[Any]]:
+    """Rows as (x, y, kind, area_m2, floors, district, bank)."""
+    cols = list(zip(*rows, strict=True)) if rows else [[] for _ in range(7)]
+    return {
+        "x": np.array(cols[0], np.float64),
+        "y": np.array(cols[1], np.float64),
+        "kind": np.array(cols[2], np.uint8),
+        "area_m2": np.array(cols[3], np.float32),
+        "floors": np.array(cols[4], np.uint8),
+        "height_m": np.array(cols[4], np.float32) * np.float32(3.2),
+        "district": np.array(cols[5], np.uint16),
+        "bank": np.array(cols[6], np.uint8),
+    }
+
+
+def run_work(
+    world: World,
+    occupied: NDArray[np.bool_],
+    buildings: Mapping[str, NDArray[Any]],
+    seed: int = 1,
+    degree: float = 1.0,
+    scale_m: float = 5000.0,
+    cell_m: float = 500.0,
+    candidates: int = 16,
+    min_area_m2: float = 1000.0,
+    max_floors: int = 3,
+    district_names: Sequence[str] = ("Alpha", "Beta"),
+) -> tuple[Triple, dict[str, Any]]:
+    from twl_citybake.graph.ties import work_ties
+
+    return work_ties(
+        world.x,
+        world.y,
+        world.household,
+        occupied,
+        buildings,
+        degree,
+        scale_m,
+        cell_m,
+        candidates,
+        min_area_m2,
+        max_floors,
+        np.random.default_rng(seed),
+        district_names=list(district_names),
+    )

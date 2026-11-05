@@ -1,11 +1,15 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial import KDTree
 
+from twl_citybake.osm.banks import EAST, WEST
+from twl_citybake.osm.tags import BuildingKind
 from twl_citybake.personas.assign import adults_per_household
+from twl_citybake.population.capacity import storeys
 
 TIE_KINDS = ("household", "neighbour", "friend", "work")
 HOUSEHOLD, NEIGHBOUR, FRIEND, WORK = 0, 1, 2, 3
@@ -15,6 +19,8 @@ NEIGHBOUR_STRENGTH_MAX = 0.5
 NEIGHBOUR_STRENGTH_MIN = 0.1
 NEIGHBOUR_STRENGTH_SCALE_M = 500.0
 FRIEND_STRENGTH = (0.4, 0.8)
+WORK_STRENGTH = (0.2, 0.5)
+TAGGED_WORKPLACE_KINDS = (BuildingKind.COMMERCIAL, BuildingKind.INDUSTRIAL, BuildingKind.CIVIC)
 
 type Ties = tuple[NDArray[np.uint32], NDArray[np.uint32], NDArray[np.float32]]
 type Floats = NDArray[np.float64]
@@ -116,6 +122,37 @@ def friend_ties(
     return _unique_pairs(source[keep], others[rows, pick][keep], strength[keep])
 
 
+def work_ties(
+    x: NDArray[np.floating],
+    y: NDArray[np.floating],
+    household: NDArray[np.uint32],
+    occupied: NDArray[np.bool_],
+    buildings: Mapping[str, np.ndarray],
+    degree: float,
+    scale_m: float,
+    cell_m: float,
+    candidates: int,
+    min_area: float,
+    max_floors: int,
+    rng: np.random.Generator,
+    district_names: Sequence[str] = (),
+) -> tuple[Ties, dict[str, Any]]:
+    """Co-workers share a workplace cell, so a tie can join homes far apart. `buildings` holds x, y,
+    area_m2, kind, bank, district and floors or height_m. Draws, in order: `candidates` cells per
+    worker, the pick among them, Poisson(degree / 2) per worker in cell order, then per draw the
+    co-worker and the strength."""
+    tagged, untagged = workplace_masks(buildings, min_area, max_floors)
+    is_workplace = tagged | untagged
+    workers = np.flatnonzero(occupied)
+    floor_area = _floor_area(buildings)[is_workplace]
+    cells = _workplace_cells(buildings, is_workplace, floor_area, cell_m)
+    ties, chosen = _no_ties(), np.zeros(0, np.intp)
+    if len(workers) and cells.weight.sum() > 0:
+        chosen = _choose_workplaces(x[workers], y[workers], cells, scale_m, candidates, rng)
+        ties = _coworker_ties(workers, chosen, household, degree, rng)
+    return ties, _workplace_summary(buildings, tagged, untagged, cells.bank, chosen, district_names)
+
+
 def merge_ties(per_kind: Sequence[Ties], n_residents: int) -> Graph:
     """`per_kind` follows TIE_KINDS. A pair under several kinds keeps the lowest kind id, the
     strongest relation, with that kind's strength."""
@@ -141,6 +178,26 @@ def merge_ties(per_kind: Sequence[Ties], n_residents: int) -> Graph:
         kind=np.concatenate((kind[first], kind[first]))[order],
         strength=np.concatenate((strength[first], strength[first]))[order],
     )
+
+
+def workplace_masks(
+    buildings: Mapping[str, np.ndarray], min_area: float, max_floors: int
+) -> tuple[NDArray[np.bool_], NDArray[np.bool_]]:
+    """(tagged, untagged): OSM says what the first are. The second are big, low footprints without
+    a useful tag, which is what sheds and factories look like in the industrial east."""
+    kind, area = buildings["kind"], buildings["area_m2"]
+    tagged = np.isin(kind, [int(k) for k in TAGGED_WORKPLACE_KINDS])
+    low = _floors(buildings) <= max_floors
+    untagged = (kind == BuildingKind.UNKNOWN) & (area >= min_area) & low
+    return tagged, untagged
+
+
+@dataclass(frozen=True)
+class _Cells:
+    x: Floats
+    y: Floats
+    weight: Floats
+    bank: NDArray[np.uint8]
 
 
 def _no_ties() -> Ties:
@@ -219,3 +276,115 @@ def _friend_segments(
     cumulative /= cumulative[:, -1:]
     wanted = (cumulative[own] <= rng.random(len(own))[:, None]).sum(axis=1)
     return np.minimum(wanted, len(counts) - 1)
+
+
+def _floors(buildings: Mapping[str, np.ndarray]) -> NDArray[np.int64]:
+    if "floors" in buildings:
+        return np.asarray(buildings["floors"], np.int64)
+    return storeys(buildings["height_m"])
+
+
+def _floor_area(buildings: Mapping[str, np.ndarray]) -> Floats:
+    return np.asarray(buildings["area_m2"], np.float64) * _floors(buildings)
+
+
+def _workplace_cells(
+    buildings: Mapping[str, np.ndarray],
+    is_workplace: NDArray[np.bool_],
+    floor_area: Floats,
+    cell_m: float,
+) -> _Cells:
+    """Grid cells holding workplaces, each at its floor-area centroid and weighted by floor area.
+    A cell across the river belongs to the bank with more of its floor area."""
+    x = np.asarray(buildings["x"], np.float64)[is_workplace]
+    y = np.asarray(buildings["y"], np.float64)[is_workplace]
+    if len(x) == 0:
+        empty = np.zeros(0, np.float64)
+        return _Cells(empty, empty, empty, np.zeros(0, np.uint8))
+    col, row = np.floor(x / cell_m).astype(np.int64), np.floor(y / cell_m).astype(np.int64)
+    key = (col - col.min()) * (int(row.max() - row.min()) + 1) + (row - row.min())
+    _, cell = np.unique(key, return_inverse=True)
+    weight = np.bincount(cell, weights=floor_area)
+    safe = np.where(weight > 0, weight, 1.0)
+    east = buildings["bank"][is_workplace] == EAST
+    east_area = np.bincount(cell[east], weights=floor_area[east], minlength=len(weight))
+    return _Cells(
+        x=np.bincount(cell, weights=floor_area * x) / safe,
+        y=np.bincount(cell, weights=floor_area * y) / safe,
+        weight=weight,
+        bank=np.where(east_area > weight / 2, EAST, WEST).astype(np.uint8),
+    )
+
+
+def _choose_workplaces(
+    x: NDArray[np.floating],
+    y: NDArray[np.floating],
+    cells: _Cells,
+    scale_m: float,
+    candidates: int,
+    rng: np.random.Generator,
+) -> NDArray[np.intp]:
+    """Per worker, `candidates` cells drawn by floor area, then one by distance from home."""
+    cumulative = np.cumsum(cells.weight)
+    uniform = rng.random((len(x), candidates)) * cumulative[-1]
+    drawn = np.minimum(np.searchsorted(cumulative, uniform, side="right"), len(cumulative) - 1)
+    home_x, home_y = np.asarray(x, np.float64)[:, None], np.asarray(y, np.float64)[:, None]
+    distance = np.hypot(cells.x[drawn] - home_x, cells.y[drawn] - home_y)
+    pick = _weighted_pick(_decay_weights(distance, np.ones_like(distance, bool), scale_m), rng)
+    return drawn[np.arange(len(x)), pick]
+
+
+def _coworker_ties(
+    workers: NDArray[np.intp],
+    workplace: NDArray[np.intp],
+    household: NDArray[np.uint32],
+    degree: float,
+    rng: np.random.Generator,
+) -> Ties:
+    """Poisson(degree / 2) draws per worker, each to a uniform other worker in the same cell. A draw
+    that lands in the worker's own household is dropped, not redrawn: it is rare in a real cell."""
+    order = np.lexsort((workers, workplace))
+    members = workers[order]
+    _, starts, counts = np.unique(workplace[order], return_index=True, return_counts=True)
+    position = np.repeat(np.arange(len(members)), rng.poisson(degree / 2, len(members)))
+    cell = np.repeat(np.arange(len(counts)), counts)[position]
+    size, start = counts[cell], starts[cell]
+    step = 1 + (rng.random(len(position)) * np.maximum(size - 1, 1)).astype(np.intp)
+    other = start + (position - start + step) % size
+    strength = rng.uniform(*WORK_STRENGTH, len(position))
+    a, b = members[position], members[other]
+    keep = household[a] != household[b]
+    return _unique_pairs(a[keep], b[keep], strength[keep])
+
+
+def _workplace_summary(
+    buildings: Mapping[str, np.ndarray],
+    tagged: NDArray[np.bool_],
+    untagged: NDArray[np.bool_],
+    cell_bank: NDArray[np.uint8],
+    chosen: NDArray[np.intp],
+    district_names: Sequence[str],
+) -> dict[str, Any]:
+    """Counts of workplace buildings, and of workers by the bank they work on."""
+    bank, district = buildings["bank"], buildings["district"]
+    is_workplace = tagged | untagged
+    labels = list(district_names) or [
+        str(i) for i in range(int(district.max()) + 1 if len(district) else 0)
+    ]
+    tagged_by = np.bincount(district[tagged], minlength=len(labels))
+    untagged_by = np.bincount(district[untagged], minlength=len(labels))
+    workers = np.bincount(cell_bank[chosen], minlength=2)
+    return {
+        "count": int(is_workplace.sum()),
+        "by_source": {"osm_tagged": int(tagged.sum()), "untagged_footprint": int(untagged.sum())},
+        "by_bank": _by_bank(np.bincount(bank[is_workplace], minlength=2)),
+        "by_district": {
+            name: {"osm_tagged": int(tagged_by[i]), "untagged_footprint": int(untagged_by[i])}
+            for i, name in enumerate(labels)
+        },
+        "workers_by_bank": _by_bank(workers),
+    }
+
+
+def _by_bank(counts: NDArray[np.integer]) -> dict[str, int]:
+    return {"west": int(counts[WEST]), "east": int(counts[EAST])}
