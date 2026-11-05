@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,7 +17,8 @@ MIN_TOP_COUNT = 30
 class HeightCorrection:
     """A monotone map from raw raster height to storey height (D-024): linear between bin
     centres; below the first, the first bin's ratio; above the last, the last bin's ratio or 1
-    if that is higher, so a tall reading is never shrunk."""
+    if that is higher, so a tall reading is never shrunk. When that floor binds, the map jumps
+    upward at the last centre: still monotone, not continuous there."""
 
     centres: FloatArray
     fitted: FloatArray
@@ -155,20 +155,28 @@ def _errors(
     n = int(rows.sum())
     if n == 0:
         return dict.fromkeys(
-            ("before", "after", "signed_before", "signed_after", "aggregate_after")
+            (
+                "before",
+                "after",
+                "signed_before",
+                "signed_after",
+                "aggregate_before",
+                "aggregate_after",
+            )
         ) | {"n": 0}
     return {
         "n": n,
-        "before": _median_error(raw[rows], target[rows], np.abs),
-        "after": _median_error(predicted[rows], target[rows], np.abs),
-        "signed_before": _median_error(raw[rows], target[rows], np.asarray),
-        "signed_after": _median_error(predicted[rows], target[rows], np.asarray),
+        "before": _median_error(np.abs(raw[rows] - target[rows]), target[rows]),
+        "after": _median_error(np.abs(predicted[rows] - target[rows]), target[rows]),
+        "signed_before": _median_error(raw[rows] - target[rows], target[rows]),
+        "signed_after": _median_error(predicted[rows] - target[rows], target[rows]),
+        "aggregate_before": round(float(raw[rows].sum() / target[rows].sum() - 1), 3),
         "aggregate_after": round(float(predicted[rows].sum() / target[rows].sum() - 1), 3),
     }
 
 
-def _median_error(height: FloatArray, target: FloatArray, shape: Callable[..., Any]) -> float:
-    return round(float(np.median(shape(height - target) / target)), 3)
+def _median_error(error: FloatArray, target: FloatArray) -> float:
+    return round(float(np.median(error / target)), 3)
 
 
 def _rounded(values: FloatArray) -> list[float]:

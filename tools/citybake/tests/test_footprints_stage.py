@@ -471,7 +471,15 @@ def test_the_report_validation_gives_every_storey_band_before_and_after(
         "24-30",
         "30+",
     }
-    fields = {"n", "before", "after", "signed_before", "signed_after", "aggregate_after"}
+    fields = {
+        "n",
+        "before",
+        "after",
+        "signed_before",
+        "signed_after",
+        "aggregate_before",
+        "aggregate_after",
+    }
     groups = [*validation["bands"].values(), *validation["raster_bins"].values()]
     for stats in [*groups, validation["overall"]]:
         assert set(stats) == fields

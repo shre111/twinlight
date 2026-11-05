@@ -31,6 +31,7 @@ from twl_citybake.osm.geometry import (
 )
 from twl_citybake.osm.heights import final_heights
 from twl_citybake.osm.tags import LEVEL_HEIGHT_M, BuildingKind, HeightSource
+from twl_citybake.population.capacity import storeys
 from twl_citybake.projection import LocalProjection
 from twl_citybake.store import read_table, table_digest, write_json, write_ragged, write_table
 
@@ -238,9 +239,7 @@ def _heights(
 
 
 def _floors(height_m: np.ndarray) -> npt.NDArray[np.uint8]:
-    """Storeys as P-021's capacity rounds them, at least one."""
-    levels = np.round(height_m.astype(np.float64) / LEVEL_HEIGHT_M)
-    return np.clip(levels, 1, MAX_FLOORS).astype(np.uint8)
+    return np.minimum(storeys(height_m), MAX_FLOORS).astype(np.uint8)
 
 
 def _report(

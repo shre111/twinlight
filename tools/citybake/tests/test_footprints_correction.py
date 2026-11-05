@@ -323,7 +323,15 @@ def test_validation_reports_rounded_fractions_and_is_deterministic() -> None:
 
 
 RASTER_BINS = ["0-3", "3-6", "6-9", "9-12", "12-15", "15-18", "18-24", "24-30", "30+"]
-STAT_KEYS = {"n", "before", "after", "signed_before", "signed_after", "aggregate_after"}
+STAT_KEYS = {
+    "n",
+    "before",
+    "after",
+    "signed_before",
+    "signed_after",
+    "aggregate_before",
+    "aggregate_after",
+}
 
 
 def test_validation_groups_raster_bins_by_raw_height_with_edges_going_up() -> None:
@@ -362,6 +370,7 @@ def test_validation_signed_error_is_the_median_and_aggregate_the_summed_ratio() 
     assert overall["signed_before"] == pytest.approx(-0.375, abs=1e-3)
     assert overall["signed_after"] == overall["signed_before"]
     assert overall["aggregate_after"] == pytest.approx(raw.sum() / target.sum() - 1, abs=1e-3)
+    assert overall["aggregate_before"] == overall["aggregate_after"]
     assert result["raster_bins"]["0-3"] == overall
 
 
