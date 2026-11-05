@@ -25,6 +25,7 @@ from twl_engine.supply import (
     NOT_SERVED,
     SERVED_FIRST,
     SERVED_REPEAT,
+    AttemptDraws,
     attempts_from_occasions,
     close_stockout,
     serve_attempts,
@@ -92,14 +93,24 @@ def run_tick(
     start: int,
     attempts: list[tuple[int, int]] | None = None,
     draws: list[float] | None = None,
+    pick_minutes: list[int] | None = None,
+    travel_noise: list[float] | None = None,
 ) -> list[int]:
-    """One tick's supply work for (resident, minute) attempts, as the run loop drives it."""
+    """One tick's supply work for (resident, minute) attempts, as the run loop drives it.
+
+    Unless given, picking takes a minute and travel has no noise.
+    """
     attempts = attempts or []
     events = queue.pop_until(start + TICK - 1)
     who = np.array([resident for resident, _ in attempts], dtype=np.int64)
     minutes = np.array([minute for _, minute in attempts], dtype=np.int64)
-    hit_draws = np.array(draws or [0.0] * len(attempts), dtype=np.float64)
-    return serve_attempts(sim, queue, start, start + TICK, events, who, minutes, hit_draws).tolist()
+    attempt_draws = AttemptDraws(
+        hit=np.array(draws or [0.0] * len(attempts), dtype=np.float64),
+        pick_minutes=np.array(pick_minutes or [1] * len(attempts), dtype=np.int64),
+        travel_noise=np.array(travel_noise or [1.0] * len(attempts), dtype=np.float64),
+    )
+    served = serve_attempts(sim, queue, start, start + TICK, events, who, minutes, attempt_draws)
+    return served.tolist()
 
 
 def run_ticks(sim: Sim, queue: EventQueue, first_start: int, last_start: int) -> None:
