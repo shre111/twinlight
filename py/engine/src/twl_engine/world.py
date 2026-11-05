@@ -43,6 +43,20 @@ class TalkGraph:
 
 
 @dataclass(frozen=True, eq=False)
+class ChoiceModel:
+    """Purchase decisions (MODEL.md section 4) with everything constant per resident folded in.
+
+    `first_logit` is U without the awareness term, `repeat_logit` the whole repeat utility; until
+    P-013 both hold `avail = 1` and `satisfaction = 0`. `occasion_probability` is per tick.
+    """
+
+    occasion_probability: NDArray[np.float64]
+    first_logit: NDArray[np.float64]
+    repeat_logit: NDArray[np.float64]
+    gamma: float
+
+
+@dataclass(frozen=True, eq=False)
 class World:
     scenario: Scenario
     params: Params
@@ -50,6 +64,7 @@ class World:
     residents: int
     paid: PaidPlan
     talk: TalkGraph
+    choice: ChoiceModel
     decay_per_tick: float
     affinity: NDArray[np.float64]
     repeat_taste: NDArray[np.float64]
@@ -61,6 +76,8 @@ def build_world(
     """Derive the run's static tables; `rng` is the `params` stream (a_r, then rho_r)."""
     n = city.residents.x.shape[0]
     _require_segment_tables(params, int(city.residents.segment.max()))
+    affinity = rng.standard_normal(n) * params.affinity_sd
+    repeat_taste = rng.standard_normal(n) * params.rho_sd
     return World(
         scenario=scenario,
         params=params,
@@ -68,9 +85,10 @@ def build_world(
         residents=n,
         paid=build_paid_plan(city, scenario, params, clock),
         talk=build_talk_graph(city, params, clock),
+        choice=build_choice_model(city, scenario, params, clock, affinity, repeat_taste),
         decay_per_tick=awareness_decay_per_tick(params, clock),
-        affinity=rng.standard_normal(n) * params.affinity_sd,
-        repeat_taste=rng.standard_normal(n) * params.rho_sd,
+        affinity=affinity,
+        repeat_taste=repeat_taste,
     )
 
 
@@ -145,6 +163,36 @@ def build_talk_graph(city: ToyCity, params: Params, clock: Clock) -> TalkGraph:
         tie_gain=params.talk_gain * ties.strength.astype(np.float64),
         uniform_gain=params.talk_gain,
     )
+
+
+def build_choice_model(
+    city: ToyCity,
+    scenario: Scenario,
+    params: Params,
+    clock: Clock,
+    affinity: NDArray[np.float64],
+    repeat_taste: NDArray[np.float64],
+) -> ChoiceModel:
+    price_term = params.beta * scenario.price / scenario.ref_price
+    segment = city.residents.segment.astype(np.int64)
+    alpha = params.alpha_0 + np.asarray(params.alpha_segment)[segment]
+    return ChoiceModel(
+        occasion_probability=occasion_probability_per_tick(params, clock),
+        first_logit=alpha + affinity - price_term + params.delta,
+        repeat_logit=params.alpha_rep + repeat_taste - price_term,
+        gamma=params.gamma,
+    )
+
+
+def occasion_probability_per_tick(params: Params, clock: Clock) -> NDArray[np.float64]:
+    """1 - exp(-omega(slot) dt), with omega averaging `occasions_per_day` over the day."""
+    if params.occasions_per_day <= 0.0:
+        return np.zeros(clock.ticks)
+    profile = np.asarray(params.occasion_profile)
+    per_hour = params.occasions_per_day / HOURS_PER_DAY * profile / profile.mean()
+    starts = np.arange(clock.ticks, dtype=np.int64) * clock.tick_minutes
+    hour = (starts % MINUTES_PER_DAY) // 60
+    return -np.expm1(-per_hour[hour] * clock.tick_minutes / 60.0)
 
 
 def _lookup(campaign: Campaign, field: str, ids: NDArray[np.int64]) -> NDArray[np.float64]:
