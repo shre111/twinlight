@@ -9,7 +9,9 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from twl_citybake.osm.tags import BuildingKind
+from twl_citybake.osm.tags import BuildingKind, RoadClass
+
+MINUTES_PER_DAY = 1440
 
 
 @dataclass(frozen=True)
@@ -384,6 +386,106 @@ class GraphConfig:
             raise ValueError("graph.workplace_max_floors must be a whole number of at least 1")
 
 
+def _is_positive(value: object) -> bool:
+    return (
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+    )
+
+
+@dataclass(frozen=True)
+class StoresConfig:
+    """Greedy max-coverage placement of synthetic dark stores (P-024, D-013). Candidates are road
+    nodes, at most one per `candidate_cell_m` grid cell; placing stops once `coverage_target` of
+    resident weight lies within `radius_m` of a store."""
+
+    radius_m: float = 2500.0
+    coverage_target: float = 0.92
+    max_stores: int = 80
+    candidate_cell_m: float = 500.0
+
+    def __post_init__(self) -> None:
+        for name in ("radius_m", "candidate_cell_m"):
+            if not _is_positive(getattr(self, name)):
+                raise ValueError(f"stores.{name} must be positive, got {getattr(self, name)!r}")
+        if not _is_positive(self.coverage_target) or self.coverage_target > 1:
+            raise ValueError(f"stores.coverage_target must be in (0, 1], {self.coverage_target!r}")
+        if type(self.max_stores) is not int or self.max_stores < 1:
+            raise ValueError(f"stores.max_stores must be a whole number >= 1, {self.max_stores!r}")
+
+
+@dataclass(frozen=True)
+class TravelBand:
+    """A time of day from `start_minute` to the next band's start, wrapping midnight. `factor`
+    scales the speed of every road class."""
+
+    name: str
+    start_minute: int
+    factor: float
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError(f"travel.bands name must be non-empty text, got {self.name!r}")
+        if type(self.start_minute) is not int or not 0 <= self.start_minute <= MINUTES_PER_DAY - 1:
+            raise ValueError(
+                f"travel.bands start_minute of {self.name} must be a whole number in "
+                f"0..{MINUTES_PER_DAY - 1}, got {self.start_minute!r}"
+            )
+        if not _is_positive(self.factor):
+            raise ValueError(f"travel.bands factor of {self.name} must be positive")
+
+
+DEFAULT_SPEED_KMH = {
+    "major": 40.0,
+    "primary": 30.0,
+    "secondary": 26.0,
+    "tertiary": 22.0,
+    "local": 16.0,
+    "service": 12.0,
+}
+DEFAULT_TRAVEL_BANDS = (
+    TravelBand("night", 1320, 1.25),
+    TravelBand("morning_peak", 480, 0.8),
+    TravelBand("midday", 660, 1.0),
+    TravelBand("evening_peak", 1020, 0.7),
+)
+
+
+@dataclass(frozen=True)
+class TravelConfig:
+    """Store-to-hex travel minutes (D-022). `speed_kmh` is two-wheeler speed by lowercase RoadClass
+    name at a band factor of 1; `bands` cover the day, each running to the next start."""
+
+    h3_resolution: int = 9
+    speed_kmh: Mapping[str, float] = field(default_factory=lambda: dict(DEFAULT_SPEED_KMH))
+    bands: tuple[TravelBand, ...] = DEFAULT_TRAVEL_BANDS
+
+    def __post_init__(self) -> None:
+        if type(self.h3_resolution) is not int or not 0 <= self.h3_resolution <= 15:
+            raise ValueError(
+                f"travel.h3_resolution must be a whole number in 0..15, {self.h3_resolution!r}"
+            )
+        classes = sorted(road.name.lower() for road in RoadClass)
+        if sorted(self.speed_kmh) != classes:
+            raise ValueError(f"travel.speed_kmh needs exactly the road classes {classes}")
+        for name, speed in self.speed_kmh.items():
+            if not _is_positive(speed):
+                raise ValueError(f"travel.speed_kmh.{name} must be positive, got {speed!r}")
+        if not self.bands:
+            raise ValueError("travel.bands needs at least one band")
+        starts = [band.start_minute for band in self.bands]
+        if repeats := [start for i, start in enumerate(starts) if start in starts[:i]]:
+            raise ValueError(f"travel.bands repeat start_minute {repeats[0]}")
+        names = [band.name for band in self.bands]
+        if repeats := [name for i, name in enumerate(names) if name in names[:i]]:
+            raise ValueError(f"travel.bands repeat name {repeats[0]!r}")
+
+    def bands_by_start(self) -> tuple[TravelBand, ...]:
+        return tuple(sorted(self.bands, key=lambda band: band.start_minute))
+
+
 @dataclass(frozen=True)
 class CityConfig:
     slug: str
@@ -400,6 +502,8 @@ class CityConfig:
     footprints: FootprintsConfig | None = None
     personas: PersonasConfig | None = None
     graph: GraphConfig = field(default_factory=GraphConfig)
+    stores: StoresConfig = field(default_factory=StoresConfig)
+    travel: TravelConfig = field(default_factory=TravelConfig)
 
 
 def load_city(slug: str) -> CityConfig:
@@ -422,6 +526,8 @@ def load_city(slug: str) -> CityConfig:
         footprints=_footprints(raw.get("footprints")),
         personas=_personas(raw.get("personas")),
         graph=_graph(raw.get("graph", {})),
+        stores=_stores(raw.get("stores", {})),
+        travel=_travel(raw.get("travel", {})),
     )
 
 
@@ -537,6 +643,30 @@ def _graph(raw: dict[str, Any]) -> GraphConfig:
     _known_keys("[graph.targets]", targets, {f.name for f in fields(GraphTargets)})
     bounds: dict[str, Any] = {k: tuple(v) if isinstance(v, list) else v for k, v in targets.items()}
     return GraphConfig(**{**raw, "targets": GraphTargets(**bounds)})
+
+
+def _stores(raw: dict[str, Any]) -> StoresConfig:
+    _known_keys("[stores]", raw, {f.name for f in fields(StoresConfig)})
+    return StoresConfig(**raw)
+
+
+def _travel(raw: dict[str, Any]) -> TravelConfig:
+    _known_keys("[travel]", raw, {f.name for f in fields(TravelConfig)})
+    if not isinstance(raw.get("speed_kmh", {}), dict):
+        raise ValueError("travel.speed_kmh must be a table of road classes")
+    if "bands" not in raw:
+        return TravelConfig(**raw)
+    return TravelConfig(**{**raw, "bands": tuple(_travel_band(band) for band in raw["bands"])})
+
+
+def _travel_band(raw: Any) -> TravelBand:
+    if not isinstance(raw, dict):
+        raise ValueError(f"travel.bands entry {raw!r} must be a table")
+    required = {f.name for f in fields(TravelBand)}
+    _known_keys("[[travel.bands]]", raw, required)
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[[travel.bands]] entry {raw!r} needs {missing[0]!r}")
+    return TravelBand(**raw)
 
 
 @dataclass(frozen=True)
