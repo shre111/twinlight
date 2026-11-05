@@ -92,6 +92,203 @@ class PopulationTotal:
             raise ValueError("population_total needs a source and an as_of")
 
 
+def _is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _is_band(bounds: object) -> bool:
+    return (
+        isinstance(bounds, tuple | list)
+        and len(bounds) == 2
+        and all(_is_number(b) for b in bounds)
+        and bounds[0] <= bounds[1]
+    )
+
+
+def _is_polygon_id(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"(relation|way)/[0-9]+", value) is not None
+
+
+def _is_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+@dataclass(frozen=True)
+class PopulationCorrection:
+    """D-030: each raster cell becomes raster^(1-w) * fit^w, where fit is people per housing floor
+    area by built-form class, fitted on `reference_polygons` and applied everywhere. `weight` is a
+    stated value with its evidence; no code chooses it. Without this section a city is uncorrected.
+    """
+
+    weight: float
+    weight_range: tuple[float, float]
+    weight_evidence: str
+    reference_polygons: tuple[str, ...]
+    height_edges: tuple[float, ...] = (2.0, 3.0, 5.0, 8.0)
+    footprint_edges: tuple[float, ...] = (100.0, 250.0, 600.0, 1500.0)
+    coverage_edges: tuple[float, ...] = (0.10, 0.25, 0.45)
+    fit_min_m2_per_person: float = 8.0
+    min_class_share: float = 0.002
+
+    def __post_init__(self) -> None:
+        bounds = self.weight_range
+        if not _is_band(bounds) or bounds[0] < 0 or bounds[1] > 1:
+            raise ValueError(
+                f"population_correction.weight_range must be an ordered [low, high] inside "
+                f"[0, 1], got {bounds!r}"
+            )
+        if not _is_number(self.weight) or not bounds[0] <= self.weight <= bounds[1]:
+            raise ValueError(
+                f"population_correction.weight must lie within weight_range {bounds!r}, "
+                f"got {self.weight!r}"
+            )
+        if not _is_text(self.weight_evidence):
+            raise ValueError("population_correction.weight_evidence must say why this weight")
+        if not self.reference_polygons:
+            raise ValueError("population_correction.reference_polygons needs at least one polygon")
+        for polygon in self.reference_polygons:
+            if not _is_polygon_id(polygon):
+                raise ValueError(
+                    "population_correction.reference_polygons entries must be relation/<id> or "
+                    f"way/<id>, got {polygon!r}"
+                )
+        for name in ("height_edges", "footprint_edges", "coverage_edges"):
+            edges = getattr(self, name)
+            if not _is_ascending(edges):
+                raise ValueError(f"population_correction.{name} must be strictly ascending")
+        if not _is_positive(self.fit_min_m2_per_person):
+            raise ValueError("population_correction.fit_min_m2_per_person must be positive")
+        if not _is_number(self.min_class_share) or not 0 <= self.min_class_share < 1:
+            raise ValueError("population_correction.min_class_share must be in [0, 1)")
+
+
+@dataclass(frozen=True)
+class WardGroup:
+    """Named wards checked together. Without `mean_ratio` the group is reported, not asserted;
+    `ward_ratio` flags single wards, and a ward in `known_misses` is expected to fall outside it."""
+
+    name: str
+    wards: tuple[str, ...]
+    mean_ratio: tuple[float, float] | None = None
+    ward_ratio: tuple[float, float] | None = None
+    known_misses: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not _is_text(self.name):
+            raise ValueError(f"population_check.ward_groups name {self.name!r} is empty")
+        if not _is_name_list(self.wards):
+            raise ValueError(f"population_check.ward_groups {self.name}: wards must be a list")
+        if len(set(self.wards)) != len(self.wards):
+            raise ValueError(f"population_check.ward_groups {self.name}: a ward is repeated")
+        for key in ("mean_ratio", "ward_ratio"):
+            band = getattr(self, key)
+            if band is not None and not _is_band(band):
+                raise ValueError(
+                    f"population_check.ward_groups {self.name}: {key} must be an ordered "
+                    f"[low, high], got {band!r}"
+                )
+        if strays := [ward for ward in self.known_misses if ward not in self.wards]:
+            raise ValueError(
+                f"population_check.ward_groups {self.name}: known_misses {strays[0]!r} "
+                "is not one of its wards"
+            )
+
+
+@dataclass(frozen=True)
+class CheckRegion:
+    """A band of people over an OSM boundary (`polygon`) or a box of local metres (`box`, as x0, y0,
+    x1, y1); exactly one of the two."""
+
+    name: str
+    people: tuple[float, float]
+    polygon: str = ""
+    box: tuple[float, float, float, float] | None = None
+
+    def __post_init__(self) -> None:
+        if not _is_text(self.name):
+            raise ValueError(f"population_check.regions name {self.name!r} is empty")
+        if not _is_band(self.people):
+            raise ValueError(
+                f"population_check.regions {self.name}: people must be an ordered [low, high], "
+                f"got {self.people!r}"
+            )
+        if bool(self.polygon) == (self.box is not None):
+            raise ValueError(
+                f"population_check.regions {self.name} needs exactly one of polygon and box"
+            )
+        if self.polygon and not _is_polygon_id(self.polygon):
+            raise ValueError(
+                f"population_check.regions {self.name}: polygon must be relation/<id> or "
+                f"way/<id>, got {self.polygon!r}"
+            )
+        if self.box is not None and not _is_local_box(self.box):
+            raise ValueError(
+                f"population_check.regions {self.name}: box must be x0, y0, x1, y1 with "
+                f"x0 < x1 and y0 < y1, got {self.box!r}"
+            )
+
+
+def _is_ascending(edges: object) -> bool:
+    return (
+        isinstance(edges, tuple | list)
+        and len(edges) > 0
+        and all(_is_number(edge) for edge in edges)
+        and all(a < b for a, b in pairwise(edges))
+    )
+
+
+def _is_name_list(names: object) -> bool:
+    return (
+        isinstance(names, tuple | list) and len(names) > 0 and all(_is_text(name) for name in names)
+    )
+
+
+def _is_local_box(box: object) -> bool:
+    return (
+        isinstance(box, tuple | list)
+        and len(box) == 4
+        and all(_is_number(v) for v in box)
+        and box[0] < box[2]
+        and box[1] < box[3]
+    )
+
+
+TOTAL_TARGET = "48-ward total"
+ALL_TARGETS = "all"
+
+
+@dataclass(frozen=True)
+class PopulationCheck(PinnedDownload):
+    """Validation only (D-030): ward polygons the bake is checked against. They never enter a stage
+    table, `layer.json`'s attribution or a pack; `report.json` credits `source`."""
+
+    source: str
+    name_property: str
+    ward_people_2011: int
+    total_people_2011: int
+    total_growth: tuple[float, float]
+    ward_groups: tuple[WardGroup, ...] = ()
+    regions: tuple[CheckRegion, ...] = ()
+
+    def __post_init__(self) -> None:
+        for name in ("source", "name_property"):
+            if not _is_text(getattr(self, name)):
+                raise ValueError(f"population_check.{name} must not be empty")
+        for name in ("ward_people_2011", "total_people_2011"):
+            if not _is_positive(getattr(self, name)):
+                raise ValueError(f"population_check.{name} must be positive")
+        if not _is_band(self.total_growth):
+            raise ValueError(
+                f"population_check.total_growth must be an ordered [low, high], "
+                f"got {self.total_growth!r}"
+            )
+        names = [*(g.name for g in self.ward_groups), *(r.name for r in self.regions)]
+        if repeats := [name for i, name in enumerate(names) if name in names[:i]]:
+            raise ValueError(f"population_check names repeat {repeats[0]!r}")
+        if reserved := [name for name in names if name in (TOTAL_TARGET, ALL_TARGETS)]:
+            raise ValueError(f"population_check name {reserved[0]!r} is reserved")
+
+
 @dataclass(frozen=True)
 class RiverConfig:
     """Names of the `waterway=river` centrelines that split the city into banks."""
@@ -497,6 +694,8 @@ class CityConfig:
     seed: int = 0
     population_raster: PopulationRaster | None = None
     population_total: PopulationTotal | None = None
+    population_correction: PopulationCorrection | None = None
+    population_check: PopulationCheck | None = None
     population: PopulationConfig = field(default_factory=PopulationConfig)
     households: HouseholdConfig | None = None
     footprints: FootprintsConfig | None = None
@@ -521,6 +720,8 @@ def load_city(slug: str) -> CityConfig:
         seed=int(raw.get("seed", 0)),
         population_raster=_population_raster(raw.get("population_raster")),
         population_total=_population_total(raw.get("population_total")),
+        population_correction=_population_correction(raw.get("population_correction")),
+        population_check=_population_check(raw.get("population_check")),
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
         footprints=_footprints(raw.get("footprints")),
@@ -574,6 +775,59 @@ def _population_total(raw: dict[str, Any] | None) -> PopulationTotal | None:
     if missing := sorted({"people", "source", "polygon", "as_of"} - set(raw)):
         raise ValueError(f"[population_total] needs {missing[0]!r}")
     return PopulationTotal(**raw)
+
+
+def _tuples(raw: dict[str, Any]) -> dict[str, Any]:
+    return {key: tuple(value) if isinstance(value, list) else value for key, value in raw.items()}
+
+
+def _population_correction(raw: dict[str, Any] | None) -> PopulationCorrection | None:
+    if raw is None:
+        return None
+    _known_keys("[population_correction]", raw, {f.name for f in fields(PopulationCorrection)})
+    required = {"weight", "weight_range", "weight_evidence", "reference_polygons"}
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[population_correction] needs {missing[0]!r}")
+    return PopulationCorrection(**_tuples(raw))
+
+
+def _population_check(raw: dict[str, Any] | None) -> PopulationCheck | None:
+    if raw is None:
+        return None
+    _known_keys("[population_check]", raw, {f.name for f in fields(PopulationCheck)})
+    required = {
+        "url",
+        "md5",
+        "source",
+        "name_property",
+        "ward_people_2011",
+        "total_people_2011",
+        "total_growth",
+    }
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[population_check] needs {missing[0]!r}")
+    return PopulationCheck(
+        **{
+            **raw,
+            "total_growth": tuple(raw["total_growth"]),
+            "ward_groups": tuple(_ward_group(group) for group in raw.get("ward_groups", ())),
+            "regions": tuple(_check_region(region) for region in raw.get("regions", ())),
+        }
+    )
+
+
+def _ward_group(raw: dict[str, Any]) -> WardGroup:
+    _known_keys("[[population_check.ward_groups]]", raw, {f.name for f in fields(WardGroup)})
+    if missing := sorted({"name", "wards"} - set(raw)):
+        raise ValueError(f"[[population_check.ward_groups]] {raw!r} needs {missing[0]!r}")
+    return WardGroup(**_tuples(raw))
+
+
+def _check_region(raw: dict[str, Any]) -> CheckRegion:
+    _known_keys("[[population_check.regions]]", raw, {f.name for f in fields(CheckRegion)})
+    if missing := sorted({"name", "people"} - set(raw)):
+        raise ValueError(f"[[population_check.regions]] {raw!r} needs {missing[0]!r}")
+    return CheckRegion(**_tuples(raw))
 
 
 def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
