@@ -9,6 +9,7 @@ from twl_citybake.config import CityConfig, DataDirs, PopulationRaster, load_cit
 from twl_citybake.footprints.raster import fetch_height_mosaic
 from twl_citybake.footprints.stage import build_buildings, write_building_layers
 from twl_citybake.footprints.vida import fetch_vida
+from twl_citybake.graph.stage import StalePersonasError, run_graph, write_graph_layers
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
 from twl_citybake.personas.pool import fetch_pool
@@ -48,6 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
         "personas", help="assign Nemotron personas and D-026 segments to residents"
     )
     personas_cmd.add_argument("city")
+    graph_cmd = commands.add_parser(
+        "graph", help="build the social graph: household, neighbour, friend and work ties"
+    )
+    graph_cmd.add_argument("city")
     return parser
 
 
@@ -236,6 +241,46 @@ def personas_summary(report: dict) -> str:
     )
 
 
+def run_graph_command(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    population = dirs.stage(city, "population")
+    if not (population / "residents").exists():
+        raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
+    personas = dirs.stage(city, "personas")
+    needed = ("assignment", "pool", "vocab.json", "layer.json")
+    if not all((personas / name).exists() for name in needed):
+        raise SystemExit(f"{personas} is incomplete; run `citybake personas {city}` first")
+    layers = building_layers(city, dirs)
+    if not (layers / "buildings").exists():
+        raise SystemExit(f"{layers} is missing; run `citybake osm {city}` first")
+    try:
+        graph = run_graph(population, personas, layers, config)
+    except StalePersonasError as stale:
+        raise SystemExit(str(stale)) from stale
+    out = dirs.stage(city, "graph")
+    write_graph_layers(graph, out)
+    print(graph_summary(graph.report))
+    print(out)
+
+
+def graph_summary(report: dict) -> str:
+    degree, clustering = report["degree"], report["clustering"]
+    river, components = report["cross_river"], report["components"]
+    by_kind = ", ".join(f"{name} {v}" for name, v in degree["mean_by_kind"].items())
+    missed = [name for name, ok in report["within_targets"].items() if not ok]
+    return "\n".join(
+        [
+            f"mean degree {degree['mean']} ({by_kind}), p10 {degree['p10']} p50 {degree['p50']} "
+            f"p90 {degree['p90']} p99 {degree['p99']} max {degree['max']}, isolated "
+            f"{degree['isolated_share']:.2%}",
+            f"clustering {clustering['average_local']}, transitivity {clustering['transitivity']}",
+            f"cross-river ties {river['all']:.2%}, non-household {river['non_household']:.2%}",
+            f"components {components['count']:,}, largest {components['largest_share']:.2%}",
+            f"targets {'all met' if not missed else 'missed: ' + ', '.join(missed)}",
+        ]
+    )
+
+
 def summary(report: dict) -> str:
     b, r, w, d = report["buildings"], report["roads"], report["water"], report["districts"]
     sources = ", ".join(f"{k.lower()} {v}" for k, v in b["by_height_source"].items())
@@ -271,4 +316,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_population_command(args.city, dirs)
     elif args.command == "personas":
         run_personas_command(args.city, dirs)
+    elif args.command == "graph":
+        run_graph_command(args.city, dirs)
     return 0
