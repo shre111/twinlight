@@ -69,9 +69,10 @@
 
 .time {
   flex: none;
-  width: 128px;
+  width: 136px;
   font-size: var(--text-16);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .track {
