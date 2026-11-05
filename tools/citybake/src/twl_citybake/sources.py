@@ -1,6 +1,7 @@
 import hashlib
 import shutil
 import urllib.request
+import zipfile
 from pathlib import Path
 
 
@@ -26,6 +27,24 @@ def fetch(url: str, md5: str, dest: Path) -> Path:
         if (actual := file_md5(partial)) != md5:
             raise ValueError(f"{url} has md5 {actual}, pinned {md5}")
         partial.rename(dest)
+    finally:
+        partial.unlink(missing_ok=True)
+    return dest
+
+
+def extract_member(archive: Path, member: str, dest: Path) -> Path:
+    """Unpack one named file of a zip to `dest`, once; `member` is looked up, never joined to a
+    path, so the archive cannot write elsewhere."""
+    if dest.exists():
+        return dest
+    partial = dest.with_name(dest.name + ".part")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(archive) as zf, zf.open(member) as src, partial.open("wb") as out:
+            shutil.copyfileobj(src, out, 1 << 20)
+        partial.rename(dest)
+    except KeyError as missing:
+        raise ValueError(f"{archive} has no member {member!r}") from missing
     finally:
         partial.unlink(missing_ok=True)
     return dest
