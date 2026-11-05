@@ -260,6 +260,62 @@ class FootprintsConfig:
 
 
 @dataclass(frozen=True)
+class SegmentRule:
+    """One row of the D-026 table; a persona matches when every set condition holds."""
+
+    name: str
+    min_age: int | None = None
+    max_age: int | None = None
+    sex: str | None = None
+    marital: tuple[str, ...] = ()
+    education: tuple[str, ...] = ()
+    occupied: bool | None = None
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("a segment rule needs a name")
+        if self.sex not in (None, "Female", "Male"):
+            raise ValueError(f"segment {self.name} has unknown sex {self.sex!r}")
+        if self.min_age is not None and self.max_age is not None and self.min_age > self.max_age:
+            raise ValueError(f"segment {self.name} has min_age above max_age")
+
+    @property
+    def is_catch_all(self) -> bool:
+        return (
+            self.min_age is None
+            and self.max_age is None
+            and self.sex is None
+            and not self.marital
+            and not self.education
+            and self.occupied is None
+        )
+
+
+@dataclass(frozen=True)
+class PersonasConfig:
+    """The pinned Nemotron slice and the ordered first-match segment table (D-026)."""
+
+    revision: str
+    state: str
+    district: str
+    no_occupation: str
+    married: str
+    segments_version: int
+    segments: tuple[SegmentRule, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.segments) < 2:
+            raise ValueError("personas.segments needs at least two rules")
+        names = [rule.name for rule in self.segments]
+        if repeats := [name for i, name in enumerate(names) if name in names[:i]]:
+            raise ValueError(f"personas.segments repeats {repeats[0]!r}")
+        if not self.segments[-1].is_catch_all:
+            raise ValueError("the last personas.segments rule must have no conditions")
+        if early := [rule.name for rule in self.segments[:-1] if rule.is_catch_all]:
+            raise ValueError(f"personas.segments rule {early[0]!r} shadows the rules after it")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
@@ -273,6 +329,7 @@ class CityConfig:
     population: PopulationConfig = field(default_factory=PopulationConfig)
     households: HouseholdConfig | None = None
     footprints: FootprintsConfig | None = None
+    personas: PersonasConfig | None = None
 
 
 def load_city(slug: str) -> CityConfig:
@@ -293,6 +350,7 @@ def load_city(slug: str) -> CityConfig:
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
         footprints=_footprints(raw.get("footprints")),
+        personas=_personas(raw.get("personas")),
     )
 
 
@@ -354,6 +412,43 @@ def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
 
 def _footprints(raw: dict[str, Any] | None) -> FootprintsConfig | None:
     return None if raw is None else FootprintsConfig(**raw)
+
+
+def _personas(raw: dict[str, Any] | None) -> PersonasConfig | None:
+    if raw is None:
+        return None
+    required = {
+        "revision",
+        "state",
+        "district",
+        "no_occupation",
+        "married",
+        "segments_version",
+        "segments",
+    }
+    _known_keys("[personas]", raw, required)
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[personas] needs {missing[0]!r}")
+    return PersonasConfig(**{**raw, "segments": tuple(_segment_rule(r) for r in raw["segments"])})
+
+
+def _segment_rule(raw: dict[str, Any]) -> SegmentRule:
+    known = {"name", "min_age", "max_age", "sex", "marital", "education", "occupied"}
+    _known_keys("[[personas.segments]]", raw, known)
+    if "name" not in raw:
+        raise ValueError(f"[[personas.segments]] entry {raw!r} needs a name")
+    for key in ("marital", "education"):
+        if not isinstance(raw.get(key, []), list):
+            raise ValueError(f"segment {raw['name']}: {key} must be a list of names")
+    if not isinstance(raw.get("occupied", False), bool):
+        raise ValueError(f"segment {raw['name']}: occupied must be true or false")
+    return SegmentRule(
+        **{
+            **raw,
+            "marital": tuple(raw.get("marital", ())),
+            "education": tuple(raw.get("education", ())),
+        }
+    )
 
 
 @dataclass(frozen=True)
