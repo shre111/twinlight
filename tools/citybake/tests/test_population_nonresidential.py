@@ -3,12 +3,14 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import shapely
 from osm_fixture import BBOX, OsmBuilder
 from population_fixture import write_world
 from test_population_correction_stage import corrected_city, write_ward_file
 
 from twl_citybake.config import CityConfig, PopulationCorrection
 from twl_citybake.population.nonresidential import nonresidential_buildings
+from twl_citybake.population.raster import repaired_polygon
 from twl_citybake.population.stage import PopulationLayers, run_population
 from twl_citybake.projection import LocalProjection
 from twl_citybake.store import read_table
@@ -65,6 +67,64 @@ def test_a_building_outside_the_area_is_not_excluded(tmp_path: Path) -> None:
 def test_a_landuse_value_listed_only_for_amenity_does_not_match(tmp_path: Path) -> None:
     path = area_file(tmp_path / "areas.osm", {(0.0, 0.0): {"landuse": "school"}})
     assert mask_of(path, [(0.0, 0.0)]) == [False]
+
+
+def test_an_amenity_value_listed_only_for_landuse_does_not_match(tmp_path: Path) -> None:
+    path = area_file(tmp_path / "areas.osm", {(0.0, 0.0): {"amenity": "industrial"}})
+    assert mask_of(path, [(0.0, 0.0)]) == [False]
+
+
+def test_an_area_that_cannot_be_assembled_is_counted_not_silently_lost(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class BrokenFactory:
+        def create_multipolygon(self, area: object) -> str:
+            raise RuntimeError("invalid area")
+
+    monkeypatch.setattr("twl_citybake.population.nonresidential.WKBFactory", BrokenFactory)
+    path = area_file(tmp_path / "areas.osm", {(0.0, 0.0): {"landuse": "industrial"}})
+    lon, lat = PROJECTION.inverse(np.array([0.0]), np.array([0.0]))
+    result = nonresidential_buildings(path, lon, lat, LANDUSE, AMENITY)
+    assert result.skipped == 1
+    assert result.areas == {}
+    assert result.mask.tolist() == [False]
+
+
+def test_an_invalid_area_goes_through_the_repair_before_it_is_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bowtie = shapely.Polygon([(72.0, 23.0), (72.2, 23.2), (72.2, 23.0), (72.0, 23.2)])
+    repaired: list[bool] = []
+
+    class BowtieFactory:
+        def create_multipolygon(self, area: object) -> str:
+            return shapely.to_wkb(bowtie, hex=True)
+
+    def spy(geometry: shapely.Geometry) -> shapely.Geometry:
+        repaired.append(bool(shapely.equals_exact(geometry, bowtie)))
+        return repaired_polygon(geometry)
+
+    monkeypatch.setattr("twl_citybake.population.nonresidential.WKBFactory", BowtieFactory)
+    monkeypatch.setattr("twl_citybake.population.nonresidential.repaired_polygon", spy)
+    path = area_file(tmp_path / "areas.osm", {(0.0, 0.0): {"landuse": "industrial"}})
+    result = nonresidential_buildings(path, [72.19, 72.1], [23.1, 23.15], LANDUSE, AMENITY)
+    assert repaired == [True]
+    assert result.mask.tolist() == [True, False]
+
+
+def test_repairing_a_bowtie_gives_its_two_valid_lobes() -> None:
+    bowtie = shapely.Polygon([(0.0, 0.0), (2.0, 2.0), (2.0, 0.0), (0.0, 2.0)])
+    assert not shapely.is_valid(bowtie)
+    fixed = repaired_polygon(bowtie)
+    assert shapely.is_valid(fixed)
+    assert shapely.area(fixed) == pytest.approx(2.0)
+    assert shapely.contains_xy(fixed, 1.9, 1.0)
+    assert not shapely.contains_xy(fixed, 1.0, 1.9)
+
+
+def test_a_valid_area_is_left_exactly_as_it_was() -> None:
+    square = shapely.box(0.0, 0.0, 1.0, 1.0)
+    assert repaired_polygon(square) is square
 
 
 def test_areas_are_counted_by_tag_in_sorted_order(tmp_path: Path) -> None:
@@ -183,13 +243,36 @@ def test_the_report_names_what_was_excluded(
     full = plain.building_population["capacity"]
     report = excluded.report["correction"]["excluded"]
     assert report["areas"] == {"landuse=industrial": 1}
+    assert report["skipped_areas"] == 0
     assert report["buildings"] == int(inside.sum())
     assert report["capacity_people"] == int(full[inside].sum())
     assert report["capacity_share"] == pytest.approx(full[inside].sum() / full.sum(), abs=1e-6)
 
 
-def test_without_exclude_lists_nothing_is_read_or_excluded(plain: PopulationLayers) -> None:
-    assert plain.report["correction"]["excluded"] is None
+def test_without_exclude_lists_the_extract_is_not_scanned_for_areas(
+    world: dict[str, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("nonresidential_buildings ran without exclude lists")
+
+    monkeypatch.setattr("twl_citybake.population.stage.nonresidential_buildings", must_not_run)
+    assert bake(world, corrected_city()).report["correction"]["excluded"] is None
+
+
+def test_edge_people_are_measured_over_every_housed_building_before_the_exclusion(
+    world: dict[str, Path], plain: PopulationLayers, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[int] = []
+
+    def spy(grid: object, bbox: object, lon: np.ndarray, lat: np.ndarray) -> float:
+        seen.append(len(lon))
+        return 0.0
+
+    monkeypatch.setattr("twl_citybake.population.stage.edge_people", spy)
+    bake(world, excluding())
+    full = plain.building_population["capacity"]
+    assert seen == [int((full > 0).sum())]
+    assert (full[inside_mask(world)] > 0).any()
 
 
 def test_exclude_lists_without_the_extract_are_refused(world: dict[str, Path]) -> None:

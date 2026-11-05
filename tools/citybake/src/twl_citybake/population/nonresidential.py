@@ -10,13 +10,17 @@ import shapely
 from osmium.geom import WKBFactory
 from osmium.osm import Area
 
+from twl_citybake.population.raster import repaired_polygon
+
 
 @dataclass(frozen=True)
 class NonResidential:
-    """Buildings standing in areas OSM marks as not housing, and how many areas of each tag."""
+    """Buildings standing in areas OSM marks as not housing, how many areas of each tag, and how
+    many matching areas could not be assembled."""
 
     mask: npt.NDArray[np.bool_]
     areas: dict[str, int]
+    skipped: int
 
 
 def nonresidential_buildings(
@@ -30,6 +34,7 @@ def nonresidential_buildings(
     factory = WKBFactory()
     geometries: list[shapely.Geometry] = []
     counts: Counter[str] = Counter()
+    skipped = 0
     for obj in osmium.FileProcessor(str(pbf)).with_areas():
         if not isinstance(obj, Area):
             continue
@@ -37,8 +42,9 @@ def nonresidential_buildings(
         if tag is None:
             continue
         try:
-            geometries.append(shapely.from_wkb(factory.create_multipolygon(obj)))
+            geometries.append(repaired_polygon(shapely.from_wkb(factory.create_multipolygon(obj))))
         except RuntimeError:
+            skipped += 1
             continue
         counts[tag] += 1
     lons, lats = np.asarray(lon, np.float64), np.asarray(lat, np.float64)
@@ -48,7 +54,7 @@ def nonresidential_buildings(
             shapely.points(lons, lats), predicate="within"
         )
         mask[inside] = True
-    return NonResidential(mask, dict(sorted(counts.items())))
+    return NonResidential(mask, dict(sorted(counts.items())), skipped)
 
 
 def _matching_tag(

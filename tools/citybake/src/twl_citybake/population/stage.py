@@ -112,7 +112,7 @@ def run_population(
         "persons": persons.astype(np.int64),
     }
     names = [d["name"] for d in districts]
-    housed = capacity > 0
+    housed = full_capacity > 0
     edge = edge_people(grid, city.bbox, lon[housed], lat[housed])
     census = np.asarray(city.households.counts, np.float64)
     census_shares = {
@@ -252,6 +252,7 @@ def _excluded_report(
         return None
     return {
         "areas": excluded.areas,
+        "skipped_areas": excluded.skipped,
         "buildings": int(excluded.mask.sum()),
         "capacity_people": int(full_capacity[excluded.mask].sum()),
         "capacity_share": float(full_capacity[excluded.mask].sum() / full_capacity.sum()),
