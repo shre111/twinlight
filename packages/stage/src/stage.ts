@@ -8,7 +8,14 @@ import { ResidentsLayer } from './layers/residents'
 import { StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
-import { advanceMinutes, ClockChannel, type ClockState, SPEEDS, type Speed } from './playback'
+import {
+  advanceMinutes,
+  ClockChannel,
+  type ClockState,
+  frameStep,
+  SPEEDS,
+  type Speed,
+} from './playback'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
 import { AMBIENT_PERIOD_SECONDS, clampTime, warmFraction } from './time'
@@ -33,8 +40,6 @@ export interface FrameReport extends FrameSummary {
 }
 
 const HUD_INTERVAL_MS = 250
-// Longer gaps come from a paused or throttled loop, not from rendering.
-const MAX_FRAME_GAP_MS = 1000
 
 export class Stage {
   readonly backend: Backend
@@ -149,7 +154,7 @@ export class Stage {
 
   setTier(tier: TierName): void {
     this.#tier = tier
-    this.#stats.reset()
+    this.#restartFrames()
     this.#viewport.remeasure()
     this.#mountResidents()
     // Compile the remounted residents now rather than on the next frame.
@@ -187,7 +192,7 @@ export class Stage {
     await this.#compile()
     // A newer load or a dispose may have landed while the materials compiled.
     if (this.#disposed || load !== this.#loads) return
-    this.#stats.reset()
+    this.#restartFrames()
   }
 
   /** Uploads the residents' event times once; the shaders evaluate them at `setTime` (D-004). */
@@ -217,7 +222,7 @@ export class Stage {
       throw new Error('A new city loaded while its tape was being set; set the tape again')
     }
     // Frames rendered while the residents compiled are not the scene's steady frame time.
-    this.#stats.reset()
+    this.#restartFrames()
   }
 
   /** Clamps to the tape, updates uniforms and each store's stock state; no work grows with residents. */
@@ -317,8 +322,8 @@ export class Stage {
       this.#applySize(this.#pendingSize)
       this.#pendingSize = null
     }
-    const gap = now - this.#lastFrameAt
-    if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) {
+    const gap = frameStep(now, this.#lastFrameAt)
+    if (gap > 0) {
       this.#stats.push(gap)
       // Wrapped so the float32 uniform keeps its precision in long sessions.
       if (!this.#still) {
@@ -351,5 +356,11 @@ export class Stage {
   // A hidden tab pauses the loop; the gap is not a frame.
   #restartClock = () => {
     this.#lastFrameAt = 0
+  }
+
+  // Heavy work such as a shader compile spans the next gap, which is not a frame either.
+  #restartFrames(): void {
+    this.#stats.reset()
+    this.#restartClock()
   }
 }

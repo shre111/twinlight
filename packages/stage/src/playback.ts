@@ -19,6 +19,14 @@ export function advanceMinutes(
   return Math.min(minutes + (gapMs / 1000) * SIM_MINUTES_PER_SECOND * speed, simMinutes)
 }
 
+// A longer gap may be a paused or throttled loop, so a frame never counts for more than this.
+const MAX_FRAME_STEP_MS = 1000
+
+/** How far a frame moves the clocks, in milliseconds; 0 for the first, which has no gap. */
+export function frameStep(now: number, lastFrameAt: number): number {
+  return lastFrameAt > 0 ? Math.min(now - lastFrameAt, MAX_FRAME_STEP_MS) : 0
+}
+
 const PLAYBACK_PUBLISH_MS = 100
 
 /** Hands clock snapshots to the UI, at most ten a second during playback so React stays off the frame path. */

@@ -20,6 +20,7 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - `decodePack` now requires `river.bin` and the manifest's `riverPolygons` and `riverPoints` (ARCHITECTURE section 5). Only the toy fixture writes them so far; the citybake pack writer needs them too.
 
 ## Gotchas
+- Open: Playwright WebKit once failed `Stage.create` at load above 15, logging `WebGL Device Lost` and a null-array `TypeError`, and showed "needs WebGPU or WebGL 2". Six reruns at load 8 passed. A context lost during creation reads as an unsupported browser, with no retry; not reproduced, so not changed.
 - Chrome caps animation at 30 fps on battery at low charge, so p50 33.3 ms can be the cap and not a regression. Time a page with no 3D before suspecting a change.
 - `design/prototype/twinlight-city.html` shows its "needs WebGL" card over a working scene: the card's `display: grid` beats `hidden`. Hide `#fail` in devtools to see the reference.
 

@@ -1,7 +1,26 @@
 import { describe, expect, it, vi } from 'vitest'
-import { advanceMinutes, ClockChannel, type ClockState, SPEEDS } from '../src/playback'
+import { advanceMinutes, ClockChannel, type ClockState, frameStep, SPEEDS } from '../src/playback'
 
 const RUN = 30 * 24 * 60
+
+describe('frameStep', () => {
+  it('has no step on the first frame', () => {
+    expect(frameStep(5000, 0)).toBe(0)
+  })
+
+  it('is the gap between frames at a normal rate', () => {
+    expect(frameStep(5016, 5000)).toBe(16)
+    expect(frameStep(6000, 5000)).toBe(1000)
+  })
+
+  it('keeps moving below one frame a second instead of stopping', () => {
+    expect(frameStep(6200, 5000)).toBe(1000)
+  })
+
+  it('does not jump after a paused or throttled loop', () => {
+    expect(frameStep(600_000, 5000)).toBe(1000)
+  })
+})
 
 describe('advanceMinutes', () => {
   it('moves one sim hour per real second at 1x and scales with speed', () => {
