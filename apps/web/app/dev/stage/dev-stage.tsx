@@ -1,6 +1,8 @@
 'use client'
 
-import type { BackendPreference, Stage, TierOption } from '@twinlight/stage'
+import type { BackendPreference, Stage, StageTape, TierOption } from '@twinlight/stage'
+import { useState } from 'react'
+import { Timeline } from '../../../components/city/timeline'
 import { StageHost } from '../../../components/stage-host'
 
 declare global {
@@ -14,6 +16,11 @@ declare global {
 
 export type RunSource = { pack: string } | { residents: number }
 
+interface LoadedRun {
+  stage: Stage
+  tape: StageTape
+}
+
 // A generated pack has no tape until P-014, so it shows the city before anyone has heard.
 async function runFor(source: RunSource) {
   if ('pack' in source) {
@@ -25,7 +32,12 @@ async function runFor(source: RunSource) {
   return synthesizeToyRun(source.residents)
 }
 
-function loadRun(stage: Stage, source: RunSource, minutes: number) {
+function loadRun(
+  stage: Stage,
+  source: RunSource,
+  minutes: number,
+  onLoaded: (run: LoadedRun | null) => void,
+) {
   let cancelled = false
   runFor(source)
     .then(async ({ city, tape }) => {
@@ -35,6 +47,7 @@ function loadRun(stage: Stage, source: RunSource, minutes: number) {
       await stage.setTape(tape)
       if (cancelled) return
       stage.setTime(minutes)
+      onLoaded({ stage, tape })
       window.__twinlightStage = stage
     })
     .catch((error: unknown) => {
@@ -43,6 +56,7 @@ function loadRun(stage: Stage, source: RunSource, minutes: number) {
     })
   return () => {
     cancelled = true
+    onLoaded(null)
     window.__twinlightStageError = undefined
     if (window.__twinlightStage === stage) window.__twinlightStage = undefined
   }
@@ -53,9 +67,11 @@ export function DevStage(props: {
   backend?: BackendPreference
   hud: boolean
   still: boolean
+  ui: boolean
   source: RunSource
   minutes: number
 }) {
+  const [run, setRun] = useState<LoadedRun | null>(null)
   return (
     <main>
       <StageHost
@@ -63,8 +79,9 @@ export function DevStage(props: {
         backend={props.backend}
         hud={props.hud}
         still={props.still}
-        onReady={(stage) => loadRun(stage, props.source, props.minutes)}
+        onReady={(stage) => loadRun(stage, props.source, props.minutes, setRun)}
       />
+      {props.ui && run && <Timeline stage={run.stage} tape={run.tape} />}
     </main>
   )
 }

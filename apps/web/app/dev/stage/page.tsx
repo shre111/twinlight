@@ -46,6 +46,7 @@ export default async function DevStagePage(props: PageProps<'/dev/stage'>) {
       backend={pick(query.backend, BACKEND_OPTIONS)}
       hud={query.hud !== '0'}
       still={query.still === '1'}
+      ui={query.ui !== '0'}
       source={runSource(query)}
       minutes={startMinutes(query)}
     />
