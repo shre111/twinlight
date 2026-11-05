@@ -137,6 +137,8 @@ Sections
   DELIVERIES  sorted by ordered_at: u16 store, u32 resident, u32 ordered_at, u32 picked_at, u32 delivered_at, u8 outcome
   STORES      per store: f32 stock[ticks], u16 orders[ticks]; stockout intervals as (u32 start, u32 end) list
   AGGREGATES  per tick: u32 aware, u32 adopted, u32 orders, u16 stores_out, f32 rain_intensity
+              (aware and adopted are cumulative counts at the end of the tick; orders are those placed in the tick;
+               stores_out is the number of stores out of stock at the end of the tick; rain_intensity its mean over the tick)
   CHUNKS      index of day chunks for streaming: per day the byte ranges of rows added that day
 Footer
   u64 total_length, blake3 hash of everything before it
@@ -158,6 +160,7 @@ residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 he
 graph.bin          CSR adjacency: u32 offsets[n+1], u32 targets[m], u8 tie_kind[m], f32 strength[m]
 stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
 travel.bin         travel minutes store -> hex (u16), from the baked road graph (D-022), per time-of-day band
+hexes.bin          the H3 cells residents and stores refer to
 districts.json     names, polygons, marginals used in synthesis
 ```
 Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
@@ -169,6 +172,8 @@ Coordinates are local metres in a city-specific projection with the origin at th
 - `stores.bin`: `f32 x, y`, `u32 hex`, `f32 radius_m`, `u16 district`. Count `stores`.
 - `roads.bin`: `u32 offsets[roads + 1]` into points, `f32 x[roadPoints]`, `f32 y[roadPoints]`, `u8 class[roads]`.
 - `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake). One exterior ring per polygon, no holes in v1.
+- `hexes.bin`: `u64 h3[hexes]`; `hex` in `residents.bin` and `stores.bin` indexes it densely. Count `hexes`.
+- `travel.bin`: `u16 minutes[stores * hexes * bands]`, flat in (store, hex, band) order, whole minutes rounded up, minimum 1, no sentinel (the bake fails on an unreachable pair). `manifest.json` carries `bands`, an ordered list of `{"name", "start_minute"}` (minute of day), and `counts` gains `hexes` and `bands`; the engine reads band boundaries from the pack.
 - `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add `name_local` (the OSM name when the display name is its English form), polygons (a district can have several parts) and marginals.
 - `segment` in `residents.bin` indexes `manifest.json` `segments`, the ordered list of segment names (for Ahmedabad per D-026: senior, young_single, homemaker, working_graduate, working_other, other_adult); the engine and calibration key parameters by that list, never by a hard-coded order.
 - `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.

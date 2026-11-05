@@ -40,9 +40,9 @@ aware_at_r = first tick where A_r >= theta_aware   (theta_aware = 1.0)
 
 **Word of mouth.** A resident who ordered at time `t_o` talks to each tie with hazard
 ```
-lambda_uv(t) = q_u * w_uv * talk_kind(kind_uv) * exp(-(t - t_o) / 72h)
+lambda_uv(t) = q_u * w_uv * talk_kind(kind_uv) * (talk_floor + (1 - talk_floor) * exp(-(t - t_o) / 72h))
 ```
-A successful talk adds `0.9 * w_uv` to `A_v`. Aware non-adopters talk at `0.15 * lambda` (hearsay), with `aware_at` in place of `t_o`. The tape records the talks that mattered (D-028): the talk that takes `A_v` over `theta_aware` (`heard`), and the last talk a resident received in the 72 hours before their first order when that is a different one (`nudged`). Those chatter events are what the stage draws as arcs.
+A successful talk adds `talk_gain * w_uv` to `A_v` (`talk_gain = 1.0`, `talk_floor = 0.35`; D-029). Aware non-adopters talk at `0.15 * q_u * w_uv * talk_kind * exp(-(t - aware_at) / 72h)` (hearsay, with no floor). The tape records the talks that mattered (D-028): the talk that takes `A_v` over `theta_aware` (`heard`), and the last talk a resident received in the 72 hours before their first order when that is a different one (`nudged`). Those chatter events are what the stage draws as arcs.
 
 **Seen nearby.** Riders delivering in a hex add a small exposure `0.05` to residents in that hex with probability `0.02` per delivery (brand bags, word on the street). Kept small; exists so dense areas get a mild density effect.
 
@@ -103,6 +103,10 @@ Every constant below is a field of the run parameters with this default, so test
 - `t_o` is the resident's most recent order, so repeat orders renew talk.
 - Crossing: within a tick, contributions apply in the order paid, then talks by (minute, talker). The first to bring `A_r` to `theta_aware` sets `aware_at`, `first_source` and, for a talk, `heard_from`.
 - With `wom_mixing = "uniform"` (the Bass configuration) a talker emits talks at rate `q_u` to residents drawn uniformly, with strength and kind factor 1.
+- Impressions that land on a resident already at the frequency cap are lost, not re-landed. A paid crossing gets a uniform minute inside its tick.
+- An order's minute is uniform between the latest of (tick start, `aware_at`, the last talk received) and the tick's end, so `aware_at <= first_order_at` and a nudged talk never follows the order it nudged. With `order_on_awareness`, `first_order_at = aware_at`.
+- The nudge window is a fixed 72 hours whatever the talk decay time, and a nudged talk can predate `aware_at` (a talk that came before a paid crossing).
+- `presence` is per campaign (24 hourly weights) in v1; per-segment presence arrives with P-030.
 - Until P-013: an order is counted at its occasion, `avail = 1`, `satisfaction = 0`, and the DELIVERIES section stays empty.
 
 **Defaults**
@@ -110,7 +114,8 @@ Every constant below is a field of the run parameters with this default, so test
 | --- | --- |
 | `theta_aware` | 1.0 |
 | gain per impression | `0.6 * kappa` |
-| gain per talk | `0.9 * w_uv` |
+| gain per talk | `talk_gain * w_uv`, `talk_gain = 1.0` (D-029) |
+| talk floor for adopters | 0.35 (D-029) |
 | hearsay factor | 0.15 |
 | talk decay time | 72 h |
 | `tau` (awareness half-life) | 4 days |
