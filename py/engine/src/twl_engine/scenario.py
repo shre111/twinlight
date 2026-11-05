@@ -2,7 +2,10 @@ import dataclasses
 import json
 import math
 import operator
+import tomllib
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from blake3 import blake3
 
@@ -222,6 +225,31 @@ def _require_weights(label: str, values: tuple[float, ...]) -> None:
 
 def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def load_scenario(path: Path) -> tuple[Scenario, Params]:
+    """Read `[scenario]`, `[[scenario.campaigns]]` and `[params]` from TOML; unknown keys raise."""
+    data = tomllib.loads(path.read_text())
+    _reject_unknown(str(path), data, ("scenario", "params"))
+    scenario_table = dict(data.get("scenario", {}))
+    campaign_tables = scenario_table.pop("campaigns", [])
+    campaigns = tuple(
+        _from_table(Campaign, f"campaign {index}", table)
+        for index, table in enumerate(campaign_tables)
+    )
+    scenario = _from_table(Scenario, "[scenario]", scenario_table, campaigns=campaigns)
+    return scenario, _from_table(Params, "[params]", data.get("params", {}))
+
+
+def _from_table[T](cls: type[T], label: str, table: dict[str, Any], **extra: Any) -> T:
+    _reject_unknown(label, table, tuple(f.name for f in dataclasses.fields(cls)))  # type: ignore[arg-type]
+    return cls(**table, **extra)
+
+
+def _reject_unknown(label: str, table: dict[str, Any], known: tuple[str, ...]) -> None:
+    unknown = sorted(key for key in table if key not in known)
+    if unknown:
+        raise ValueError(f"{label}: unknown keys {unknown}")
 
 
 EMPTY = Scenario()
