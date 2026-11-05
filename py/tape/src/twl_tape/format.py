@@ -12,6 +12,14 @@ MINUTES_30_DAYS = 43_200
 TICK_MINUTES = 15
 NEVER = 0xFFFF_FFFF
 
+CHATTER_HEARD = 1
+CHATTER_NUDGED = 2
+
+SOURCE_NONE = 0
+SOURCE_PAID = 1
+SOURCE_WOM = 2
+SOURCE_SEEN = 3
+
 MAGIC = b"TWLT"
 FLAG_COMPLETE = 1
 RUN_ID_BYTES = 16
@@ -71,9 +79,12 @@ class ResidentsSection:
 
 @dataclass(frozen=True, eq=False)
 class ChatterSection:
+    """The talks that mattered (D-028), sorted by `at`; `kind` is heard (1) or nudged (2)."""
+
     from_: NDArray[np.uint32]
     to: NDArray[np.uint32]
     at: NDArray[np.uint32]
+    kind: NDArray[np.uint8]
 
 
 @dataclass(frozen=True, eq=False)

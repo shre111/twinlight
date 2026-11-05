@@ -57,14 +57,24 @@ def decode_residents(raw: bytes, header: TapeHeader) -> ResidentsSection:
 
 def encode_chatter(section: ChatterSection, header: TapeHeader) -> bytes:
     m = header.chatter_rows
-    return _encode([(section.from_, U32, m), (section.to, U32, m), (section.at, U32, m)])
+    return _encode(
+        [
+            (section.from_, U32, m),
+            (section.to, U32, m),
+            (section.at, U32, m),
+            (section.kind, U8, m),
+        ]
+    )
 
 
 def decode_chatter(raw: bytes, header: TapeHeader) -> ChatterSection:
     cursor = _Cursor(raw)
     m = header.chatter_rows
     section = ChatterSection(
-        from_=cursor.column(U32, m), to=cursor.column(U32, m), at=cursor.column(U32, m)
+        from_=cursor.column(U32, m),
+        to=cursor.column(U32, m),
+        at=cursor.column(U32, m),
+        kind=cursor.column(U8, m),
     )
     cursor.finish()
     return section
@@ -149,7 +159,7 @@ def raw_lengths(header: TapeHeader) -> dict[SectionKind, int]:
     ticks = header.ticks
     return {
         SectionKind.RESIDENTS: _padded(4, n) * 3 + _padded(2, n) + _padded(1, n) * 2,
-        SectionKind.CHATTER: _padded(4, m) * 3,
+        SectionKind.CHATTER: _padded(4, m) * 3 + _padded(1, m),
         SectionKind.DELIVERIES: _padded(2, d) + _padded(4, d) * 4 + _padded(1, d),
         SectionKind.STORES: _padded(4, series)
         + _padded(2, series)
