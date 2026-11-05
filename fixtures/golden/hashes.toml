@@ -18,6 +18,7 @@ aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
 tape_bytes = 536
+chatter_rows = 0
 
 [engine.empty_seed2]
 hash = "f85a4231417a1d7cfb007a305dc5276e42d1a22482c0624c75e05619a9e8d9e6"
@@ -25,3 +26,20 @@ aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
 tape_bytes = 536
+chatter_rows = 0
+
+[engine.prototype_small_seed1]
+hash = "11acf041ca09f9fc4bc1964c4efb9e1a3f2726eaf33a3fec62ba9a76e456606f"
+aware_day30 = 4907
+adopted_day30 = 3677
+orders_total = 11444
+tape_bytes = 56384
+chatter_rows = 2577
+
+[engine.prototype_small_seed2]
+hash = "ae9529f7fd0770d705e68249021bd383c4788bbc51476e797da868f0cf32b017"
+aware_day30 = 4882
+adopted_day30 = 3659
+orders_total = 11348
+tape_bytes = 56112
+chatter_rows = 2560

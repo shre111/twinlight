@@ -1,0 +1,47 @@
+# The prototype's launch (`simulate` in design/prototype/toy-sim.mjs) for the 48,000-resident toy
+# city (D-027): a day-1 burst from 09:00, a daily drip from day 2 and a creator burst at hour 186
+# aimed at Vastrapur, Bodakdev and Satellite (districts 6, 7 and 9). Unlimited stock, no rain.
+#
+# Budgets are base impressions per resident x 48,000 residents x cpm / 1000, in the prototype's
+# reach ratio: launch 1.0, drip 0.0214 a day, creator 0.75 split over its two active days.
+# `paid_scale` in [params] multiplies all three.
+
+[scenario]
+days = 30
+tick_minutes = 15
+price = 49.0
+ref_price = 49.0
+
+[[scenario.campaigns]]
+name = "launch"
+start_minute = 540
+end_minute = 1440
+budget_per_day = 4800.0
+cpm = 100.0
+frequency_cap = 3
+presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6]
+
+[[scenario.campaigns]]
+name = "drip"
+start_minute = 1440
+end_minute = 43200
+budget_per_day = 102.72
+cpm = 100.0
+frequency_cap = 3
+presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6]
+
+[[scenario.campaigns]]
+name = "creator"
+start_minute = 11160
+end_minute = 12960
+budget_per_day = 1800.0
+cpm = 100.0
+district_weights = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0, 10.0, 1.0, 10.0, 1.0, 1.0]
+frequency_cap = 3
+presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6]
+
+# Fitted by `python -m twl_engine.fit_prototype` on days 6 and 13 only; never edit by hand.
+[params]
+paid_scale = 1.141
+q = 0.01279
+alpha_0 = -6.141
