@@ -1,6 +1,6 @@
 import type { StageTape } from '@twinlight/stage'
 import { describe, expect, it } from 'vitest'
-import { buildTrack, simClockLabel, TRACK_WIDTH, trackX } from './timeline-track'
+import { buildTrack, simClockLabel, simDayLabel, TRACK_WIDTH, trackX } from './timeline-track'
 
 const SIM_MINUTES = 30 * 24 * 60
 
@@ -49,6 +49,25 @@ describe('simClockLabel', () => {
     expect(simClockLabel(SIM_MINUTES, SIM_MINUTES)).toBe('Day 30, 11:50 pm')
     expect(simClockLabel(Number.POSITIVE_INFINITY, SIM_MINUTES)).toBe('Day 30, 11:50 pm')
   })
+
+  it('rolls over midnight into the next day', () => {
+    expect(simClockLabel(30, SIM_MINUTES)).toBe('Day 1, 12:30 am')
+    expect(simClockLabel(23 * 60 + 59, SIM_MINUTES)).toBe('Day 1, 11:50 pm')
+    expect(simClockLabel(24 * 60, SIM_MINUTES)).toBe('Day 2, 12:00 am')
+  })
+
+  it('reads as the start of the first day for an empty run', () => {
+    expect(simClockLabel(0, 0)).toBe('Day 1, 12:00 am')
+    expect(simClockLabel(90, 0)).toBe('Day 1, 12:00 am')
+  })
+})
+
+describe('simDayLabel', () => {
+  it('names only the day, held inside the run', () => {
+    expect(simDayLabel(9 * 24 * 60 + 21 * 60, SIM_MINUTES)).toBe('Day 10')
+    expect(simDayLabel(SIM_MINUTES, SIM_MINUTES)).toBe('Day 30')
+    expect(simDayLabel(0, 0)).toBe('Day 1')
+  })
 })
 
 describe('trackX', () => {
@@ -58,11 +77,21 @@ describe('trackX', () => {
     expect(trackX(-5, SIM_MINUTES)).toBe(0)
     expect(trackX(SIM_MINUTES * 2, SIM_MINUTES)).toBe(TRACK_WIDTH)
   })
+
+  it('stays at the start of an empty run', () => {
+    expect(trackX(0, 0)).toBe(0)
+    expect(trackX(90, 0)).toBe(0)
+  })
 })
 
 describe('buildTrack', () => {
   it('counts the days of the run', () => {
     expect(buildTrack(tape({})).days).toBe(30)
+  })
+
+  it('keeps a whole day on the track for a run under half a day', () => {
+    const empty = { ...tape({}), simMinutes: 0 }
+    expect(buildTrack(empty).days).toBe(1)
   })
 
   it('draws adoption as a closed area rising from the baseline to the peak', () => {

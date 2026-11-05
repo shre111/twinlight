@@ -24,23 +24,32 @@ export interface Track {
 }
 
 export function trackX(minutes: number, simMinutes: number): number {
+  if (simMinutes <= 0) return 0
   return (Math.min(Math.max(minutes, 0), simMinutes) / simMinutes) * TRACK_WIDTH
+}
+
+function heldInsideRun(minutes: number, simMinutes: number): number {
+  return Math.max(Math.min(minutes, simMinutes - 1), 0)
+}
+
+/** "Day 10", held inside the run. */
+export function simDayLabel(minutes: number, simMinutes: number): string {
+  return `Day ${Math.floor(heldInsideRun(minutes, simMinutes) / MINUTES_PER_DAY) + 1}`
 }
 
 /** "Day 10, 9:40 pm", in ten-minute steps like the prototype, held inside the run. */
 export function simClockLabel(minutes: number, simMinutes: number): string {
-  const t = Math.min(Math.max(minutes, 0), simMinutes - 1)
-  const day = Math.floor(t / MINUTES_PER_DAY) + 1
+  const t = heldInsideRun(minutes, simMinutes)
   const ofDay = Math.floor((t % MINUTES_PER_DAY) / 10) * 10
   const hour = Math.floor(ofDay / 60)
   const clock = `${hour % 12 === 0 ? 12 : hour % 12}:${String(ofDay % 60).padStart(2, '0')}`
-  return `Day ${day}, ${clock} ${hour < 12 ? 'am' : 'pm'}`
+  return `${simDayLabel(t, simMinutes)}, ${clock} ${hour < 12 ? 'am' : 'pm'}`
 }
 
 export function buildTrack(tape: StageTape): Track {
   const { simMinutes } = tape
   return {
-    days: Math.round(simMinutes / MINUTES_PER_DAY),
+    days: Math.max(1, Math.round(simMinutes / MINUTES_PER_DAY)),
     spark: adoptionArea(tape),
     stockouts: stockoutSpots(tape),
     rain: rainSpans(tape),
