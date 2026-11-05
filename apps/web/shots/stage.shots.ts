@@ -72,6 +72,26 @@ test('fixture route starts at the launch, plays and fills its figures', async ({
   await expect(ordered).not.toHaveText('0')
 })
 
+// Measures the toy run's labels; real tapes bring other names and times.
+test('timeline event labels stay apart at every width', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'this test sets its own widths')
+  await openStage(page, 'hud=0&still=1&day=13')
+  const markers = page.locator('footer div[aria-hidden="true"]').first()
+  for (const width of [701, 768, 900, 1024, 1180, 1280, 1366, 1400, 1401, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 })
+    const gaps = await markers.evaluate((row) => {
+      const boxes = [...row.querySelectorAll('span')]
+        .filter((label) => label.children.length === 0 && label.getClientRects().length > 0)
+        .map((label) => label.getBoundingClientRect())
+        .sort((a, b) => a.left - b.left)
+      return boxes.slice(1).map((box, i) => box.left - (boxes[i]?.right ?? 0))
+    })
+    expect(gaps.length, `labels at ${width} px`).toBeGreaterThan(1)
+    expect(Math.min(...gaps), `narrowest gap at ${width} px`).toBeGreaterThanOrEqual(4)
+    await expect(page.locator('footer').getByText('Day 15'), `at ${width} px`).toBeVisible()
+  }
+})
+
 test('frame report', async ({ page }, testInfo) => {
   // Three tiers of 60 software GL frames with 20k residents run past the default timeout.
   test.slow()
