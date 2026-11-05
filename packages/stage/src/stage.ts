@@ -8,7 +8,14 @@ import { ResidentsLayer } from './layers/residents'
 import { StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
-import { advanceMinutes, ClockChannel, type ClockState, SPEEDS, type Speed } from './playback'
+import {
+  advanceMinutes,
+  ClockChannel,
+  type ClockState,
+  frameStep,
+  SPEEDS,
+  type Speed,
+} from './playback'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
 import { AMBIENT_PERIOD_SECONDS, clampTime, warmFraction } from './time'
@@ -33,8 +40,6 @@ export interface FrameReport extends FrameSummary {
 }
 
 const HUD_INTERVAL_MS = 250
-// Longer gaps come from a paused or throttled loop, not from rendering.
-const MAX_FRAME_GAP_MS = 1000
 
 export class Stage {
   readonly backend: Backend
@@ -317,8 +322,8 @@ export class Stage {
       this.#applySize(this.#pendingSize)
       this.#pendingSize = null
     }
-    const gap = now - this.#lastFrameAt
-    if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) {
+    const gap = frameStep(now, this.#lastFrameAt)
+    if (gap > 0) {
       this.#stats.push(gap)
       // Wrapped so the float32 uniform keeps its precision in long sessions.
       if (!this.#still) {
