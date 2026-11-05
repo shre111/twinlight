@@ -11,9 +11,11 @@ from graph_fixture import (
     World,
     assert_csr_invariants,
     build_graph,
+    building_table,
     edges,
     merge,
     pair_distance,
+    run_work,
     triple,
     uniform_world,
 )
@@ -25,7 +27,9 @@ from twl_citybake.graph.ties import (
     friend_ties,
     household_ties,
     neighbour_ties,
+    workplace_masks,
 )
+from twl_citybake.osm.tags import BuildingKind
 
 
 def rng(seed: int = 1) -> np.random.Generator:
@@ -215,6 +219,213 @@ def test_friend_ties_are_deterministic_per_seed() -> None:
     assert all(np.array_equal(p, q) for p, q in zip(a, b, strict=True))
 
 
+WEST, EAST = 0, 12_000.0
+
+
+def two_clusters(per_cluster: int = 600, seed: int = 2) -> tuple[World, np.ndarray]:
+    r = np.random.default_rng(seed)
+    n = 2 * per_cluster
+    cx = np.repeat([WEST, EAST], per_cluster)
+    x = cx + r.uniform(-300, 300, n)
+    y = r.uniform(-300, 300, n)
+    household = (np.arange(n) // 2).astype(np.uint32)
+    segment = np.zeros(n, np.uint16)
+    occupied = r.random(n) < 0.7
+    return World(x, y, household, segment), occupied
+
+
+def commercial(x: float, y: float, bank: int = 0, district: int = 0) -> tuple:
+    return (x, y, int(BuildingKind.COMMERCIAL), 2000.0, 2, district, bank)
+
+
+def test_work_ties_join_only_occupied_residents() -> None:
+    world, occupied = two_clusters()
+    buildings = building_table([commercial(0, 0), commercial(EAST, 0, bank=1)])
+    (u, v, s), _ = run_work(world, occupied, buildings)
+    assert len(u) > 200
+    assert_pair_shape((u, v, s), world.n)
+    assert occupied[u].all() and occupied[v].all()
+    assert (world.household[u] != world.household[v]).all()
+
+
+def test_work_strength_is_between_point_two_and_point_five() -> None:
+    world, occupied = two_clusters()
+    (_, _, s), _ = run_work(world, occupied, building_table([commercial(0, 0)]))
+    assert s.min() >= np.float32(0.2) and s.max() <= np.float32(0.5)
+    assert abs(float(s.mean()) - 0.35) < 0.02
+
+
+def test_work_degree_per_occupied_resident_is_near_the_target() -> None:
+    world, occupied = two_clusters()
+    (u, _, _), _ = run_work(world, occupied, building_table([commercial(0, 0)]), degree=1.0)
+    assert 0.8 <= 2 * len(u) / int(occupied.sum()) <= 1.1
+
+
+def test_work_ties_pair_residents_who_chose_the_same_workplace_cell() -> None:
+    world, occupied = two_clusters()
+    buildings = building_table([commercial(0, 0), commercial(EAST, 0, bank=1)])
+    (u, v, _), _ = run_work(world, occupied, buildings, scale_m=100.0)
+    same_cluster = (world.x[u] > EAST / 2) == (world.x[v] > EAST / 2)
+    assert same_cluster.mean() > 0.99
+
+
+def test_work_ties_can_join_homes_far_apart_through_one_workplace() -> None:
+    world, occupied = two_clusters()
+    (u, v, _), _ = run_work(world, occupied, building_table([commercial(0, 0)]))
+    distance = pair_distance(world.x, world.y, u, v)
+    assert (distance > 10_000).mean() > 0.3
+
+
+def test_work_ties_of_a_zero_degree_are_empty() -> None:
+    world, occupied = two_clusters(100)
+    (u, _, _), _ = run_work(world, occupied, building_table([commercial(0, 0)]), degree=0.0)
+    assert len(u) == 0
+
+
+def test_nobody_occupied_means_no_work_ties() -> None:
+    world, occupied = two_clusters(100)
+    (u, _, _), _ = run_work(world, np.zeros_like(occupied), building_table([commercial(0, 0)]))
+    assert len(u) == 0
+
+
+MIXED_BUILDINGS = [
+    (0, 0, BuildingKind.COMMERCIAL, 200.0, 2, 0, 0),
+    (600, 0, BuildingKind.INDUSTRIAL, 300.0, 1, 1, 1),
+    (1200, 0, BuildingKind.CIVIC, 150.0, 5, 0, 0),
+    (1800, 0, BuildingKind.UNKNOWN, 1500.0, 2, 1, 1),
+    (2400, 0, BuildingKind.UNKNOWN, 1500.0, 5, 0, 0),
+    (3000, 0, BuildingKind.UNKNOWN, 800.0, 1, 0, 0),
+    (3600, 0, BuildingKind.RESIDENTIAL, 5000.0, 1, 0, 0),
+    (4200, 0, BuildingKind.RELIGIOUS, 5000.0, 1, 0, 0),
+    (4800, 0, BuildingKind.OTHER, 5000.0, 1, 0, 0),
+    (5400, 0, BuildingKind.UNKNOWN, 1000.0, 3, 1, 0),
+]
+
+
+def test_workplace_summary_counts_follow_the_selection_rule() -> None:
+    world, occupied = two_clusters(100)
+    _, summary = run_work(
+        world,
+        occupied,
+        building_table(MIXED_BUILDINGS),
+    )
+    assert summary["count"] == 5
+    assert summary["by_source"] == {"osm_tagged": 3, "untagged_footprint": 2}
+    assert summary["by_bank"] == {"west": 3, "east": 2}
+    assert summary["by_district"] == {
+        "Alpha": {"osm_tagged": 2, "untagged_footprint": 0},
+        "Beta": {"osm_tagged": 1, "untagged_footprint": 2},
+    }
+
+
+def test_workplace_thresholds_come_from_the_arguments() -> None:
+    world, occupied = two_clusters(100)
+    table = building_table(MIXED_BUILDINGS)
+    _, strict = run_work(world, occupied, table, min_area_m2=1600.0)
+    _, tall = run_work(world, occupied, table, max_floors=5)
+    assert strict["by_source"]["untagged_footprint"] == 0
+    assert tall["by_source"]["untagged_footprint"] == 3
+
+
+def test_workers_by_bank_follow_where_the_workplaces_are() -> None:
+    world, occupied = two_clusters()
+    east_only = building_table([commercial(EAST, 0, bank=1), commercial(EAST, 900, bank=1)])
+    _, summary = run_work(world, occupied, east_only)
+    workers = summary["workers_by_bank"]
+    assert workers == {"west": 0, "east": int(occupied.sum())}
+
+
+def test_a_workplace_at_exactly_the_limits_counts_and_one_beyond_does_not() -> None:
+    table = building_table(
+        [
+            (0, 0, BuildingKind.UNKNOWN, 1000.0, 3, 0, 0),
+            (0, 0, BuildingKind.UNKNOWN, 999.0, 3, 0, 0),
+            (0, 0, BuildingKind.UNKNOWN, 1000.0, 4, 0, 0),
+        ]
+    )
+    tagged, untagged = workplace_masks(table, 1000.0, 3)
+    assert not tagged.any()
+    assert untagged.tolist() == [True, False, False]
+
+
+def test_a_tagged_workplace_counts_whatever_its_size() -> None:
+    table = building_table([(0, 0, BuildingKind.CIVIC, 10.0, 40, 0, 0)])
+    tagged, untagged = workplace_masks(table, 1000.0, 3)
+    assert tagged.tolist() == [True]
+    assert untagged.tolist() == [False]
+
+
+def homes_at_the_origin(n: int = 4000) -> tuple[World, np.ndarray]:
+    world = uniform_world(n, seed=5, extent_m=1.0)
+    return world, np.ones(n, np.bool_)
+
+
+FAR = 1e9
+
+
+def test_cells_are_drawn_by_floor_area_not_footprint_area() -> None:
+    world, occupied = homes_at_the_origin()
+    table = building_table(
+        [
+            (-1000, 0, BuildingKind.COMMERCIAL, 1000.0, 4, 0, 0),
+            (1000, 0, BuildingKind.COMMERCIAL, 2000.0, 1, 0, 1),
+        ]
+    )
+    _, summary = run_work(world, occupied, table, scale_m=FAR)
+    assert abs(summary["workers_by_bank"]["west"] / world.n - 2 / 3) < 0.04
+
+
+def test_buildings_in_one_cell_are_one_workplace_on_the_bank_with_more_floor_area() -> None:
+    world, occupied = homes_at_the_origin(500)
+    east_heavy = [
+        (100, 100, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 0),
+        (400, 100, BuildingKind.COMMERCIAL, 1000.0, 2, 0, 1),
+    ]
+    west_heavy = [
+        (100, 100, BuildingKind.COMMERCIAL, 1000.0, 2, 0, 0),
+        (400, 100, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 1),
+    ]
+    _, east = run_work(world, occupied, building_table(east_heavy), cell_m=500.0)
+    _, west = run_work(world, occupied, building_table(west_heavy), cell_m=500.0)
+    assert east["workers_by_bank"] == {"west": 0, "east": world.n}
+    assert west["workers_by_bank"] == {"west": world.n, "east": 0}
+
+
+def test_a_cell_split_evenly_across_the_river_stays_on_the_west_bank() -> None:
+    world, occupied = homes_at_the_origin(500)
+    even = [
+        (100, 100, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 0),
+        (400, 100, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 1),
+    ]
+    _, summary = run_work(world, occupied, building_table(even), cell_m=500.0)
+    assert summary["workers_by_bank"] == {"west": world.n, "east": 0}
+
+
+def test_the_cell_size_decides_whether_two_buildings_share_coworkers() -> None:
+    world, occupied = two_clusters()
+    buildings = building_table([commercial(0, 0), commercial(EAST, 0, bank=1)])
+    (u, v, _), _ = run_work(world, occupied, buildings, scale_m=100.0, cell_m=500.0)
+    (mu, mv, _), _ = run_work(world, occupied, buildings, scale_m=100.0, cell_m=100_000.0)
+    across = (world.x[u] > EAST / 2) != (world.x[v] > EAST / 2)
+    merged_across = (world.x[mu] > EAST / 2) != (world.x[mv] > EAST / 2)
+    assert across.mean() < 0.01
+    assert 0.4 < merged_across.mean() < 0.6
+
+
+def test_a_nearer_workplace_of_equal_floor_area_is_chosen_more_often() -> None:
+    world, occupied = homes_at_the_origin()
+    table = building_table(
+        [
+            (500, 0, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 0),
+            (3000, 0, BuildingKind.COMMERCIAL, 1000.0, 1, 0, 1),
+        ]
+    )
+    _, near = run_work(world, occupied, table, scale_m=500.0)
+    _, flat_decay = run_work(world, occupied, table, scale_m=FAR)
+    assert near["workers_by_bank"]["west"] / world.n > 0.95
+    assert abs(flat_decay["workers_by_bank"]["west"] / world.n - 0.5) < 0.04
+
+
 def test_merge_keeps_the_lowest_kind_and_its_strength_for_a_repeated_pair() -> None:
     graph = merge(
         {
@@ -297,10 +508,13 @@ def test_generated_ties_always_merge_into_a_valid_csr(
 ) -> None:
     world = uniform_world(n, seed=seed, extent_m=800.0, household_size=household_size)
     spouse = np.full(n, NONE, np.uint32)
+    occupied = np.random.default_rng(seed).random(n) < 0.6
+    buildings = building_table([commercial(100, 100), commercial(700, 650, bank=1)])
     parts = {
         HOUSEHOLD: household_ties(world.household, spouse),
         NEIGHBOUR: neighbours(world, seed, degree=degree, candidates=4),
         FRIEND: friends(world, seed, degree=degree, candidates=4),
+        WORK: run_work(world, occupied, buildings, seed, degree=degree, candidates=4)[0],
     }
     for t in parts.values():
         assert_pair_shape(t, n)
