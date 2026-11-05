@@ -8,6 +8,7 @@ import { ResidentsLayer } from './layers/residents'
 import { FLICKER_PERIOD_SECONDS, StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
+import { advanceMinutes, ClockChannel, type ClockState, type Speed } from './playback'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
 import { clampTime, warmFraction } from './time'
@@ -46,7 +47,10 @@ export class Stage {
   #residents: ResidentsLayer | null = null
   #stores: StoresLayer | null = null
   #time = 0
-  // Wall-clock seconds for ambient motion, apart from sim time, which only `setTime` moves.
+  #playing = false
+  #speed: Speed = 1
+  #clockChannel = new ClockChannel()
+  // Wall-clock seconds for ambient motion, apart from sim time, which `setTime` and playback move.
   #clock = uniform(0)
   #still: boolean
   #reducedMotion: boolean
@@ -110,6 +114,37 @@ export class Stage {
     return this.#time
   }
 
+  /** What the UI shows of the clock; the same object until it changes, for `useSyncExternalStore`. */
+  get clock(): ClockState {
+    return this.#clockChannel.state
+  }
+
+  /** Calls back when `clock` changes: at once on user actions, at most ten times a second in playback. */
+  subscribeClock = (listener: () => void): (() => void) => this.#clockChannel.subscribe(listener)
+
+  /** Plays the tape forward from the current time, or from the start if the run has ended. */
+  play(): void {
+    const tape = this.#tape
+    if (!tape || this.#playing) return
+    if (this.#time >= tape.simMinutes) {
+      this.#time = 0
+      this.#applyTime()
+    }
+    this.#playing = true
+    this.#publishClock()
+  }
+
+  pause(): void {
+    if (!this.#playing) return
+    this.#playing = false
+    this.#publishClock()
+  }
+
+  setSpeed(speed: Speed): void {
+    this.#speed = speed
+    this.#publishClock()
+  }
+
   setTier(tier: TierName): void {
     this.#tier = tier
     this.#stats.reset()
@@ -122,6 +157,7 @@ export class Stage {
   /** Replaces the city. Its tape is cleared, so call `setTape` again for the new one. */
   async loadCity(city: StageCity): Promise<void> {
     if (this.#disposed) return
+    this.pause()
     const load = ++this.#loads
     this.#tape = null
     this.#residents?.dispose()
@@ -189,6 +225,7 @@ export class Stage {
         ? Math.max(0, simMinutes)
         : 0
     this.#applyTime()
+    this.#publishClock()
   }
 
   perf(): FrameReport {
@@ -243,6 +280,23 @@ export class Stage {
     this.#stores?.showStockouts(tape.stores, Math.min(this.#time, tape.simMinutes - 1))
   }
 
+  #publishClock(): void {
+    this.#clockChannel.publish({ minutes: this.#time, playing: this.#playing, speed: this.#speed })
+  }
+
+  #advancePlayback(gap: number, now: number): void {
+    const tape = this.#tape
+    if (!tape) return
+    this.#time = advanceMinutes(this.#time, gap, this.#speed, tape.simMinutes)
+    this.#applyTime()
+    if (this.#time >= tape.simMinutes) {
+      this.#playing = false
+      this.#publishClock()
+    } else if (this.#clockChannel.playbackDue(now)) {
+      this.#publishClock()
+    }
+  }
+
   async #compile(): Promise<void> {
     try {
       await this.#renderer.compileAsync(this.#scene, this.#camera)
@@ -264,6 +318,7 @@ export class Stage {
       if (!this.#still) {
         this.#clock.value = (this.#clock.value + gap / 1000) % FLICKER_PERIOD_SECONDS
       }
+      if (this.#playing) this.#advancePlayback(gap, now)
     }
     this.#lastFrameAt = now
 
