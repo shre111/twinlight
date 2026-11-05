@@ -141,3 +141,17 @@ def run_work(
         np.random.default_rng(seed),
         district_names=list(district_names),
     )
+
+
+def graph_report(graph: Any, bank: Any, segment: Any, x: Any, y: Any) -> dict[str, Any]:
+    from twl_citybake.graph.metrics import graph_report as report
+
+    n = len(graph.offsets) - 1
+    return report(
+        graph,
+        np.asarray(bank, np.uint8),
+        np.asarray(segment, np.uint16),
+        np.asarray(x, np.float64),
+        np.asarray(y, np.float64),
+        n,
+    )
