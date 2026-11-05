@@ -11,12 +11,14 @@ from twl_engine.scenario import Params, Scenario
 from twl_engine.state import (
     ATTEMPTS,
     DEFERRED,
+    DELIVERY_ROWS,
     LATE,
     LOST,
     SERVED,
     SPILLED,
     ResidentState,
     SupplyState,
+    new_delivery_log,
     new_sim,
 )
 from twl_engine.supply import stores_section
@@ -25,7 +27,6 @@ from twl_engine.world import NO_STORE, SupplyPlan, build_world
 from twl_tape import (
     NEVER,
     AggregatesSection,
-    DeliveriesSection,
     ResidentsSection,
     StoresSection,
     Tape,
@@ -92,11 +93,12 @@ def run_seed_with_stats(inputs: RunInputs) -> tuple[Tape, SupplyStats]:
     plan, supply = sim.world.supply, sim.supply
     if plan is None or supply is None:
         stores = empty_stores_section(store_count, clock.ticks)
+        deliveries = new_delivery_log(capacity=0).section(0)
         stats = unlimited_supply_stats(int(sim.aggregates.orders.sum()), store_count)
     else:
         stores = stores_section(supply, clock.sim_minutes)
+        deliveries = supply.deliveries.section(int(supply.tally[DELIVERY_ROWS]))
         stats = supply_stats(plan, supply, clock.ticks)
-    deliveries = empty_deliveries_section()
     tape = Tape(
         header=tape_header(
             inputs,
@@ -190,17 +192,6 @@ def residents_section(state: ResidentState) -> ResidentsSection:
         heard_from=state.heard_from,
         first_source=state.first_source,
         outcome_flags=state.outcome_flags,
-    )
-
-
-def empty_deliveries_section() -> DeliveriesSection:
-    return DeliveriesSection(
-        store=np.zeros(0, np.uint16),
-        resident=np.zeros(0, np.uint32),
-        ordered_at=np.zeros(0, np.uint32),
-        picked_at=np.zeros(0, np.uint32),
-        delivered_at=np.zeros(0, np.uint32),
-        outcome=np.zeros(0, np.uint8),
     )
 
 
