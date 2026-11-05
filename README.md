@@ -14,7 +14,7 @@ Every number comes with a range and can be reproduced from a seed.
 Brands launching on quick commerce face a cold-start problem. Survey tools and synthetic-user panels say whether people like an idea. Forecasting tools say how much to stock from past sales, which a new product does not have. Neither connects how people behave to where stock physically has to sit inside a 2 to 3 km dark-store radius. Twinlight connects the two.
 
 ## How it works
-- **A real city, synthetic people.** OpenStreetMap buildings and roads, WorldPop population, and census-aligned synthetic personas become households, a social graph and dark stores.
+- **A real city, synthetic people.** OpenStreetMap buildings and roads (with open building footprints where OSM has gaps), GHS-POP population, and census-aligned synthetic personas become households, a social graph and dark stores.
 - **A hybrid simulation.** A few hundred deep LLM personas answer a structured questionnaire; a Bayesian model turns their answers into behaviour parameters with uncertainty; a deterministic Python engine (NumPy + Numba) runs 100k lightweight agents and a discrete-event supply model 50 times. The LLM never runs inside the simulation loop.
 - **Rendered from event times.** The engine emits when each thing happened; the browser uploads those times to the GPU once and shaders draw any moment of the 30 days instantly. Scrubbing a month is a single uniform change.
 - **Honest by design.** Bands on every outcome, a calibration panel that backtests against a brand's real past launches, and narrations whose every sentence links to a moment in the city.
@@ -22,7 +22,7 @@ Brands launching on quick commerce face a cold-start problem. Survey tools and s
 ```mermaid
 flowchart LR
   Brief --> Scenario
-  Scenario --> CityPack[City pack<br/>OSM, WorldPop, personas]
+  Scenario --> CityPack[City pack<br/>OSM, GHS-POP, personas]
   Scenario --> Personas[Deep personas<br/>LLM elicitation]
   Personas --> Calibration[Bayesian calibration]
   CityPack --> Engine[Python engine<br/>x50 seeds]
