@@ -14,6 +14,18 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
   - 48k residents on `/dev/fixture`: p50 16.7, p95 17.6, worst 17.8 ms, 60 fps, none over 20 ms.
   - 100k residents on `/dev/stage`: p50 16.7, p95 17.6, worst 33 ms, 60 fps, 2 of 2,697 over 20 ms.
 
+## River layer
+- The stage reads `river.bin` and draws any water ring: a dark ribbon whose slow sheen fades out toward the banks. Reduced motion holds the sheen. Rain sheen waits for P-042.
+- `/dev/fixture` also passes in Firefox (WebGL2, p50 16.7 ms) and Playwright WebKit (WebGPU, 17.0 ms). The Safari app itself has not been opened.
+- Frames on the M4 in Chrome, WebGPU, tier high, full runs at 16x with the river and readouts card: 48k p50 16.7, p95 18.4 ms; 100k p50 16.7, p95 18.2 ms; both 60 fps. With the river switched off under the same conditions, 48k read p95 18.5 ms, so the river adds nothing measurable.
+
+## For Lane C
+- `decodePack` now requires `river.bin` and the manifest's `riverPolygons` and `riverPoints` (ARCHITECTURE section 5). Only the toy fixture writes them so far; the citybake pack writer needs them too.
+
+## Gotchas
+- Chrome caps animation at 30 fps on battery at low charge, so p50 33.3 ms can be the cap and not a regression. Time a page with no 3D before suspecting a change.
+- `design/prototype/twinlight-city.html` shows its "needs WebGL" card over a working scene: the card's `display: grid` beats `hidden`. Hide `#fail` in devtools to see the reference.
+
 ## For P-040 (D-028)
 - Add chatter with `kind` to `StageTape` and the synthetic tape, and draw nudged rows fainter.
 - Do not assume time order: nudged rows can land up to 72 h late, across chunks.
