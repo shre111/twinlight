@@ -2,10 +2,6 @@
 
 Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 
-## P-015
-- Firefox passes: Playwright Firefox 157 took the WebGL2 fallback, HUD shows backend and frame time, 20k residents at p50 16.66, p95 17.28 ms, 59 fps, no console errors. Keyboard scrubbing works; Firefox rings the whole track rather than the thumb. Ready to tick.
-- At 1440 px the dev HUD's last figure, pixel ratio, sits under the readouts card. Dev only.
-
 ## P-019
 - `/dev/fixture` is in: `just fixture-pack` writes the toy pack to `data/cache/packs/toy`, the default for `TWL_PACK_DIR`, and `just shots` runs it first. No auth, dev only. Shows a message if the pack is missing.
 - Not ticked. There is no TS tape decoder yet, so the tape is `synthesizeTapeFor(city)`: the toy sim's campaign over the pack's residents and stores, with traits drawn as the prototype draws them. Day 14 reads 43% heard, 11.5% ordered; day 30 reads 63%, 23%.
