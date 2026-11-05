@@ -74,6 +74,148 @@
   font-variant-numeric: tabular-nums;
 }
 
+.track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 64px;
+}
+
+.graph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.rain {
+  fill: var(--color-monsoon);
+  opacity: 0.22;
+}
+
+.spark {
+  fill: var(--color-lamp);
+  opacity: 0.18;
+}
+
+.played {
+  fill: var(--color-lamp);
+  opacity: 0.45;
+}
+
+.rail {
+  fill: var(--color-haze);
+}
+
+.progress {
+  fill: var(--color-lamp);
+}
+
+.stockout {
+  fill: var(--color-sindoor);
+}
+
+.tick {
+  fill: var(--color-mist);
+  opacity: 0.6;
+}
+
+.markers,
+.days {
+  position: absolute;
+  inset-inline: 0;
+  color: var(--color-mist);
+  font-size: var(--text-12);
+  pointer-events: none;
+}
+
+.markers {
+  top: 0;
+  height: 16px;
+  color: var(--color-chatter);
+}
+
+.days {
+  bottom: -3px;
+  height: 12px;
+  line-height: 1;
+}
+
+.markers > span,
+.days > span {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.days > span:not(:first-child) {
+  transform: translateX(-50%);
+}
+
+.days > span:last-child {
+  transform: translateX(-100%);
+}
+
+.rainLabel {
+  color: var(--color-monsoon);
+}
+
+.short {
+  display: none;
+}
+
+.scrubber {
+  position: absolute;
+  inset: 24px 0 auto;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  touch-action: none;
+}
+
+/* Firefox keeps the input's own ring: an outline on its thumb is unverified, and no ring is worse. */
+@supports not selector(::-moz-range-thumb) {
+  .scrubber:focus-visible {
+    outline: none;
+  }
+}
+
+.scrubber:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-lamp);
+  outline-offset: 2px;
+}
+
+.scrubber::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.scrubber::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.scrubber::-webkit-slider-thumb {
+  width: 14px;
+  height: 26px;
+  margin-top: 1px;
+  border: 2px solid var(--color-dusk);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  appearance: none;
+}
+
+.scrubber::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 26px;
+  border: 2px solid var(--color-dusk);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+}
+
 @media (pointer: coarse) {
   .speeds button {
     height: 44px;
@@ -106,5 +248,38 @@
   .time {
     flex: 1;
     width: auto;
+  }
+
+  .track {
+    flex-basis: 100%;
+  }
+
+  .full {
+    display: none;
+  }
+
+  .short {
+    display: inline;
+  }
+
+  .markers > span:not(.rainLabel) {
+    transform: translateX(-50%);
+  }
+
+  .scrubber {
+    height: 44px;
+    inset-block-start: 16px;
+  }
+
+  .scrubber::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .scrubber::-moz-range-track {
+    height: 44px;
+  }
+
+  .scrubber::-webkit-slider-thumb {
+    margin-top: 9px;
   }
 }
