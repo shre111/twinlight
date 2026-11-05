@@ -43,3 +43,51 @@ adopted_day30 = 1271
 orders_total = 3275
 tape_bytes = 44280
 chatter_rows = 1992
+
+[engine.supply_small_seed1]
+hash = "820499b59c6c3d3c8ce86ecf4dd972d258cfc7344a71d5d71825d968d464f861"
+aware_day30 = 2768
+adopted_day30 = 861
+orders_total = 1965
+tape_bytes = 68152
+chatter_rows = 1535
+deliveries = 1965
+late = 0
+stockout_pairs = 130
+lost = 76
+
+[engine.supply_small_seed2]
+hash = "3c6b937b21b8f4091d59fa2532cacbbc8d001364b7fd2c6987d086dfb3f3614a"
+aware_day30 = 2732
+adopted_day30 = 829
+orders_total = 1966
+tape_bytes = 67512
+chatter_rows = 1486
+deliveries = 1966
+late = 0
+stockout_pairs = 144
+lost = 87
+
+[engine.low_stock_seed1]
+hash = "0adae973735810025911c6a4f8a83e7e236efec3c789c58dfffd7f182b491bfd"
+aware_day30 = 2074
+adopted_day30 = 195
+orders_total = 239
+tape_bytes = 26304
+chatter_rows = 585
+deliveries = 239
+late = 0
+stockout_pairs = 210
+lost = 226
+
+[engine.low_stock_seed2]
+hash = "4fd7b1900ccf91ff169ce2f27f9cdc059243ce7d074ed83bd318482428c34b92"
+aware_day30 = 1954
+adopted_day30 = 186
+orders_total = 234
+tape_bytes = 25192
+chatter_rows = 558
+deliveries = 234
+late = 0
+stockout_pairs = 200
+lost = 218
