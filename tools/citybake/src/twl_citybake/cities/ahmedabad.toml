@@ -45,6 +45,64 @@ member = "GHS_POP_E2025_GLOBE_R2023A_4326_3ss_V1_0_R7_C26.tif"
 source = "GHS-POP R2023A, 2025 epoch (© European Union, JRC)"
 licence = "CC BY 4.0"
 
+[population_correction]
+# D-030: each raster cell becomes raster^(1-w) * fit^w. 0.75 sits in the lower part of the range that passes
+# the ward checks on the real step, and is not an optimum. The range's low edge rests on the rough north-west
+# box band: 0.71 clears it by 391 people. Minimising spread across all 48 wards assumes equal growth, so it
+# likely understates the north-west. Revisit when AMC's ward-wise 2011 file or Census 2027 ward data arrives.
+# A new city states its own weight and evidence.
+weight = 0.75
+weight_range = [0.71, 0.83]
+weight_evidence = "Stated by the owner after seeing the 48 ward polygons: in the lower part of the range that passes the ward checks on the real step, not an optimum and not chosen by code. GHS-POP alone gives the north-west five wards a mean of 0.32 of a 2011 ward."
+# fit is taken from Asarva, Maninagar, Sabarmati, Vatva and Vejalpur talukas, applied everywhere
+reference_polygons = ["relation/16736466", "relation/16736464", "relation/16736468", "relation/16736465", "relation/16736469"]
+# floor-area-weighted floors and footprint m2, and footprint share of the cell
+height_edges = [2.0, 3.0, 5.0, 8.0]
+footprint_edges = [100.0, 250.0, 600.0, 1500.0]
+coverage_edges = [0.10, 0.25, 0.45]
+# a class rate above 1 person per this much housing floor is capped there
+fit_min_m2_per_person = 8.0
+# a class under this share of reference housing floor uses the reference rate
+min_class_share = 0.002
+
+[population_check]
+# validation only: never in a stage table, layer.json's attribution or a pack; report.json credits it
+url = "https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/46679b9c173e4f13745974134c3802f92d80bf8f/Ahmedabad/Wards.geojson"
+md5 = "165e7dcd6710c7525b8ea169ca5cdeed"
+source = "Ward polygons: DataMeet Municipal_Spatial_Data, Ahmedabad/Wards.geojson, commit 46679b9c, CC BY-SA 2.5 IN"
+name_property = "Name"
+# wards were drawn to hold about this many people each in 2011, plus or minus 10%
+ward_people_2011 = 118001
+total_people_2011 = 5664062
+total_growth = [1.27, 1.6]
+
+[[population_check.ward_groups]]
+name = "walled city"
+wards = ["DARIYAPUR", "JAMALPUR", "KHADIA", "SHAHPUR"]
+mean_ratio = [0.75, 1.25]
+ward_ratio = [0.75, 1.25]
+known_misses = ["DARIYAPUR"]
+
+[[population_check.ward_groups]]
+name = "north-west five"
+wards = ["GOTA", "CHANDLODIA", "GHATLODIA", "THALTEJ", "BODAKDEV"]
+
+[[population_check.regions]]
+name = "Ghatlodiya taluka"
+polygon = "relation/16736467"
+people = [405000, 830000]
+
+[[population_check.regions]]
+name = "north-west box"
+# local metres x0, y0, x1, y1
+box = [-20000.0, 0.0, -3000.0, 20000.0]
+people = [970000, 1420000]
+
+[[population_check.regions]]
+name = "Daskroi part in the bbox"
+polygon = "relation/9661743"
+people = [0, 409000]
+
 [population]
 # densest plausible crowding: a capacity ceiling, not a typical value
 min_floor_m2_per_person = 4.0
