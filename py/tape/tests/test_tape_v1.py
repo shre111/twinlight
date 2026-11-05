@@ -11,6 +11,8 @@ import zstandard
 from numpy.typing import NDArray
 
 from twl_tape.format import (
+    CHATTER_HEARD,
+    CHATTER_NUDGED,
     NEVER,
     TAPE_VERSION,
     AggregatesSection,
@@ -52,7 +54,7 @@ COLUMNS: dict[SectionKind, list[tuple[str, str]]] = {
         ("first_source", "u1"),
         ("outcome_flags", "u1"),
     ],
-    SectionKind.CHATTER: [("from_", "<u4"), ("to", "<u4"), ("at", "<u4")],
+    SectionKind.CHATTER: [("from_", "<u4"), ("to", "<u4"), ("at", "<u4"), ("kind", "u1")],
     SectionKind.DELIVERIES: [
         ("store", "<u2"),
         ("resident", "<u4"),
@@ -129,7 +131,10 @@ def small_tape() -> Tape:
             outcome_flags=arr([0, 0, 0, 1, 0], "u1"),
         ),
         chatter=ChatterSection(
-            from_=arr([0, 1], "<u4"), to=arr([1, 3], "<u4"), at=arr([10, 40], "<u4")
+            from_=arr([0, 1], "<u4"),
+            to=arr([1, 3], "<u4"),
+            at=arr([10, 40], "<u4"),
+            kind=arr([CHATTER_HEARD, CHATTER_NUDGED], "u1"),
         ),
         deliveries=DeliveriesSection(
             store=arr([1], "<u2"),
@@ -166,7 +171,9 @@ def empty_tape() -> Tape:
             first_source=arr([], "u1"),
             outcome_flags=arr([], "u1"),
         ),
-        chatter=ChatterSection(from_=arr([], "<u4"), to=arr([], "<u4"), at=arr([], "<u4")),
+        chatter=ChatterSection(
+            from_=arr([], "<u4"), to=arr([], "<u4"), at=arr([], "<u4"), kind=arr([], "u1")
+        ),
         deliveries=DeliveriesSection(
             store=arr([], "<u2"),
             resident=arr([], "<u4"),
@@ -307,6 +314,8 @@ def test_section_kinds_and_constants_match_the_spec() -> None:
     assert [int(k) for k in KIND_ORDER] == [1, 2, 3, 4, 5, 6]
     assert NEVER == 0xFFFF_FFFF
     assert TAPE_VERSION == 1
+    assert CHATTER_HEARD == 1
+    assert CHATTER_NUDGED == 2
 
 
 def test_small_tape_round_trips_with_every_array_and_dtype_equal(tape: Tape, data: bytes) -> None:
@@ -375,7 +384,8 @@ def raw_length_from_counts(p: Parsed, kind: SectionKind) -> int:
         case SectionKind.RESIDENTS:
             return padded_total([(4, n), (4, n), (2, n), (4, n), (1, n), (1, n)])
         case SectionKind.CHATTER:
-            return padded_total([(4, c["chatter_rows"])] * 3)
+            k = c["chatter_rows"]
+            return padded_total([(4, k), (4, k), (4, k), (1, k)])
         case SectionKind.DELIVERIES:
             d = c["delivery_rows"]
             return padded_total([(2, d), (4, d), (4, d), (4, d), (4, d), (1, d)])
