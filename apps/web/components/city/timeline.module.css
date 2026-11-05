@@ -223,6 +223,21 @@
   }
 }
 
+/* Narrower than this, the toy run's full event names run into each other over the track. */
+@media (max-width: 1400px) {
+  .markers .full {
+    display: none;
+  }
+
+  .markers .short {
+    display: inline;
+  }
+
+  .markers > span:not(.rainLabel) {
+    transform: translateX(-50%);
+  }
+}
+
 @media (max-width: 700px) {
   .timeline {
     flex-wrap: wrap;
@@ -257,14 +272,6 @@
 
   .full {
     display: none;
-  }
-
-  .short {
-    display: inline;
-  }
-
-  .markers > span:not(.rainLabel) {
-    transform: translateX(-50%);
   }
 
   .scrubber {
