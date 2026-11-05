@@ -5,6 +5,7 @@ environment, and CI confirms the values. Tables other than `engine` are kept as 
 """
 
 import argparse
+import dataclasses
 import json
 import os
 import tomllib
@@ -58,9 +59,14 @@ def prototype_inputs(seed: int) -> RunInputs:
 
 
 def prototype_small_inputs(seed: int) -> RunInputs:
-    """The same scenario and params on the 5,000-resident toy city: goldens and fast tests."""
+    """The prototype launch on the 5,000-resident toy city: goldens and fast tests.
+
+    Budgets are absolute, so paid reach is scaled by the resident ratio to keep the same
+    impressions per resident as the 48,000-resident run.
+    """
     scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
-    return golden_inputs(seed, scenario, params)
+    reach = params.paid_scale * GOLDEN_RESIDENTS / PROTOTYPE_RESIDENTS
+    return golden_inputs(seed, scenario, dataclasses.replace(params, paid_scale=reach))
 
 
 GOLDEN_RUNS: tuple[tuple[str, Callable[[int], RunInputs], int], ...] = (

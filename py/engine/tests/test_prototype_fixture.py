@@ -142,7 +142,11 @@ def test_rewriting_params_keeps_the_scenario_and_round_trips(tmp_path: Path) -> 
 def test_prototype_small_inputs_are_the_fixture_on_the_golden_city() -> None:
     inputs = prototype_small_inputs(2)
     assert inputs.seed == 2 and inputs.city.residents.x.shape[0] == 5_000
-    assert (inputs.scenario, inputs.params) == load_scenario(PROTOTYPE_SCENARIO_PATH)
+    scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
+    assert inputs.scenario == scenario
+    same_reach = dataclasses.replace(inputs.params, paid_scale=params.paid_scale)
+    assert same_reach == params
+    assert inputs.params.paid_scale == pytest.approx(params.paid_scale * 5_000 / 48_000)
 
 
 def test_checked_in_goldens_cover_every_engine_run_with_all_probes() -> None:

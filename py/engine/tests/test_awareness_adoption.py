@@ -280,7 +280,8 @@ def test_load_scenario_matches_what_the_goldens_run() -> None:
     scenario, params = load_scenario(PROTOTYPE)
     inputs = prototype_small_inputs(1)
     assert inputs.scenario == scenario
-    assert inputs.params == params
+    assert dataclasses.replace(inputs.params, paid_scale=params.paid_scale) == params
+    assert inputs.params.paid_scale == pytest.approx(params.paid_scale * 5_000 / 48_000)
 
 
 def test_load_scenario_rejects_an_unknown_key_anywhere(tmp_path: Path) -> None:
