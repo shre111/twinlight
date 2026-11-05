@@ -3,13 +3,13 @@
 Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 
 ## Now
-- This PR: a residents legibility pass on the lead's day 13 notes. A glow quad per resident stands in for bloom, so lilac and mint read as a field over the city. Lead-lane observation on the M4 with WebGPU: at day 13, 48k residents read like the render at full view; 100k shows no blobs or rims at 16.7 ms p50 and 17.7 p95 in 8 draw calls; the WebGL 2 fallback looks the same; the low tier draws no glow (DESIGN.md: low has no bloom).
-- Lane C's `ahmedabad-osm` pack (P-020) renders in `/dev/stage?pack=ahmedabad-osm` at 16.7 ms p50 and 17.5 p95 (100k buildings, about 238k road segments, 100k residents). The camera poses, target clamp, max distance and ground glow are toy-city values and need fitting to a pack's extent.
+- This PR: the camera, ground, sky, beam height, road lifts and wall-clearing nudge now scale from the pack's manifest bbox (`StageCity.bounds`, or the buildings if absent), relative to the toy city they were tuned on. The toy city is unchanged (all shots match).
+- Lane C's `ahmedabad-osm` pack (P-020) frames as a whole city in `/dev/stage?pack=ahmedabad-osm`. With all of it in frame (100k buildings, about 238k road segments, 100k residents with glow), the M4 with WebGPU at DPR 1.75 stays at 16.7 ms p50 but drops frames at the high tier: 51 to 57 fps, p95 17.7 to 33.4 ms across three samples. Medium (DPR 1.5) runs 57 fps, p95 17.3 ms. The toy city's 100k holds 60 fps, so this is real-city scale, not residents alone, and about 1M D-021 buildings will need LOD or culling (P-025, P-045).
 - Next: P-018 timeline and readouts.
 
 ## For P-045 (post-processing)
 When bloom lands, remove the resident glow from `packages/stage/src/layers/residents.ts`:
-- the second quad in `pointAndGlowQuads()` and its `withGlow` parameter, the `glow` attribute and `isGlow`, and the `glow` argument of the `ResidentsLayer` constructor (and `TIERS[tier].bloomScale > 0` at its call in `stage.ts`);
+- the second quad in `pointAndGlowQuads()` and its `withGlow` parameter, the `glow` attribute and `isGlow`, and the `glow` option of the `ResidentsLayer` constructor (and `TIERS[tier].bloomScale > 0` at its call in `stage.ts`);
 - the glow branches of `sizeNode`, `positionNode` (including `offAxisCos` and the `cameraNear` import) and `colorNode`;
 - `GLOW_SIGMA_PX`, `GLOW_QUAD_SIGMAS`, `GLOW_ENERGY`, `GLOW_REFERENCE_RESIDENTS`, `GLOW_PEAK_PER_ENERGY`, `glowDensity`, `settledGrowth`, `settledRadius`, `glowEnergy` and `glowPeak`;
 - the `density` parameter of `#createMaterial`, which also scales the flare halo (`flareGain`), so decide then whether the halo stays at all;
