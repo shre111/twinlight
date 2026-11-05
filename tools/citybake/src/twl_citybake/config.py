@@ -55,6 +55,10 @@ class PopulationRaster(PinnedDownload):
     licence: str
     member: str = ""
 
+    def __post_init__(self) -> None:
+        if "/" in self.member or "\\" in self.member or self.member.startswith(".."):
+            raise ValueError(f"population_raster.member must be a plain name, got {self.member!r}")
+
     @property
     def raster_name(self) -> str:
         return self.member or self.filename
@@ -320,11 +324,21 @@ def _known_keys(where: str, raw: dict[str, Any], known: set[str]) -> None:
 
 
 def _population_raster(raw: dict[str, Any] | None) -> PopulationRaster | None:
-    return None if raw is None else PopulationRaster(**raw)
+    if raw is None:
+        return None
+    _known_keys("[population_raster]", raw, {"url", "md5", "member", "source", "licence"})
+    if missing := sorted({"url", "md5", "source", "licence"} - set(raw)):
+        raise ValueError(f"[population_raster] needs {missing[0]!r}")
+    return PopulationRaster(**raw)
 
 
 def _population_total(raw: dict[str, Any] | None) -> PopulationTotal | None:
-    return None if raw is None else PopulationTotal(**raw)
+    if raw is None:
+        return None
+    _known_keys("[population_total]", raw, {"people", "source", "polygon", "as_of"})
+    if missing := sorted({"people", "source", "polygon", "as_of"} - set(raw)):
+        raise ValueError(f"[population_total] needs {missing[0]!r}")
+    return PopulationTotal(**raw)
 
 
 def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:

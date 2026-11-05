@@ -167,13 +167,13 @@ def run_population_command(city: str, dirs: DataDirs) -> None:
 
 
 def population_summary(report: dict, census_mean_size: float) -> str:
-    wp, cap, d = report["raster"], report["capacity"], report["districts"]
+    raster, cap, d = report["raster"], report["capacity"], report["districts"]
     hh, fit, res = report["households"], report["ipf"], report["residents"]
     outside = ", ".join(d["outside_1pct"]) or "none"
     return "\n".join(
         [
-            f"raster {wp['people_in_bbox']:,.0f} people in {wp['cells']} cells; "
-            f"{wp['people_without_buildings']:,.0f} in {wp['cells_without_buildings']} "
+            f"raster {raster['people_in_bbox']:,.0f} people in {raster['cells']} cells; "
+            f"{raster['people_without_buildings']:,.0f} in {raster['cells_without_buildings']} "
             "cells without buildings are unplaced",
             f"capacity {cap['people']:,} people in {cap['buildings_with_capacity']} buildings, "
             f"{cap['buildings_over_capacity']} over capacity",

@@ -15,7 +15,7 @@ from twl_citybake.config import BBox
 
 FloatArray = npt.NDArray[np.float64]
 IntArray = npt.NDArray[np.int64]
-# Fractions of a cell (about 1e-7 m at 100 m) absorbed when snapping degrees to the grid, so
+# Fractions of a cell (about 1e-7 m at 3 arc seconds) absorbed when snapping degrees to the grid, so
 # points and bbox edges that sit on a cell boundary do not flip cells through rounding.
 SNAP = 1e-9
 

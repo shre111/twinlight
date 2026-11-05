@@ -104,6 +104,7 @@ def run_population(
         "seed": city.seed,
         "attribution": [
             *([] if source is None else [f"{source.source}, {source.licence}"]),
+            *([] if city.population_total is None else [city.population_total.source]),
             CENSUS_ATTRIBUTION,
         ],
         "shopper_share": pop.shopper_share,
