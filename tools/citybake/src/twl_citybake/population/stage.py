@@ -12,6 +12,7 @@ from twl_citybake.population.capacity import residential_capacity, storeys
 from twl_citybake.population.check import load_wards, population_check
 from twl_citybake.population.correction import Correction, correct_raster
 from twl_citybake.population.households import Households, synthesise_households
+from twl_citybake.population.nonresidential import NonResidential, nonresidential_buildings
 from twl_citybake.population.raster import (
     PopGrid,
     read_boundaries,
@@ -56,7 +57,7 @@ def run_population(
     if [d["id"] for d in districts] != list(range(len(districts))):
         raise ValueError("districts.json ids must run 0..n-1 in order")
     pop = city.population
-    capacity = residential_capacity(
+    full_capacity = residential_capacity(
         buildings["area_m2"],
         buildings["height_m"],
         buildings["kind"],
@@ -64,6 +65,8 @@ def run_population(
         pop.min_floor_m2_per_person,
     )
     lon, lat = LocalProjection.for_bbox(city.bbox).inverse(buildings["x"], buildings["y"])
+    excluded = _nonresidential(city, lon, lat, osm_pbf)
+    capacity = full_capacity if excluded is None else np.where(excluded.mask, 0, full_capacity)
     grid = read_raster(raster, city.bbox)
     total = _total_override(city, grid, osm_pbf)
     if total is not None:
@@ -81,7 +84,7 @@ def run_population(
     raster_alloc = (
         alloc
         if correction is None
-        else allocate(grid, lon, lat, capacity, buildings["district"], len(districts))
+        else allocate(grid, lon, lat, full_capacity, buildings["district"], len(districts))
     )
     counts = np.asarray(city.households.shrunk_counts(), np.float64)
     households = synthesise_households(
@@ -138,7 +141,14 @@ def run_population(
         }
     )
     report["population_total"] = None if total is None else _rounded(total.report)
-    report["correction"] = None if correction is None else _rounded(correction.report, CHECK_DIGITS)
+    report["correction"] = (
+        None
+        if correction is None
+        else _rounded(
+            {**correction.report, "excluded": _excluded_report(excluded, full_capacity)},
+            CHECK_DIGITS,
+        )
+    )
     report["check"] = None
     if city.population_check is not None and wards is not None:
         check = population_check(
@@ -220,6 +230,32 @@ def _total_override(city: CityConfig, grid: PopGrid, osm_pbf: Path | None) -> _T
             "factor": total.people / before,
         },
     )
+
+
+def _nonresidential(
+    city: CityConfig, lon: np.ndarray, lat: np.ndarray, osm_pbf: Path | None
+) -> NonResidential | None:
+    config = city.population_correction
+    if config is None or not (config.exclude_landuse or config.exclude_amenity):
+        return None
+    if osm_pbf is None:
+        raise ValueError(f"{city.slug} sets population_correction, so its OSM extract is needed")
+    return nonresidential_buildings(
+        osm_pbf, lon, lat, config.exclude_landuse, config.exclude_amenity
+    )
+
+
+def _excluded_report(
+    excluded: NonResidential | None, full_capacity: np.ndarray
+) -> dict[str, Any] | None:
+    if excluded is None:
+        return None
+    return {
+        "areas": excluded.areas,
+        "buildings": int(excluded.mask.sum()),
+        "capacity_people": int(full_capacity[excluded.mask].sum()),
+        "capacity_share": float(full_capacity[excluded.mask].sum() / full_capacity.sum()),
+    }
 
 
 def _boundaries(city: CityConfig, osm_pbf: Path | None) -> dict[str, shapely.Geometry]:

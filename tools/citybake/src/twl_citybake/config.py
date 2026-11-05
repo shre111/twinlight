@@ -117,7 +117,9 @@ def _is_text(value: object) -> bool:
 class PopulationCorrection:
     """D-030: each raster cell becomes raster^(1-w) * fit^w, where fit is people per housing floor
     area by built-form class, fitted on `reference_polygons` and applied everywhere. `weight` is a
-    stated value with its evidence; no code chooses it. Without this section a city is uncorrected.
+    stated value with its evidence; no code chooses it. Buildings inside OSM areas with an
+    `exclude_landuse` or `exclude_amenity` value house nobody. Without this section a city is
+    uncorrected.
     """
 
     weight: float
@@ -129,6 +131,8 @@ class PopulationCorrection:
     coverage_edges: tuple[float, ...] = (0.10, 0.25, 0.45)
     fit_min_m2_per_person: float = 8.0
     min_class_share: float = 0.002
+    exclude_landuse: tuple[str, ...] = ()
+    exclude_amenity: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         bounds = self.weight_range
@@ -160,6 +164,10 @@ class PopulationCorrection:
             raise ValueError("population_correction.fit_min_m2_per_person must be positive")
         if not _is_number(self.min_class_share) or not 0 <= self.min_class_share < 1:
             raise ValueError("population_correction.min_class_share must be in [0, 1)")
+        for name in ("exclude_landuse", "exclude_amenity"):
+            values = getattr(self, name)
+            if values and not _is_name_list(values):
+                raise ValueError(f"population_correction.{name} must be a list of tag values")
 
 
 @dataclass(frozen=True)

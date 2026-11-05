@@ -46,14 +46,14 @@ source = "GHS-POP R2023A, 2025 epoch (© European Union, JRC)"
 licence = "CC BY 4.0"
 
 [population_correction]
-# D-030: each raster cell becomes raster^(1-w) * fit^w. 0.75 sits in the lower part of the range that passes
+# D-030: each raster cell becomes raster^(1-w) * fit^w. 0.75 sits near the middle of the range that passes
 # the ward checks on the real step, and is not an optimum. The range's low edge rests on the rough north-west
-# box band: 0.71 clears it by 391 people. Minimising spread across all 48 wards assumes equal growth, so it
+# box band: 0.68 clears it by 9,676 people. Minimising spread across all 48 wards assumes equal growth, so it
 # likely understates the north-west. Revisit when AMC's ward-wise 2011 file or Census 2027 ward data arrives.
 # A new city states its own weight and evidence.
 weight = 0.75
-weight_range = [0.71, 0.83]
-weight_evidence = "Stated by the owner after seeing the 48 ward polygons: in the lower part of the range that passes the ward checks on the real step, not an optimum and not chosen by code. GHS-POP alone gives the north-west five wards a mean of 0.32 of a 2011 ward."
+weight_range = [0.68, 0.84]
+weight_evidence = "Stated by the owner after seeing the 48 ward polygons: near the middle of the range that passes the ward checks on the real step, not an optimum and not chosen by code. GHS-POP alone gives the north-west five wards a mean of 0.32 of a 2011 ward."
 # fit is taken from Asarva, Maninagar, Sabarmati, Vatva and Vejalpur talukas, applied everywhere
 reference_polygons = ["relation/16736466", "relation/16736464", "relation/16736468", "relation/16736465", "relation/16736469"]
 # floor-area-weighted floors and footprint m2, and footprint share of the cell
@@ -64,6 +64,9 @@ coverage_edges = [0.10, 0.25, 0.45]
 fit_min_m2_per_person = 8.0
 # a class under this share of reference housing floor uses the reference rate
 min_class_share = 0.002
+# buildings inside these OSM areas house nobody
+exclude_landuse = ["commercial", "retail", "industrial"]
+exclude_amenity = ["university", "college", "school", "hospital"]
 
 [population_check]
 # validation only: never in a stage table, layer.json's attribution or a pack; report.json credits it

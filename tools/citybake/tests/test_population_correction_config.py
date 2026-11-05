@@ -315,7 +315,9 @@ def test_ahmedabad_correction_values_are_pinned() -> None:
     pc = load_city("ahmedabad").population_correction
     assert pc is not None
     assert pc.weight == 0.75
-    assert tuple(pc.weight_range) == (0.71, 0.83)
+    assert tuple(pc.weight_range) == (0.68, 0.84)
+    assert tuple(pc.exclude_landuse) == ("commercial", "retail", "industrial")
+    assert tuple(pc.exclude_amenity) == ("university", "college", "school", "hospital")
     assert tuple(pc.reference_polygons) == (
         "relation/16736466",
         "relation/16736464",
@@ -374,11 +376,11 @@ def test_ahmedabad_check_values_are_pinned() -> None:
     )
 
 
-def test_ahmedabad_toml_says_the_weight_is_in_the_lower_part_and_not_an_optimum() -> None:
+def test_ahmedabad_toml_says_the_weight_is_near_the_middle_and_not_an_optimum() -> None:
     text = comment_text(ahmedabad_toml())
-    assert "0.75 sits in the lower part of the range that passes the ward checks" in text
+    assert "0.75 sits near the middle of the range that passes the ward checks" in text
     assert "is not an optimum" in text
-    assert "0.71 clears it by 391 people" in text
+    assert "0.68 clears it by 9,676 people" in text
     assert "Minimising spread across all 48 wards assumes equal growth" in text
     assert "likely understates the north-west" in text
     assert "Revisit when AMC's ward-wise 2011 file or Census 2027 ward data arrives" in text
@@ -398,3 +400,15 @@ def test_a_ward_group_refuses_a_repeated_ward() -> None:
 def test_a_scalar_edge_list_raises_a_value_error_naming_the_key(key: str) -> None:
     with pytest.raises(ValueError, match=key):
         PopulationCorrection(**valid_kwargs(**{key: 2.0}))
+
+
+def test_a_correction_excludes_nothing_by_default() -> None:
+    correction = PopulationCorrection(**valid_kwargs())
+    assert correction.exclude_landuse == () and correction.exclude_amenity == ()
+
+
+@pytest.mark.parametrize("key", ["exclude_landuse", "exclude_amenity"])
+@pytest.mark.parametrize("value", ["industrial", ("",), (1,)])
+def test_exclude_lists_must_hold_tag_values(key: str, value: object) -> None:
+    with pytest.raises(ValueError, match=key):
+        PopulationCorrection(**valid_kwargs(**{key: value}))
