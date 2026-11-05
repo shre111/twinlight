@@ -50,9 +50,12 @@ def test_talker_rates_follow_role_decay_and_the_tick_start_rule() -> None:
     pull = np.array([2.0, 2.0, 3.0, 2.0, 0.0])
     cum = np.zeros(5)
     decay = 1.0 / (72.0 * 60.0)
-    total = talker_rates(aware_at, first_order_at, last_order_at, pull, start, 0.15, decay, cum)
+    floor = 0.35
+    total = talker_rates(
+        aware_at, first_order_at, last_order_at, pull, start, 0.15, floor, decay, cum
+    )
     hearsay = 0.15 * 2.0 * math.exp(-(start - 1_000) * decay)
-    adopter = 3.0 * math.exp(-(start - 5_000) * decay)
+    adopter = 3.0 * (floor + (1.0 - floor) * math.exp(-(start - 5_000) * decay))
     assert np.diff(cum, prepend=0.0) == pytest.approx([0.0, hearsay, adopter, 0.0, 0.0])
     assert total == pytest.approx(hearsay + adopter)
 
@@ -60,7 +63,7 @@ def test_talker_rates_follow_role_decay_and_the_tick_start_rule() -> None:
 def test_talker_rates_without_decay_are_the_pull() -> None:
     cum = np.zeros(2)
     total = talker_rates(
-        u32([10, 10]), u32([NEVER, 20]), u32([NEVER, 20]), np.ones(2), 9_000, 0.5, 0.0, cum
+        u32([10, 10]), u32([NEVER, 20]), u32([NEVER, 20]), np.ones(2), 9_000, 0.5, 0.35, 0.0, cum
     )
     assert cum.tolist() == [0.5, 1.5] and total == 1.5
 

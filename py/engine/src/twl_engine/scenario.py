@@ -106,7 +106,8 @@ class Params:
 
     theta_aware: float = 1.0
     impression_gain: float = 0.6
-    talk_gain: float = 0.9
+    talk_gain: float = 1.0
+    talk_floor: float = 0.35
     hearsay_factor: float = 0.15
     talk_decay_hours: float | None = 72.0
     awareness_half_life_days: float | None = 4.0
@@ -116,13 +117,7 @@ class Params:
     occasions_per_day: float = 3.0
     occasion_profile: tuple[float, ...] = PROTOTYPE_TOD
     alpha_0: float = -3.0
-    alpha_segment: tuple[float, ...] = (
-        math.log(1.35),
-        math.log(1.2),
-        math.log(0.9),
-        math.log(0.6),
-        math.log(0.38),
-    )
+    alpha_segment: tuple[float, ...] = (0.3001, 0.1823, -0.1054, -0.5108, -0.9676)
     affinity_sd: float = 0.3
     gamma: float = 2.5
     beta: float = 1.0
@@ -140,6 +135,7 @@ class Params:
                 "theta_aware",
                 "impression_gain",
                 "talk_gain",
+                "talk_floor",
                 "hearsay_factor",
                 "q",
                 "occasions_per_day",
@@ -158,9 +154,12 @@ class Params:
         object.__setattr__(self, "order_on_awareness", bool(self.order_on_awareness))
         if self.theta_aware <= 0:
             raise ValueError("theta_aware must be positive")
+        if self.talk_floor > 1:
+            raise ValueError("talk_floor is a share of the talk rate, at most 1")
         for name in (
             "impression_gain",
             "talk_gain",
+            "talk_floor",
             "hearsay_factor",
             "q",
             "occasions_per_day",

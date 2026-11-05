@@ -33,6 +33,7 @@ def word_of_mouth(
         talk.pull,
         start,
         talk.hearsay,
+        talk.floor,
         talk.decay_per_minute,
         residents.talk_rate_cum,
     )
@@ -77,25 +78,29 @@ def talker_rates(
     pull: NDArray[np.float64],
     start: int,
     hearsay: float,
+    floor: float,
     decay_per_minute: float,
     cum: NDArray[np.float64],
 ) -> float:
     """Fill `cum` with the running sum of lambda_u / q at tick start and return the total.
 
-    lambda_u = q * pull_u * exp(-(t - t_o) / decay) for adopters, with t_o the latest order;
-    aware non-adopters talk at the hearsay factor from `aware_at` (MODEL.md section 3).
+    lambda_u = q * pull_u * (floor + (1 - floor) * exp(-(t - t_o) / decay)) for adopters, with
+    t_o the latest order; aware non-adopters talk at the hearsay factor, fading to zero from
+    `aware_at` (MODEL.md section 3, D-029).
     """
     total = 0.0
     for u in range(aware_at.shape[0]):
         if aware_at[u] < start and pull[u] > 0.0:
-            if first_order_at[u] != NEVER:
+            adopter = first_order_at[u] != NEVER
+            if adopter:
                 rate = pull[u]
                 since = np.int64(last_order_at[u])
             else:
                 rate = hearsay * pull[u]
                 since = np.int64(aware_at[u])
             if decay_per_minute > 0.0:
-                rate *= math.exp(-(start - since) * decay_per_minute)
+                fade = math.exp(-(start - since) * decay_per_minute)
+                rate *= floor + (1.0 - floor) * fade if adopter else fade
             total += rate
         cum[u] = total
     return total

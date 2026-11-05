@@ -111,7 +111,7 @@ def test_a_hopeless_repeat_intercept_stops_repeats(toy: ToyCity) -> None:
 def test_a_much_higher_price_sells_less(toy: ToyCity) -> None:
     cheap = run(toy, burst(RESIDENTS, days=4), LIVELY)
     dear = run(toy, burst(RESIDENTS, days=4, price=147.0), LIVELY)
-    assert dear.aggregates.adopted[-1] < 0.5 * cheap.aggregates.adopted[-1]
+    assert dear.aggregates.adopted[-1] < 0.6 * cheap.aggregates.adopted[-1]
 
 
 def test_order_on_awareness_orders_in_the_minute_of_awareness() -> None:

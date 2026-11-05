@@ -33,6 +33,7 @@ class TalkGraph:
     uniform: bool
     talks_per_pull: float
     hearsay: float
+    floor: float
     decay_per_minute: float
     pull: NDArray[np.float64]
     offsets: NDArray[np.int64]
@@ -155,6 +156,7 @@ def build_talk_graph(city: ToyCity, params: Params, clock: Clock) -> TalkGraph:
         uniform=uniform,
         talks_per_pull=params.q * clock.tick_minutes / 60.0,
         hearsay=params.hearsay_factor,
+        floor=params.talk_floor,
         decay_per_minute=0.0 if decay_hours is None else 1.0 / (decay_hours * 60.0),
         pull=np.full(n, 1.0 if n > 1 else 0.0) if uniform else graph_pull,
         offsets=ties.offsets.astype(np.int64),
