@@ -217,3 +217,47 @@ def test_more_talk_never_means_fewer_people_heard(toy: ToyCity) -> None:
     quiet = run(toy, day_one_burst(RESIDENTS), Params(q=0.005, occasions_per_day=0.0))
     loud = run(toy, day_one_burst(RESIDENTS), Params(q=0.2, occasions_per_day=0.0))
     assert loud.aggregates.aware[-1] > quiet.aggregates.aware[-1]
+
+
+def test_talks_split_across_talkers_and_ties_in_proportion_to_their_rates() -> None:
+    """One Poisson total split by rate must equal independent per-tie counts (MODEL.md 11)."""
+    n, draws = 6, 400_000
+    offsets = np.array([0, 2, 5, 5, 5, 5, 5], dtype=np.int64)
+    targets = np.array([2, 3, 3, 4, 5], dtype=np.int64)
+    tie_weight = np.array([1.0, 3.0, 0.5, 0.5, 2.0])
+    pull = np.array([4.0, 3.0, 0.0, 0.0, 0.0, 0.0])
+    rate = np.array([4.0 * 0.25, 3.0 * 1.0, 0.0, 0.0, 0.0, 0.0])
+    awareness = np.zeros(n)
+    log = np.zeros(2 * n, dtype=np.uint32)
+    apply_talks(
+        np.random.default_rng(5).random((draws, 3)),
+        np.cumsum(rate),
+        0,
+        15,
+        False,
+        offsets,
+        targets,
+        tie_weight,
+        np.ones(5),
+        pull,
+        1.0,
+        1e18,
+        awareness,
+        np.full(n, NEVER, dtype=np.uint32),
+        np.zeros(n, dtype=np.uint8),
+        np.full(n, NEVER, dtype=np.uint32),
+        np.full(n, NEVER, dtype=np.uint32),
+        np.full(n, NEVER, dtype=np.uint32),
+        log,
+        log.copy(),
+        log.copy(),
+        np.zeros(2 * n, dtype=np.uint8),
+        0,
+    )
+    talker_share = rate / rate.sum()
+    expected = np.zeros(n)
+    expected[2] = talker_share[0] * 1.0 / 4.0
+    expected[3] = talker_share[0] * 3.0 / 4.0 + talker_share[1] * 0.5 / 3.0
+    expected[4] = talker_share[1] * 0.5 / 3.0
+    expected[5] = talker_share[1] * 2.0 / 3.0
+    assert awareness / draws == pytest.approx(expected, abs=0.004)
