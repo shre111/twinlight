@@ -12,10 +12,18 @@ export interface PackManifest {
     stores: number
     roads: number
     roadPoints: number
+    riverPolygons: number
+    riverPoints: number
   }
 }
 
-export const PACK_FILES = ['buildings.bin', 'roads.bin', 'residents.bin', 'stores.bin'] as const
+export const PACK_FILES = [
+  'buildings.bin',
+  'roads.bin',
+  'river.bin',
+  'residents.bin',
+  'stores.bin',
+] as const
 export type PackFiles = Record<(typeof PACK_FILES)[number], ArrayBuffer>
 
 export function decodePack(manifest: PackManifest, files: PackFiles): StageCity {
@@ -26,6 +34,7 @@ export function decodePack(manifest: PackManifest, files: PackFiles): StageCity 
   return {
     buildings: decodeBuildings(files['buildings.bin'], counts.buildings),
     roads: decodeRoads(files['roads.bin'], counts.roads, counts.roadPoints),
+    river: decodeRiver(files['river.bin'], counts.riverPolygons, counts.riverPoints),
     residents: decodeResidents(files['residents.bin'], counts.residents),
     stores: decodeStores(files['stores.bin'], counts.stores),
     ...(bbox && { bounds: { minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3] } }),
@@ -137,14 +146,10 @@ function decodeRoads(buffer: ArrayBuffer, roads: number, points: number): StageC
   const y = c.f32(points)
   const roadClass = c.u8(roads)
   c.end()
-  if (offsets[0] !== 0 || offsets[roads] !== points) {
-    throw new Error(`roads.bin offsets must run from 0 to ${points} road points`)
-  }
+  checkOffsets('roads.bin', 'road', offsets, points)
   let total = 0
   for (let r = 0; r < roads; r++) {
-    const length = (offsets[r + 1] ?? 0) - (offsets[r] ?? 0)
-    if (length < 0) throw new Error(`roads.bin offsets go backwards at road ${r}`)
-    total += Math.max(0, length - 1)
+    total += Math.max(0, (offsets[r + 1] ?? 0) - (offsets[r] ?? 0) - 1)
   }
   const segments = new Float32Array(total * 4)
   const kind = new Uint8Array(total)
@@ -160,4 +165,31 @@ function decodeRoads(buffer: ArrayBuffer, roads: number, points: number): StageC
     }
   }
   return { segments, kind }
+}
+
+function decodeRiver(
+  buffer: ArrayBuffer,
+  polygons: number,
+  points: number,
+): NonNullable<StageCity['river']> {
+  const c = new Columns(buffer, 'river.bin')
+  const offsets = c.u32(polygons + 1)
+  const x = c.f32(points)
+  const y = c.f32(points)
+  c.u8(polygons) // kind
+  c.end()
+  checkOffsets('river.bin', 'river', offsets, points)
+  return { offsets, x, y }
+}
+
+function checkOffsets(file: string, what: string, offsets: Uint32Array, points: number): void {
+  const count = offsets.length - 1
+  if (offsets[0] !== 0 || offsets[count] !== points) {
+    throw new Error(`${file} offsets must run from 0 to ${points} ${what} points`)
+  }
+  for (let i = 0; i < count; i++) {
+    if ((offsets[i + 1] ?? 0) < (offsets[i] ?? 0)) {
+      throw new Error(`${file} offsets go backwards at ${what} ${i}`)
+    }
+  }
 }

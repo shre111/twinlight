@@ -37,6 +37,9 @@ export const palette = {
   street: shade(color.haze, 1.25),
   arterial: blend(color.haze, color.mist, 0.35),
   bridge: blend(color.haze, color.mist, 0.55),
+  riverDeep: shade(color.dusk, 0.6),
+  riverSheen: blend(color.haze, color.monsoon, 0.46),
+  riverBand: shade(sky.band, 0.8),
 } as const
 
 /** The city's ambient glow, cool tubelight until orders warm it to sodium amber. */

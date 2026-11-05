@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildWorld, DISTRICTS } from '../../../design/prototype/toy-sim.mjs'
+import { TOY_BOUNDS } from '../src/extent'
 import { NEVER, ROAD_KIND, type StageCity, type StageTape } from '../src/inputs'
 import { synthesizeTapeFor, synthesizeToyRun } from '../src/synthetic'
 
@@ -62,6 +63,15 @@ describe('synthetic toy run', () => {
       checked++
     }
     expect(checked).toBe(RESIDENTS)
+  })
+
+  it('runs the river between the banks in pack axes, wider than the city', () => {
+    const { offsets, x, y } = city.river ?? {}
+    const eastBankNorth = (offsets?.[1] ?? 0) - 1
+    expect(y?.[0]).toBe(y?.[eastBankNorth])
+    expect(x?.[0]).toBeLessThan(x?.[eastBankNorth] ?? 0)
+    expect(y?.[0]).toBeGreaterThan(TOY_BOUNDS.maxY)
+    expect(y?.[(eastBankNorth - 1) / 2]).toBeLessThan(TOY_BOUNDS.minY)
   })
 
   it('tags streets, arterials and bridges', () => {

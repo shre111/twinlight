@@ -45,6 +45,7 @@ import {
 import type { StageCity, StageTape } from '../inputs'
 import { palette } from '../palette'
 import { updateStockouts } from '../stockouts'
+import { AMBIENT_RATE } from '../time'
 import { type Fog, viewDepth } from './fog'
 
 type Stores = StageCity['stores']
@@ -62,10 +63,8 @@ const RING_GAIN = 0.085
 const OUT_GAIN = 1.15
 // Out-of-stock beams pulse by this much around their gain, roughly once a second.
 const FLICKER_DEPTH = 0.28
-const FLICKER_RATE = 5
+const FLICKER_RATE = 100 * AMBIENT_RATE
 const FLICKER_PHASE_STEP = 1.7
-/** The flicker repeats every this many seconds, so the stage can wrap its clock without a jump. */
-export const FLICKER_PERIOD_SECONDS = (2 * Math.PI) / FLICKER_RATE
 // Reduced motion holds the flicker, so out-of-stock beams break into dashes instead: a still
 // cue that is not colour alone. Four dashes with dark gaps stay legible at the default view.
 const SEGMENT_METRES = 130

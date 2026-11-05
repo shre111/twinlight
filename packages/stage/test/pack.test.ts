@@ -20,7 +20,15 @@ function file(...columns: Column[]): ArrayBuffer {
 const manifest: PackManifest = {
   format: 'twinlight-pack',
   version: 1,
-  counts: { buildings: 2, residents: 3, stores: 1, roads: 2, roadPoints: 5 },
+  counts: {
+    buildings: 2,
+    residents: 3,
+    stores: 1,
+    roads: 2,
+    roadPoints: 5,
+    riverPolygons: 2,
+    riverPoints: 7,
+  },
 }
 
 function tinyPack(): PackFiles {
@@ -58,6 +66,13 @@ function tinyPack(): PackFiles {
       Float32Array.of(0, 0, 5, -50, -50),
       Uint8Array.of(ROAD_KIND.arterial, ROAD_KIND.bridge),
     ),
+    // A four-point river and a three-point lake.
+    'river.bin': file(
+      Uint32Array.of(0, 4, 7),
+      Float32Array.of(0, 10, 10, 0, 50, 60, 55),
+      Float32Array.of(0, 0, 90, 90, 5, 5, 15),
+      Uint8Array.of(0, 1),
+    ),
   }
 }
 
@@ -80,6 +95,27 @@ describe('decodePack', () => {
       ROAD_KIND.arterial,
       ROAD_KIND.bridge,
     ])
+  })
+
+  it('reads water rings as offsets over pack-axis points', () => {
+    expect(Array.from(city.river?.offsets ?? [])).toEqual([0, 4, 7])
+    expect(Array.from(city.river?.x ?? [])).toEqual([0, 10, 10, 0, 50, 60, 55])
+    expect(Array.from(city.river?.y ?? [])).toEqual([0, 0, 90, 90, 5, 5, 15])
+  })
+
+  it('rejects river offsets that do not cover the points in order', () => {
+    const withOffsets = (offsets: Uint32Array) => {
+      const files = tinyPack()
+      files['river.bin'] = file(
+        offsets,
+        Float32Array.of(0, 10, 10, 0, 50, 60, 55),
+        Float32Array.of(0, 0, 90, 90, 5, 5, 15),
+        Uint8Array.of(0, 1),
+      )
+      return () => decodePack(manifest, files)
+    }
+    expect(withOffsets(Uint32Array.of(0, 4, 6))).toThrow(/river\.bin offsets must run from 0 to 7/)
+    expect(withOffsets(Uint32Array.of(0, 8, 7))).toThrow(/backwards at river 1/)
   })
 
   it('rejects a file whose size does not match its columns', () => {
