@@ -24,7 +24,7 @@ async function openRoute(page: Page, url: string) {
   )
   expect(
     await page.evaluate(() => window.__twinlightStageError),
-    'stage load error',
+    'stage load error (just fixture-pack builds a missing pack)',
   ).toBeUndefined()
   // The stage is exposed once its tape and time are set; three frames later a still shows them.
   await page.evaluate(
@@ -59,7 +59,7 @@ test('city day 10 with reduced motion', async ({ page }, testInfo) => {
   await captureStill(page, testInfo, 'city-day10-reduced-motion')
 })
 
-test('fixture route starts at the launch, plays and warms', async ({ page }) => {
+test('fixture route starts at the launch, plays and fills its figures', async ({ page }) => {
   await openRoute(page, '/dev/fixture')
   const ordered = page.getByRole('region', { name: 'Live figures' }).locator('dd').first()
   await expect(ordered).toHaveText('0')
