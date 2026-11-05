@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PACK_FILES } from '@twinlight/stage/pack'
 
-// Serves generated city packs from TWL_PACK_DIR to /dev/stage until P-019 reads them from MinIO.
+// Serves generated city packs from TWL_PACK_DIR to the dev routes; MinIO can replace this later.
 const FILES = new Set<string>(['manifest.json', ...PACK_FILES])
 const PACK_NAME = /^[a-z0-9-]+$/
 

@@ -10,6 +10,8 @@ interface StageHostProps {
   hud?: boolean
   /** Holds wall-clock animation for repeatable screenshots. */
   still?: boolean
+  /** Why what this stage was meant to show could not load. */
+  failure?: string | null
   /** Runs once the stage is live; a returned function runs before the stage is disposed. */
   onReady?: (stage: Stage) => (() => void) | undefined
 }
@@ -19,6 +21,7 @@ export function StageHost({
   backend = 'auto',
   hud = false,
   still = false,
+  failure,
   onReady,
 }: StageHostProps) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -61,11 +64,14 @@ export function StageHost({
     }
   }, [tier, backend, hud, still])
 
+  const message = failed
+    ? 'This view needs WebGPU or WebGL 2. Try a recent Chrome, Edge, Safari or Firefox.'
+    : failure
   return (
     <div ref={hostRef} className={styles.host}>
-      {failed && (
+      {message && (
         <p className={styles.failure} role="alert">
-          This view needs WebGPU or WebGL 2. Try a recent Chrome, Edge, Safari or Firefox.
+          {message}
         </p>
       )}
     </div>

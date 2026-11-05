@@ -16,7 +16,7 @@ declare global {
   }
 }
 
-export type RunSource = { pack: string } | { residents: number }
+export type RunSource = { fixture: string } | { pack: string } | { residents: number }
 
 interface LoadedRun {
   stage: Stage
@@ -25,7 +25,14 @@ interface LoadedRun {
 }
 
 // A generated pack has no tape until P-014, so it shows the city before anyone has heard.
+// The fixture stands in for that tape with the toy sim's launch; P-014 replaces it with a file.
 async function runFor(source: RunSource) {
+  if ('fixture' in source) {
+    const { fetchPack } = await import('@twinlight/stage')
+    const { synthesizeTapeFor, TOY_EVENTS } = await import('@twinlight/stage/synthetic')
+    const city = await fetchPack(`/dev/packs/${source.fixture}`)
+    return { city, tape: synthesizeTapeFor(city), events: TOY_EVENTS }
+  }
   if ('pack' in source) {
     const { fetchPack, idleTape } = await import('@twinlight/stage')
     const city = await fetchPack(`/dev/packs/${source.pack}`)
@@ -40,6 +47,7 @@ function loadRun(
   source: RunSource,
   minutes: number,
   onLoaded: (run: LoadedRun | null) => void,
+  onFailed: (message: string | null) => void,
 ) {
   let cancelled = false
   runFor(source)
@@ -55,11 +63,14 @@ function loadRun(
     })
     .catch((error: unknown) => {
       console.error(error)
-      if (!cancelled) window.__twinlightStageError = String(error)
+      if (cancelled) return
+      window.__twinlightStageError = String(error)
+      onFailed(`${error}. If a pack is missing, run just fixture-pack.`)
     })
   return () => {
     cancelled = true
     onLoaded(null)
+    onFailed(null)
     window.__twinlightStageError = undefined
     if (window.__twinlightStage === stage) window.__twinlightStage = undefined
   }
@@ -75,6 +86,7 @@ export function DevStage(props: {
   minutes: number
 }) {
   const [run, setRun] = useState<LoadedRun | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
   return (
     <main>
       <StageHost
@@ -82,7 +94,8 @@ export function DevStage(props: {
         backend={props.backend}
         hud={props.hud}
         still={props.still}
-        onReady={(stage) => loadRun(stage, props.source, props.minutes, setRun)}
+        failure={failure}
+        onReady={(stage) => loadRun(stage, props.source, props.minutes, setRun, setFailure)}
       />
       {props.ui && run && (
         <>

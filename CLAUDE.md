@@ -46,6 +46,7 @@ just test           all test suites
 just test-engine    uv run pytest py (engine + tape, includes determinism goldens)
 just bake <city>    build a city pack, e.g. just bake ahmedabad
 just fixture        run the fixture scenario end to end and print the tape hash
+just fixture-pack   build the toy city pack that /dev/fixture loads, into data/cache/packs/toy
 just goldens        regenerate golden hashes and probe files (only for intended output changes)
 just shots          stage visual regression (Playwright stills, desktop + phone); --update to rebaseline
 ```

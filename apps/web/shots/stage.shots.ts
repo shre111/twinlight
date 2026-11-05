@@ -11,7 +11,11 @@ const LOAD_TIMEOUT_MS = 30_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
 async function openStage(page: Page, query: string) {
-  await page.goto(`/dev/stage?${query}`)
+  await openRoute(page, `/dev/stage?${query}`)
+}
+
+async function openRoute(page: Page, url: string) {
+  await page.goto(url)
   await page.addStyleTag({ content: HIDE_DEV_INDICATOR })
   await page.waitForFunction(
     () => window.__twinlightStage !== undefined || window.__twinlightStageError !== undefined,
@@ -20,7 +24,7 @@ async function openStage(page: Page, query: string) {
   )
   expect(
     await page.evaluate(() => window.__twinlightStageError),
-    'stage load error',
+    'stage load error (just fixture-pack builds a missing pack)',
   ).toBeUndefined()
   // The stage is exposed once its tape and time are set; three frames later a still shows them.
   await page.evaluate(
@@ -53,6 +57,19 @@ test('city day 10 with reduced motion', async ({ page }, testInfo) => {
   const reduced = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
   expect(reduced, 'reduced motion emulated').toBe(true)
   await captureStill(page, testInfo, 'city-day10-reduced-motion')
+})
+
+test('fixture route starts at the launch, plays and fills its figures', async ({ page }) => {
+  await openRoute(page, '/dev/fixture')
+  const ordered = page.getByRole('region', { name: 'Live figures' }).locator('dd').first()
+  await expect(ordered).toHaveText('0')
+
+  await page.getByRole('button', { name: 'Play' }).click()
+  await page.waitForFunction(() => (window.__twinlightStage?.time ?? 0) > 0)
+  await page.getByRole('button', { name: 'Pause' }).click()
+
+  await page.evaluate((day13) => window.__twinlightStage?.setTime(day13), 13 * 24 * 60)
+  await expect(ordered).not.toHaveText('0')
 })
 
 test('frame report', async ({ page }, testInfo) => {
