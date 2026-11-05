@@ -19,6 +19,8 @@ export interface StageCity {
   }
   /** Segments as x0, y0, x1, y1, with one `ROAD_KIND` per segment. */
   roads: { segments: Float32Array; kind: Uint8Array }
+  /** Water polygons, one exterior ring each: polygon p owns points offsets[p] to offsets[p + 1]. */
+  river?: { offsets: Uint32Array; x: Float32Array; y: Float32Array }
   residents: {
     count: number
     x: Float32Array
