@@ -11,3 +11,17 @@ river_points = 802
 building_height_sum = 143589.11580324173
 resident_x_sum = -2174347.764502242
 resident_y_sum = 210379.91088458896
+
+[engine.empty_seed1]
+hash = "8bd00a1346131935c445957c4ff24bd36d4c282e3915fa34e169a079ea5363a6"
+aware_day30 = 0
+adopted_day30 = 0
+orders_total = 0
+tape_bytes = 536
+
+[engine.empty_seed2]
+hash = "843d183b3f8cf20251b07a1f06a288d47c0376546220cc15e8b041d8ee6d2731"
+aware_day30 = 0
+adopted_day30 = 0
+orders_total = 0
+tape_bytes = 536

@@ -1,0 +1,33 @@
+name: goldens
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    env:
+      TWL_GOLDEN_STRICT: '1'
+      NPY_ENABLE_CPU_FEATURES: X86_V3
+      NUMBA_CPU_NAME: generic
+      NUMBA_DISABLE_INTEL_SVML: '1'
+      OPENBLAS_CORETYPE: Haswell
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run python -c "import numpy; numpy.show_runtime()"
+      - run: uv run pytest -q py/engine/tests/test_cpu_pin.py
+      - run: uv run python -m twl_engine.goldens --write
+      - run: git diff --stat fixtures/golden
+      - uses: actions/upload-artifact@v7
+        with:
+          name: golden-hashes
+          path: fixtures/golden/hashes.toml
+          if-no-files-found: error
