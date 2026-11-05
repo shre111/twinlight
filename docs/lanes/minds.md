@@ -99,3 +99,42 @@ Not part of the 30, but worth a look: these are long detours in our graph, and m
 |---|---|---|---|---|
 | A | 13 to 566 | 2.00 | 42 / 34 / 48 / 27 | [open](https://www.google.com/maps/dir/?api=1&origin=23.099669,72.582775&destination=23.091535,72.600259&travelmode=two-wheeler) |
 | B | 7 to 2681 | 1.95 | 25 / 20 / 29 / 16 | [open](https://www.google.com/maps/dir/?api=1&origin=22.982531,72.572988&destination=22.995540,72.560152&travelmode=two-wheeler) |
+
+## Building budget for P-025 (measured, for the owner's decision; no code)
+
+Recommendation: **a 30 m2 minimum area and no confidence floor, with the 6 MB budget applied to what the browser downloads.** That is 835,384 buildings at 5.01 to 5.72 MB, keeping 97.5% of floor area and re-homing 125 of 100,001 residents.
+
+Bytes are real: the meshopt 1.1.1 vertex codec then brotli 11, on quantised instanced boxes in Morton order, from the current bake. The glTF container is not included.
+
+| Filter | Buildings | Floor kept | Walled-city floor lost | Residents to re-home (p99 distance) | Buildings MB, 8 / 12-byte | Browser total MB, 8 / 12-byte |
+|---|---|---|---|---|---|---|
+| Everything | 1,054,627 | 100.0% | 0.0% | 0 | 4.92 / 5.77 | 6.05 / 6.90 |
+| Google confidence 0.70 or more | 908,483 | 96.8% | 6.4% | 1,633 (59 m) | 4.25 / 5.00 | 5.38 / 6.13 |
+| Google confidence 0.75 or more | 712,861 | 90.2% | 19.8% | 6,865 (61 m) | 3.38 / 3.97 | 4.51 / 5.10 |
+| Drop raster-less Microsoft | 1,045,461 | 99.5% | 0.3% | 443 (165 m) | 4.88 / 5.72 | 6.01 / 6.85 |
+| Minimum area 20 m2 | 938,922 | 99.0% | 1.8% | 84 (179 m) | 4.35 / 5.14 | 5.48 / 6.27 |
+| **Minimum area 30 m2** | 835,384 | 97.5% | 5.3% | 125 (166 m) | 3.88 / 4.59 | 5.01 / 5.72 |
+| Minimum area 50 m2 | 653,300 | 93.1% | 15.5% | 620 (143 m) | 3.07 / 3.63 | 4.20 / 4.76 |
+| Drop non-residential areas | 980,645 | 85.6% | 12.2% | 0 | 4.55 / 5.34 | 5.68 / 6.47 |
+| 0.75, raster-less, 30 m2 together | 643,661 | 88.9% | 21.5% | 7,327 (89 m) | 3.04 / 3.59 | 4.17 / 4.72 |
+
+Browser total is buildings plus 1.13 MB of compact roads, residents, stores, river and districts. 8-byte instances are x, y at 0.42 m and width, depth, height at 0.5 m, with rotation; they clip 336 widths, 22 depths and 1 height at 127.5 m and have no district. 12-byte instances use 0.1 m and carry the district.
+
+What this shows:
+
+1. **The other files matter as much as the filter.** As specified, the browser files other than buildings are 2.67 MB, leaving room for about 600,000 to 700,000 buildings. Quantising roads to u16 with meshopt takes them from 1.80 to 0.79 MB, and a browser-only residents file (no `hex`, `persona_ref` or `weight`) from 0.85 to 0.32 MB. Those are format changes for Lane A.
+2. **Which budget is it?** The stage loads buildings, roads, residents and stores, not `graph.bin` or `travel.bin`, which the engine reads (2.46 MB with `hexes.bin`). If 6 MB must also cover those, only 2.42 MB is left for buildings, about 440,000 to 515,000. Even then, strength as u8 would save only 0.74 MB.
+3. **Confidence floors cost the most.** They remove the fine grain of the old city: 0.75 drops 44% of walled-city buildings and 20% of its floor area, against 3.7% in Navrangpura, and moves 6,865 residents (6.9% overall, 13.9% in the walled city). The walled city is already our weakest check (mean 0.817). A 50 m2 minimum beats a 0.75 floor on bytes, floor kept, residents moved (620 rather than 6,865) and walled-city floor lost, but keeps fewer boxes (653,300 against 712,861) and drops more walled-city boxes (51% against 44%).
+4. **Keep non-residential buildings on screen.** Dropping them saves about 0.4 MB, re-homes nobody (D-030 already empties them), but removes 14.4% of floor area: the GIDC estates, hospitals and 18.6% of Navrangpura's floor. They still count as workplaces.
+5. **Raster-less Microsoft is a wash.** It saves 0.04 MB and moves 443 residents. Keep or drop on data-quality grounds only.
+6. **Small-footprint loss is uneven even at 30 m2.** The walled city loses 26% of its buildings but only 5.3% of its floor area. At 50 m2 it loses 51% of its buildings, which may show; judge it visually.
+
+Re-homing can be cheap and need not touch the sim. Filter when the pack is written, not in the population stage, and repoint `building` to the nearest kept building. Residents keep their x, y and z, so the ward checks stay as they are. For the recommended filter 92% land within 100 m and 96% in the same district; p99 is 166 m, max 179 m.
+
+Limits:
+- **Frame rate is not solved by any of this.** 835,384 boxes is 8 times the 100k pack Lane B measured at 51 to 57 fps fully in frame on an M4, and even 0.75 leaves 7 times. LOD or culling is needed whichever filter is chosen. I have not measured any frame rate or the 1.5 s load target.
+- **Assumes brotli-compressed objects.** With gzip the recommended filter is about 5.38 / 6.08 MB, so 12-byte instances would just miss the budget.
+- **Few residents move partly because of how we allocate.** Households are placed by capacity and rounded, so small buildings rarely hold any: 21% of buildings go at 30 m2 but only 0.1% of residents. In reality such buildings may house more people, so read the re-homing counts as a cost to the bake, not proof that those buildings are empty.
+- Morton order matters: file order costs 7.63 MB against 5.77 MB for everything at 12 bytes. It means reindexing `building` when writing the pack.
+- Extruded footprints are out of budget alone: 9.08 MB for rings, before any index buffer.
+- Numbers shift a little if the population or footprints are rebaked.
