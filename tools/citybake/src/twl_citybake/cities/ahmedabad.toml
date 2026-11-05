@@ -107,3 +107,34 @@ occupied = true
 
 [[personas.segments]]
 name = "other_adult"
+
+[graph]
+# mean ties per resident; residents are a cluster sample, so ties are thin in space
+neighbour_degree = 1.6
+neighbour_scale_m = 250.0
+# nearest residents considered
+neighbour_candidates = 64
+friend_degree = 1.2
+friend_scale_m = 3000.0
+# odds multiplier for a same-segment friend
+friend_homophily = 4.0
+# random candidates per draw
+friend_candidates = 16
+# per occupied resident
+work_degree = 1.0
+# home to workplace decay
+work_scale_m = 5000.0
+# co-workers share a workplace cell
+work_cell_m = 500.0
+workplace_candidates = 16
+# untagged footprints this big and at most workplace_max_floors tall count as workplaces (sheds, factories)
+workplace_min_area_m2 = 1000.0
+workplace_max_floors = 3
+
+[graph.targets]
+mean_degree = [5.0, 8.0]
+# average local clustering, all ties
+clustering = [0.10, 0.50]
+cross_river_non_household = [0.05, 0.25]
+largest_component_min = 0.95
+isolated_max = 0.02
