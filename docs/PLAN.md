@@ -54,7 +54,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: counts and height distribution reported; pack renders in the stage.
 - [x] **P-021 Population synthesis** Lane C. WorldPop raster -> households per building with iterative proportional fitting to district marginals. `[tests] [deep]`
   AC: district totals within 1% of marginals; no building over capacity.
-- [ ] **P-022 Persona assignment** Lane C. Sample from Nemotron-Personas-India (Gujarat slice, Ahmedabad district first) to residents by age, sex, education and occupation marginals; derive segments. `[tests]`
+- [x] **P-022 Persona assignment** Lane C. Sample from Nemotron-Personas-India (Gujarat slice, Ahmedabad district first) to residents by age, sex, education and occupation marginals; derive segments. `[tests]`
   AC: segment shares within tolerance of source marginals; attribution written to the manifest.
 - [ ] **P-023 Social graph** Lane C. Households, neighbours (distance decay), friends (homophily on segment), work ties (long range), target mean degree 5 to 8. `[tests] [deep]`
   AC: degree distribution, clustering and share of cross-river ties reported and within targets.
