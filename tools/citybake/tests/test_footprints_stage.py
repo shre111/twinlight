@@ -570,12 +570,12 @@ def test_the_population_command_reads_the_combined_buildings_when_that_stage_exi
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     city = tiny_population_config()
-    assert city.worldpop is not None
+    assert city.population_raster is not None
     monkeypatch.setattr("twl_citybake.cli.load_city", lambda slug: city)
     dirs = DataDirs(tmp_path)
     write_world(
         city.bbox,
-        dirs.raw / "worldpop" / city.worldpop.filename,
+        dirs.raw / "population" / city.population_raster.raster_name,
         dirs.stage(city.slug, "osm") / "layers",
         block=18,
     )
@@ -597,12 +597,12 @@ def test_the_population_command_refuses_combined_buildings_older_than_the_osm_la
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     city = tiny_population_config()
-    assert city.worldpop is not None
+    assert city.population_raster is not None
     monkeypatch.setattr("twl_citybake.cli.load_city", lambda slug: city)
     dirs = DataDirs(tmp_path)
     write_world(
         city.bbox,
-        dirs.raw / "worldpop" / city.worldpop.filename,
+        dirs.raw / "population" / city.population_raster.raster_name,
         dirs.stage(city.slug, "osm") / "layers",
         block=18,
     )

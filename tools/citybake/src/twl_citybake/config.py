@@ -47,8 +47,38 @@ class OsmSource(PinnedDownload):
 
 
 @dataclass(frozen=True)
-class WorldPopSource(PinnedDownload):
-    pass
+class PopulationRaster(PinnedDownload):
+    """A gridded population product in EPSG:4326, persons per cell. When the pinned download is a
+    zip, `member` names the GeoTIFF inside it."""
+
+    source: str
+    licence: str
+    member: str = ""
+
+    @property
+    def raster_name(self) -> str:
+        return self.member or self.filename
+
+
+@dataclass(frozen=True)
+class PopulationTotal:
+    """A sourced head count that overrides the raster's total inside an OSM boundary, so a census
+    figure can replace a projection. `polygon` is `relation/<id>` or `way/<id>`."""
+
+    people: int
+    source: str
+    polygon: str
+    as_of: str
+
+    def __post_init__(self) -> None:
+        if self.people <= 0:
+            raise ValueError(f"population_total.people must be positive, got {self.people}")
+        if not re.fullmatch(r"(relation|way)/[0-9]+", self.polygon):
+            raise ValueError(
+                f"population_total.polygon must be relation/<id> or way/<id>, got {self.polygon!r}"
+            )
+        if not self.source or not self.as_of:
+            raise ValueError("population_total needs a source and an as_of")
 
 
 @dataclass(frozen=True)
@@ -234,7 +264,8 @@ class CityConfig:
     river: RiverConfig = field(default_factory=RiverConfig)
     districts: DistrictConfig = field(default_factory=DistrictConfig)
     seed: int = 0
-    worldpop: WorldPopSource | None = None
+    population_raster: PopulationRaster | None = None
+    population_total: PopulationTotal | None = None
     population: PopulationConfig = field(default_factory=PopulationConfig)
     households: HouseholdConfig | None = None
     footprints: FootprintsConfig | None = None
@@ -253,7 +284,8 @@ def load_city(slug: str) -> CityConfig:
         river=RiverConfig(names=tuple(raw.get("river", {}).get("names", ()))),
         districts=_districts(raw.get("districts", {})),
         seed=int(raw.get("seed", 0)),
-        worldpop=_worldpop(raw.get("worldpop")),
+        population_raster=_population_raster(raw.get("population_raster")),
+        population_total=_population_total(raw.get("population_total")),
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
         footprints=_footprints(raw.get("footprints")),
@@ -287,8 +319,12 @@ def _known_keys(where: str, raw: dict[str, Any], known: set[str]) -> None:
         raise ValueError(f"{where} has unknown key {unknown[0]!r}")
 
 
-def _worldpop(raw: dict[str, Any] | None) -> WorldPopSource | None:
-    return None if raw is None else WorldPopSource(url=raw["url"], md5=raw["md5"])
+def _population_raster(raw: dict[str, Any] | None) -> PopulationRaster | None:
+    return None if raw is None else PopulationRaster(**raw)
+
+
+def _population_total(raw: dict[str, Any] | None) -> PopulationTotal | None:
+    return None if raw is None else PopulationTotal(**raw)
 
 
 def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:

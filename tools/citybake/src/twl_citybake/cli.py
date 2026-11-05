@@ -5,14 +5,14 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any
 
-from twl_citybake.config import CityConfig, DataDirs, load_city
+from twl_citybake.config import CityConfig, DataDirs, PopulationRaster, load_city
 from twl_citybake.footprints.raster import fetch_height_mosaic
 from twl_citybake.footprints.stage import build_buildings, write_building_layers
 from twl_citybake.footprints.vida import fetch_vida
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
 from twl_citybake.population.stage import run_population, write_population_layers
-from twl_citybake.sources import fetch
+from twl_citybake.sources import extract_member, fetch
 from twl_citybake.store import table_digest
 
 
@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     fetch_cmd = commands.add_parser(
-        "fetch", help="download the pinned OSM extract and clip it, and the WorldPop raster"
+        "fetch", help="download the pinned OSM extract and clip it, and the population raster"
     )
     fetch_cmd.add_argument("city")
     osm_cmd = commands.add_parser("osm", help="extract buildings, roads, water and districts")
@@ -39,7 +39,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     footprints_cmd.add_argument("city")
     population_cmd = commands.add_parser(
-        "population", help="place WorldPop people in households per building, sample residents"
+        "population", help="place raster people in households per building, sample residents"
     )
     population_cmd.add_argument("city")
     return parser
@@ -51,15 +51,23 @@ def run_fetch(city: str, dirs: DataDirs) -> None:
     clipped = dirs.stage(city, "osm") / f"{city}.osm.pbf"
     clip_extract(region, clipped, config.bbox)
     print(f"{clipped} ({clipped.stat().st_size / 1e6:.1f} MB)")
-    if config.worldpop is not None:
-        raster = fetch(config.worldpop.url, config.worldpop.md5, worldpop_raster(config, dirs))
+    if config.population_raster is not None:
+        raster = fetch_population_raster(config.population_raster, dirs)
         print(f"{raster} ({raster.stat().st_size / 1e6:.1f} MB)")
 
 
-def worldpop_raster(config: CityConfig, dirs: DataDirs) -> Path:
-    if config.worldpop is None:
-        raise SystemExit(f"{config.slug} has no [worldpop] source")
-    return dirs.raw / "worldpop" / config.worldpop.filename
+def fetch_population_raster(source: PopulationRaster, dirs: DataDirs) -> Path:
+    folder = dirs.raw / "population"
+    download = fetch(source.url, source.md5, folder / source.filename)
+    if not source.member:
+        return download
+    return extract_member(download, source.member, folder / source.member)
+
+
+def population_raster_path(config: CityConfig, dirs: DataDirs) -> Path:
+    if config.population_raster is None:
+        raise SystemExit(f"{config.slug} has no [population_raster] source")
+    return dirs.raw / "population" / config.population_raster.raster_name
 
 
 def run_osm(city: str, dirs: DataDirs) -> None:
@@ -146,10 +154,11 @@ def run_population_command(city: str, dirs: DataDirs) -> None:
     layers = building_layers(city, dirs)
     if not (layers / "buildings").exists():
         raise SystemExit(f"{layers} is missing; run `citybake osm {city}` first")
-    raster = worldpop_raster(config, dirs)
+    raster = population_raster_path(config, dirs)
     if not raster.exists():
         raise SystemExit(f"{raster} is missing; run `citybake fetch {city}` first")
-    population = run_population(layers, raster, config)
+    pbf = dirs.stage(city, "osm") / f"{city}.osm.pbf"
+    population = run_population(layers, raster, config, pbf if config.population_total else None)
     print(f"buildings from {layers}")
     out = dirs.stage(city, "population")
     write_population_layers(population, out)
@@ -158,12 +167,12 @@ def run_population_command(city: str, dirs: DataDirs) -> None:
 
 
 def population_summary(report: dict, census_mean_size: float) -> str:
-    wp, cap, d = report["worldpop"], report["capacity"], report["districts"]
+    wp, cap, d = report["raster"], report["capacity"], report["districts"]
     hh, fit, res = report["households"], report["ipf"], report["residents"]
     outside = ", ".join(d["outside_1pct"]) or "none"
     return "\n".join(
         [
-            f"worldpop {wp['people_in_bbox']:,.0f} people in {wp['cells']} cells; "
+            f"raster {wp['people_in_bbox']:,.0f} people in {wp['cells']} cells; "
             f"{wp['people_without_buildings']:,.0f} in {wp['cells_without_buildings']} "
             "cells without buildings are unplaced",
             f"capacity {cap['people']:,} people in {cap['buildings_with_capacity']} buildings, "

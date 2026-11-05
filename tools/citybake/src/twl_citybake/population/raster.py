@@ -1,10 +1,14 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
+import osmium
 import rasterio
+import shapely
+from osmium.geom import WKBFactory
+from osmium.osm import Area
 from rasterio.windows import Window
 
 from twl_citybake.config import BBox
@@ -46,7 +50,7 @@ class PopGrid:
         return grid_lon, grid_lat
 
 
-def read_worldpop(tif: Path, bbox: BBox) -> PopGrid:
+def read_raster(tif: Path, bbox: BBox) -> PopGrid:
     """Every raster cell that intersects the bbox; nodata, NaN and negative cells read as 0."""
     with rasterio.open(tif) as src:
         t = src.transform
@@ -65,3 +69,43 @@ def read_worldpop(tif: Path, bbox: BBox) -> PopGrid:
     values = np.ma.filled(band.astype(np.float64), 0.0)
     values[~np.isfinite(values) | (values < 0)] = 0.0
     return PopGrid(values, west=t.c + col0 * dlon, north=t.f - row0 * dlat, dlon=dlon, dlat=dlat)
+
+
+def read_boundary(pbf: Path, polygon: str) -> shapely.Geometry:
+    """An OSM boundary (`relation/<id>` or `way/<id>`) from the clipped extract, in lon/lat. The
+    clip keeps boundary relations complete, so this is the whole area, not its part in the bbox."""
+    kind, _, osm_id = polygon.partition("/")
+    factory = WKBFactory()
+    for obj in osmium.FileProcessor(str(pbf)).with_areas():
+        if (
+            isinstance(obj, Area)
+            and obj.orig_id() == int(osm_id)
+            and obj.from_way() == (kind == "way")
+        ):
+            return shapely.from_wkb(factory.create_multipolygon(obj))
+    raise ValueError(f"population_total polygon {polygon} is not in {pbf}")
+
+
+def rescale_to_total(
+    grid: PopGrid, people: float, boundary: shapely.Geometry
+) -> tuple[PopGrid, float]:
+    """Scale the cells whose centres lie in `boundary` so they sum to `people`, leaving the rest
+    alone; returns the grid and the raster's own total inside the boundary. A boundary reaching
+    past the window is refused: the total would be spread over only part of its area."""
+    rows, cols = grid.values.shape
+    west, south, east, north = shapely.bounds(boundary)
+    if (
+        west < grid.west
+        or east > grid.west + cols * grid.dlon
+        or north > grid.north
+        or south < grid.north - rows * grid.dlat
+    ):
+        raise ValueError("population_total polygon extends beyond the raster window")
+    lon, lat = grid.centres()
+    inside = shapely.contains_xy(boundary, lon, lat)
+    before = float(grid.values[inside].sum())
+    if before <= 0:
+        raise ValueError("the raster has no people inside the population_total polygon")
+    values = grid.values.copy()
+    values[inside] *= people / before
+    return replace(grid, values=values), before

@@ -5,7 +5,7 @@ import pytest
 from population_fixture import NODATA, write_geotiff
 
 from twl_citybake.config import BBox
-from twl_citybake.population.worldpop import PopGrid, read_worldpop
+from twl_citybake.population.raster import PopGrid, read_raster
 
 CELL = 0.25
 WEST = 72.0
@@ -28,7 +28,7 @@ def tif(tmp_path: Path, source: np.ndarray) -> Path:
 
 def test_window_covers_exactly_the_cells_intersecting_the_bbox(tif: Path) -> None:
     bbox = BBox(WEST + 2.3 * CELL, NORTH - 3.6 * CELL, WEST + 5.4 * CELL, NORTH - 1.2 * CELL)
-    grid = read_worldpop(tif, bbox)
+    grid = read_raster(tif, bbox)
     assert grid.values.shape == (3, 4)
     assert grid.west == pytest.approx(WEST + 2 * CELL)
     assert grid.north == pytest.approx(NORTH - 1 * CELL)
@@ -38,13 +38,13 @@ def test_window_covers_exactly_the_cells_intersecting_the_bbox(tif: Path) -> Non
 
 def test_window_values_come_from_the_matching_raster_cells(tif: Path, source: np.ndarray) -> None:
     bbox = BBox(WEST + 2.3 * CELL, NORTH - 3.6 * CELL, WEST + 5.4 * CELL, NORTH - 1.2 * CELL)
-    grid = read_worldpop(tif, bbox)
+    grid = read_raster(tif, bbox)
     expected = np.where(np.isfinite(source) & (source > 0), source, 0.0)[1:4, 2:6]
     assert np.array_equal(grid.values, expected)
 
 
 def test_nodata_nan_and_negative_cells_read_as_zero(tif: Path) -> None:
-    grid = read_worldpop(tif, BBox(WEST, NORTH - 6 * CELL, WEST + 8 * CELL, NORTH))
+    grid = read_raster(tif, BBox(WEST, NORTH - 6 * CELL, WEST + 8 * CELL, NORTH))
     assert grid.values.shape == (6, 8)
     assert grid.values[2, 3] == 0.0
     assert grid.values[3, 4] == 0.0
@@ -54,17 +54,17 @@ def test_nodata_nan_and_negative_cells_read_as_zero(tif: Path) -> None:
 
 
 def test_bbox_edge_exactly_on_a_cell_boundary_adds_no_extra_cell(tif: Path) -> None:
-    grid = read_worldpop(tif, BBox(WEST + CELL, NORTH - 3 * CELL, WEST + 3 * CELL, NORTH - CELL))
+    grid = read_raster(tif, BBox(WEST + CELL, NORTH - 3 * CELL, WEST + 3 * CELL, NORTH - CELL))
     assert grid.values.shape == (2, 2)
 
 
 def test_a_bbox_the_raster_only_partly_covers_is_rejected(tif: Path) -> None:
     with pytest.raises(ValueError, match="does not cover"):
-        read_worldpop(tif, BBox(WEST - 1.0, NORTH - 7.0, WEST + 9.0, NORTH + 1.0))
+        read_raster(tif, BBox(WEST - 1.0, NORTH - 7.0, WEST + 9.0, NORTH + 1.0))
 
 
 def test_population_values_are_float64(tif: Path) -> None:
-    grid = read_worldpop(tif, BBox(WEST, NORTH - 6 * CELL, WEST + 8 * CELL, NORTH))
+    grid = read_raster(tif, BBox(WEST, NORTH - 6 * CELL, WEST + 8 * CELL, NORTH))
     assert grid.values.dtype == np.float64
 
 

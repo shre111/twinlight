@@ -5,7 +5,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from twl_citybake.population.allocate import Allocation, allocate
-from twl_citybake.population.worldpop import PopGrid
+from twl_citybake.population.raster import PopGrid
 
 
 def make_grid(values: list[list[float]]) -> PopGrid:
