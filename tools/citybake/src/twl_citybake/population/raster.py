@@ -1,4 +1,5 @@
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -74,16 +75,37 @@ def read_raster(tif: Path, bbox: BBox) -> PopGrid:
 def read_boundary(pbf: Path, polygon: str) -> shapely.Geometry:
     """An OSM boundary (`relation/<id>` or `way/<id>`) from the clipped extract, in lon/lat. The
     clip keeps boundary relations complete, so this is the whole area, not its part in the bbox."""
-    kind, _, osm_id = polygon.partition("/")
+    found = _scan_boundaries(pbf, [polygon])
+    if polygon not in found:
+        raise ValueError(f"population_total polygon {polygon} is not in {pbf}")
+    return found[polygon]
+
+
+def read_boundaries(pbf: Path, polygons: Sequence[str]) -> dict[str, shapely.Geometry]:
+    """Like `read_boundary` for several polygons, in one pass over the extract."""
+    found = _scan_boundaries(pbf, polygons)
+    if missing := [polygon for polygon in polygons if polygon not in found]:
+        raise ValueError(f"polygons {', '.join(missing)} are not in {pbf}")
+    return {polygon: found[polygon] for polygon in polygons}
+
+
+def _scan_boundaries(pbf: Path, polygons: Sequence[str]) -> dict[str, shapely.Geometry]:
+    wanted = {
+        (kind == "way", int(osm_id)): polygon
+        for polygon in polygons
+        for kind, _, osm_id in [polygon.partition("/")]
+    }
+    found: dict[str, shapely.Geometry] = {}
+    if not wanted:
+        return found
     factory = WKBFactory()
     for obj in osmium.FileProcessor(str(pbf)).with_areas():
-        if (
-            isinstance(obj, Area)
-            and obj.orig_id() == int(osm_id)
-            and obj.from_way() == (kind == "way")
-        ):
-            return shapely.from_wkb(factory.create_multipolygon(obj))
-    raise ValueError(f"population_total polygon {polygon} is not in {pbf}")
+        if isinstance(obj, Area) and (obj.from_way(), obj.orig_id()) in wanted:
+            polygon = wanted[(obj.from_way(), obj.orig_id())]
+            found.setdefault(polygon, shapely.from_wkb(factory.create_multipolygon(obj)))
+            if len(found) == len(wanted):
+                break
+    return found
 
 
 def rescale_to_total(
