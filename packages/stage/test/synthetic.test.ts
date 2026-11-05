@@ -133,6 +133,13 @@ describe('synthesizeTapeFor', () => {
     expect(packTape.aggregates.adopted.at(-1)).toBe(adopters)
   })
 
+  it('lands near the toy run, so its copied constants have not drifted', () => {
+    const share = (count: number | undefined) => (count ?? 0) / city.residents.count
+    const { aware, adopted } = packTape.aggregates
+    expect(share(aware.at(-1))).toBeCloseTo(share(tape.aggregates.aware.at(-1)), 1)
+    expect(share(adopted.at(-1))).toBeCloseTo(share(tape.aggregates.adopted.at(-1)), 1)
+  })
+
   it('tells nobody before the first ad', () => {
     const firstHeard = Math.min(...packTape.residents.awareAt)
     expect(firstHeard).toBeGreaterThanOrEqual(9 * 60)

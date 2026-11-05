@@ -50,7 +50,8 @@ export function synthesizeTapeFor(city: StageCity): StageTape {
   return toyTape(sim, residents.count)
 }
 
-// A pack carries no campaign traits the stage reads, so they are drawn as the prototype draws them.
+// A stand-in, so it reads only what the stage decodes: traits are drawn as the prototype draws them,
+// districts go by nearest centre, and ties are rebuilt rather than read from the pack.
 function toyResidents(city: StageCity, rand: () => number) {
   const count = city.residents.count
   const x = city.residents.x
