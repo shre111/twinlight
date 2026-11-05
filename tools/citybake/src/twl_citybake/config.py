@@ -3,7 +3,7 @@ import os
 import re
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from importlib.resources import files
 from itertools import pairwise
 from pathlib import Path
@@ -321,6 +321,70 @@ class PersonasConfig:
 
 
 @dataclass(frozen=True)
+class GraphTargets:
+    """What the graph report is checked against: `clustering` is the average local clustering over
+    all ties. Ranges live here, not in code, so another city can state its own."""
+
+    mean_degree: tuple[float, float] = (5.0, 8.0)
+    clustering: tuple[float, float] = (0.10, 0.50)
+    cross_river_non_household: tuple[float, float] = (0.05, 0.25)
+    largest_component_min: float = 0.95
+    isolated_max: float = 0.02
+
+    def __post_init__(self) -> None:
+        ranges = {
+            "mean_degree": self.mean_degree,
+            "clustering": self.clustering,
+            "cross_river_non_household": self.cross_river_non_household,
+        }
+        for name, bounds in ranges.items():
+            if not _is_ordered_range(bounds):
+                raise ValueError(f"graph.targets.{name} must be an ordered [low, high], {bounds}")
+        if not (0 <= self.largest_component_min <= 1 and 0 <= self.isolated_max <= 1):
+            raise ValueError("graph.targets largest_component_min and isolated_max must be shares")
+
+
+@dataclass(frozen=True)
+class GraphConfig:
+    """Tie generation (P-023). Degrees are mean ties per resident; `work_degree` is per occupied
+    resident. Workplaces are tagged commercial, industrial and civic buildings, plus untagged
+    footprints at least `workplace_min_area_m2` in area and at most `workplace_max_floors` tall."""
+
+    neighbour_degree: float = 1.6
+    neighbour_scale_m: float = 250.0
+    neighbour_candidates: int = 64
+    friend_degree: float = 1.2
+    friend_scale_m: float = 3000.0
+    friend_homophily: float = 4.0
+    friend_candidates: int = 16
+    work_degree: float = 1.0
+    work_scale_m: float = 5000.0
+    work_cell_m: float = 500.0
+    workplace_candidates: int = 16
+    workplace_min_area_m2: float = 1000.0
+    workplace_max_floors: int = 3
+    targets: GraphTargets = field(default_factory=GraphTargets)
+
+    def __post_init__(self) -> None:
+        for name in ("neighbour_scale_m", "friend_scale_m", "work_scale_m", "work_cell_m"):
+            if not getattr(self, name) > 0:
+                raise ValueError(f"graph.{name} must be positive")
+        for name in ("neighbour_degree", "friend_degree", "work_degree"):
+            if not getattr(self, name) >= 0:
+                raise ValueError(f"graph.{name} must be non-negative")
+        for name in ("neighbour_candidates", "friend_candidates", "workplace_candidates"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 2:
+                raise ValueError(f"graph.{name} must be a whole number of at least 2")
+        if not self.friend_homophily > 0:
+            raise ValueError("graph.friend_homophily must be positive")
+        if not self.workplace_min_area_m2 >= 0:
+            raise ValueError("graph.workplace_min_area_m2 must be non-negative")
+        if type(self.workplace_max_floors) is not int or self.workplace_max_floors < 1:
+            raise ValueError("graph.workplace_max_floors must be a whole number of at least 1")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
@@ -335,6 +399,7 @@ class CityConfig:
     households: HouseholdConfig | None = None
     footprints: FootprintsConfig | None = None
     personas: PersonasConfig | None = None
+    graph: GraphConfig = field(default_factory=GraphConfig)
 
 
 def load_city(slug: str) -> CityConfig:
@@ -356,6 +421,7 @@ def load_city(slug: str) -> CityConfig:
         households=_households(raw.get("households")),
         footprints=_footprints(raw.get("footprints")),
         personas=_personas(raw.get("personas")),
+        graph=_graph(raw.get("graph", {})),
     )
 
 
@@ -454,6 +520,23 @@ def _segment_rule(raw: dict[str, Any]) -> SegmentRule:
             "education": tuple(raw.get("education", ())),
         }
     )
+
+
+def _is_ordered_range(bounds: object) -> bool:
+    return (
+        isinstance(bounds, tuple)
+        and len(bounds) == 2
+        and all(isinstance(b, int | float) for b in bounds)
+        and bounds[0] <= bounds[1]
+    )
+
+
+def _graph(raw: dict[str, Any]) -> GraphConfig:
+    _known_keys("[graph]", raw, {f.name for f in fields(GraphConfig)})
+    targets = raw.get("targets", {})
+    _known_keys("[graph.targets]", targets, {f.name for f in fields(GraphTargets)})
+    bounds: dict[str, Any] = {k: tuple(v) if isinstance(v, list) else v for k, v in targets.items()}
+    return GraphConfig(**{**raw, "targets": GraphTargets(**bounds)})
 
 
 @dataclass(frozen=True)
