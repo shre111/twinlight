@@ -3,6 +3,13 @@ import type { StageTape } from './inputs'
 /** The city is fully warm once this share of residents has ordered. */
 export const WARM_ADOPTED_SHARE = 0.2
 
+/**
+ * Ambient motion such as the stockout flicker and the river's sheen runs at whole multiples of this
+ * rate in radians a second, so the stage can wrap its wall clock each period without a jump.
+ */
+export const AMBIENT_RATE = 0.05
+export const AMBIENT_PERIOD_SECONDS = (2 * Math.PI) / AMBIENT_RATE
+
 export function clampTime(simMinutes: number, tape: Pick<StageTape, 'simMinutes'>): number {
   if (Number.isNaN(simMinutes)) return 0
   return Math.min(Math.max(simMinutes, 0), tape.simMinutes)

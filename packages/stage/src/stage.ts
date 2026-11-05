@@ -5,13 +5,13 @@ import { FrameStats, type FrameSummary } from './frame-stats'
 import type { StageCity, StageTape } from './inputs'
 import { CityLayer } from './layers/city'
 import { ResidentsLayer } from './layers/residents'
-import { FLICKER_PERIOD_SECONDS, StoresLayer } from './layers/stores'
+import { StoresLayer } from './layers/stores'
 import { palette } from './palette'
 import { PerfHud } from './perf-hud'
 import { advanceMinutes, ClockChannel, type ClockState, SPEEDS, type Speed } from './playback'
 import { type Backend, type BackendPreference, createRenderer } from './renderer'
 import { initialTier, TIERS, type TierName, type TierOption } from './tiers'
-import { clampTime, warmFraction } from './time'
+import { AMBIENT_PERIOD_SECONDS, clampTime, warmFraction } from './time'
 import { type Viewport, type ViewportSize, watchViewport } from './viewport'
 
 export interface StageOptions {
@@ -169,7 +169,7 @@ export class Stage {
     this.#stores?.dispose()
     this.#stores = null
     this.#city?.dispose()
-    const layer = new CityLayer(city)
+    const layer = new CityLayer(city, this.#clock, this.#reducedMotion)
     this.#city = layer
     this.#scene.add(layer.group)
     this.#rig.fit(layer.extent)
@@ -320,9 +320,9 @@ export class Stage {
     const gap = now - this.#lastFrameAt
     if (this.#lastFrameAt > 0 && gap <= MAX_FRAME_GAP_MS) {
       this.#stats.push(gap)
-      // Wrapped by the flicker's period so the float32 uniform keeps its precision in long sessions.
+      // Wrapped so the float32 uniform keeps its precision in long sessions.
       if (!this.#still) {
-        this.#clock.value = (this.#clock.value + gap / 1000) % FLICKER_PERIOD_SECONDS
+        this.#clock.value = (this.#clock.value + gap / 1000) % AMBIENT_PERIOD_SECONDS
       }
       if (this.#playing) this.#advancePlayback(gap, now)
     }
