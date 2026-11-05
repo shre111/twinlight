@@ -42,7 +42,7 @@ aware_at_r = first tick where A_r >= theta_aware   (theta_aware = 1.0)
 ```
 lambda_uv(t) = q_u * w_uv * talk_kind(kind_uv) * exp(-(t - t_o) / 72h)
 ```
-A successful talk adds `0.9 * w_uv` to `A_v` and records a chatter event `(u, v, t)`. Aware non-adopters talk at `0.15 * lambda` (hearsay). Chatter events are what the stage draws as arcs.
+A successful talk adds `0.9 * w_uv` to `A_v`. Aware non-adopters talk at `0.15 * lambda` (hearsay), with `aware_at` in place of `t_o`. The tape records the talks that mattered (D-028): the talk that takes `A_v` over `theta_aware` (`heard`), and the last talk a resident received in the 72 hours before their first order when that is a different one (`nudged`). Those chatter events are what the stage draws as arcs.
 
 **Seen nearby.** Riders delivering in a hex add a small exposure `0.05` to residents in that hex with probability `0.02` per delivery (brand bags, word on the street). Kept small; exists so dense areas get a mild density effect.
 
@@ -58,7 +58,7 @@ P(order) = sigmoid(U)
 
 **Out of stock.** If the chosen (nearest) store has no stock: with probability `p_spill` the order goes to the next store within radius that has stock (spillover, longer ETA); else with `p_wait` the resident retries at their next occasion after 24 h; else the sale is lost and `satisfaction_r` drops.
 
-**Bass limit (a required test).** With a fully mixed graph, no supply limits, constant budget and homogeneous parameters, cumulative first orders must follow the Bass curve `F(t) = (1 - e^{-(p+q)t}) / (1 + (q/p) e^{-(p+q)t})` within 2% at every day, where `p` and `q` are derived from the paid and word-of-mouth terms. This anchors the model to a known closed form.
+**Bass limit (a required test).** With a fully mixed graph, no supply limits, constant budget and homogeneous parameters, cumulative first orders must follow the Bass curve `F(t) = (1 - e^{-(p+q)t}) / (1 + (q/p) e^{-(p+q)t})`, where `p` and `q` are derived from the paid and word-of-mouth terms. This anchors the model to a known closed form. D-027 fixes the reduced configuration and the tolerance: the mean of 8 seeds within 1 percentage point at the end of every day, plus a `q = 0` run within 0.5 points of `1 - exp(-p t)`.
 
 ## 5. Supply
 - **Inventory.** Per store and SKU. Continuous review every `review_k` minutes: if `I <= s_k`, order `S_k - I - in_transit` arriving after lead time `L ~ Gamma(k_L, theta_L)` minutes, rounded to 15.
@@ -90,3 +90,41 @@ Per seed: see ARCHITECTURE.md section 4. Per run: bands, stock plan, ranking, at
 - Conservation: deliveries + lost + pending == orders; stock never negative; stock out of a store == picks from it.
 - Monotonicity (hypothesis property tests): raising price never raises P50 adopters in a no-supply-limit scenario; raising budget never lowers awareness.
 - Event isolation: a rain event outside its window changes nothing (tape hash equal to the no-rain run until the window starts).
+
+## 11. v1 parameters and pinned readings (D-027)
+Every constant below is a field of the run parameters with this default, so tests and calibration can override it. Segment values are listed for the toy city's five age bands; real segments (D-026) get theirs from calibration.
+
+**Readings the formulas left open**
+- Rates are per hour. A tick is `dt = 0.25 h`; an event with rate `r` happens in a tick with probability `1 - exp(-r dt)`, and where several can happen in a tick (impressions, talks) the count is `Poisson(r dt)`.
+- Tick order: decay `A`; paid impressions; word of mouth (talkers and their rates taken at the start of the tick); awareness crossings; occasions and orders.
+- Paid: impressions in a tick are `Poisson(I_c(t))`, where the day's impressions (`budget / CPM * 1000`, divided by the mean resident weight so they are in agent units) are spread over the day's ticks by the channel's presence profile. Each lands on a resident with probability proportional to its targeting weight, up to the frequency cap per day.
+- A resident is in the decision pool from `aware_at` onward, even after `A_r` decays; the current `A_r` enters `U`.
+- `P(order) = sigmoid(U)` is the probability itself; `eps` is the logistic noise it integrates over, so the engine draws one uniform per decision.
+- `t_o` is the resident's most recent order, so repeat orders renew talk.
+- Crossing: within a tick, contributions apply in the order paid, then talks by (minute, talker). The first to bring `A_r` to `theta_aware` sets `aware_at`, `first_source` and, for a talk, `heard_from`.
+- With `wom_mixing = "uniform"` (the Bass configuration) a talker emits talks at rate `q_u` to residents drawn uniformly, with strength and kind factor 1.
+- Until P-013: an order is counted at its occasion, `avail = 1`, `satisfaction = 0`, and the DELIVERIES section stays empty.
+
+**Defaults**
+| Parameter | Default |
+| --- | --- |
+| `theta_aware` | 1.0 |
+| gain per impression | `0.6 * kappa` |
+| gain per talk | `0.9 * w_uv` |
+| hearsay factor | 0.15 |
+| talk decay time | 72 h |
+| `tau` (awareness half-life) | 4 days |
+| `kappa` by age band | 1.0, 0.9, 0.62, 0.38, 0.2 (the prototype's ad responsiveness) |
+| `q` (talk rate per unit tie strength) | 0.02 per hour |
+| `talk_kind` | household 1.0, neighbour 0.6, friend 1.0, work 0.5 |
+| frequency cap | 3 impressions per resident per day and campaign |
+| `omega` | 3 occasions per day, shaped by the prototype's hourly profile (peak 19:00 to 22:00) |
+| `alpha_s` | `alpha_0 + ln(1.35, 1.2, 0.9, 0.6, 0.38)` by age band (the prototype's affinity), `alpha_0 = -3.0` |
+| `a_r` | Normal(0, 0.3) around the segment value |
+| `gamma` | 2.5 |
+| `beta` | 1.0, with `ref_price_s` equal to the launch price unless the scenario says otherwise |
+| `delta` | 1.0 |
+| `alpha_rep_s`, `rho_r` | -2.3; Normal(0, 0.3) |
+| evening rain boost | 0.12 (events arrive with P-034) |
+
+The prototype-parity fixture fits three of these (a paid reach multiplier, `q` and `alpha_0`) and checks them in next to the scenario.

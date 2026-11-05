@@ -133,7 +133,7 @@ Sections
               u32 heard_from      (resident index, u32::MAX = paid channel)
               u8  first_source    (0 none, 1 paid, 2 word of mouth, 3 seen nearby)
               u8  outcome_flags   (bit0 hit stockout, bit1 spilled to other store, bit2 gave up)
-  CHATTER     sorted by at: u32 from, u32 to, u32 at
+  CHATTER     sorted by at: u32 from, u32 to, u32 at, u8 kind (1 heard, 2 nudged; D-028)
   DELIVERIES  sorted by ordered_at: u16 store, u32 resident, u32 ordered_at, u32 picked_at, u32 delivered_at, u8 outcome
   STORES      per store: f32 stock[ticks], u16 orders[ticks]; stockout intervals as (u32 start, u32 end) list
   AGGREGATES  per tick: u32 aware, u32 adopted, u32 orders, u16 stores_out, f32 rain_intensity
