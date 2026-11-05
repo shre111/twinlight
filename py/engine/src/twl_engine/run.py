@@ -8,9 +8,20 @@ from twl_engine.events import EventQueue
 from twl_engine.fixtures import ToyCity
 from twl_engine.rng import spawn_streams
 from twl_engine.scenario import Params, Scenario
-from twl_engine.state import ResidentState, new_sim
+from twl_engine.state import (
+    ATTEMPTS,
+    DEFERRED,
+    LATE,
+    LOST,
+    SERVED,
+    SPILLED,
+    ResidentState,
+    SupplyState,
+    new_sim,
+)
+from twl_engine.supply import stores_section
 from twl_engine.tick import advance_tick
-from twl_engine.world import build_world
+from twl_engine.world import NO_STORE, SupplyPlan, build_world
 from twl_tape import (
     NEVER,
     AggregatesSection,
@@ -77,23 +88,48 @@ def run_seed_with_stats(inputs: RunInputs) -> tuple[Tape, SupplyStats]:
         advance_tick(sim, streams, queue, start, end, events)
         record_aggregates(sim.residents, sim.aggregates, tick)
     chatter = sim.chatter.section()
-    stores = inputs.city.stores.x.shape[0]
+    store_count = inputs.city.stores.x.shape[0]
+    plan, supply = sim.world.supply, sim.supply
+    if plan is None or supply is None:
+        stores = empty_stores_section(store_count, clock.ticks)
+        stats = unlimited_supply_stats(int(sim.aggregates.orders.sum()), store_count)
+    else:
+        stores = stores_section(supply, clock.sim_minutes)
+        stats = supply_stats(plan, supply, clock.ticks)
+    deliveries = empty_deliveries_section()
     tape = Tape(
-        header=tape_header(inputs, clock, chatter_rows=chatter.at.shape[0]),
+        header=tape_header(
+            inputs,
+            clock,
+            chatter_rows=chatter.at.shape[0],
+            delivery_rows=deliveries.ordered_at.shape[0],
+            stockout_pairs=stores.stockout_intervals.shape[0] // 2,
+        ),
         residents=residents_section(sim.residents),
         chatter=chatter,
-        deliveries=DeliveriesSection(
-            store=np.zeros(0, np.uint16),
-            resident=np.zeros(0, np.uint32),
-            ordered_at=np.zeros(0, np.uint32),
-            picked_at=np.zeros(0, np.uint32),
-            delivered_at=np.zeros(0, np.uint32),
-            outcome=np.zeros(0, np.uint8),
-        ),
-        stores=empty_stores_section(stores, clock.ticks),
+        deliveries=deliveries,
+        stores=stores,
         aggregates=sim.aggregates,
     )
-    return tape, unlimited_supply_stats(int(sim.aggregates.orders.sum()), stores)
+    return tape, stats
+
+
+def supply_stats(plan: SupplyPlan, state: SupplyState, ticks: int) -> SupplyStats:
+    tally = state.tally
+    return SupplyStats(
+        attempts=int(tally[ATTEMPTS]),
+        served=int(tally[SERVED]),
+        spilled=int(tally[SPILLED]),
+        deferred=int(tally[DEFERRED]),
+        lost=int(tally[LOST]),
+        late=int(tally[LATE]),
+        unserviceable_residents=int(np.count_nonzero(plan.own_store == NO_STORE)),
+        catchment=plan.catchment.copy(),
+        initial_stock=plan.initial_stock.copy(),
+        restocked=state.restocked.copy(),
+        stock_end=state.stock.copy(),
+        served_by_store=state.orders_series.reshape(plan.stores, ticks).sum(axis=1, dtype=np.int64),
+    )
 
 
 def unlimited_supply_stats(orders: int, stores: int) -> SupplyStats:
@@ -118,7 +154,9 @@ def run_seed_bytes(inputs: RunInputs) -> bytes:
     return write_tape(run_seed(inputs))
 
 
-def tape_header(inputs: RunInputs, clock: Clock, chatter_rows: int) -> TapeHeader:
+def tape_header(
+    inputs: RunInputs, clock: Clock, chatter_rows: int, delivery_rows: int, stockout_pairs: int
+) -> TapeHeader:
     scenario_hash = inputs.scenario.hash()
     return TapeHeader(
         run_id=derive_run_id(
@@ -133,8 +171,8 @@ def tape_header(inputs: RunInputs, clock: Clock, chatter_rows: int) -> TapeHeade
         residents=inputs.city.residents.x.shape[0],
         stores=inputs.city.stores.x.shape[0],
         chatter_rows=chatter_rows,
-        delivery_rows=0,
-        stockout_pairs=0,
+        delivery_rows=delivery_rows,
+        stockout_pairs=stockout_pairs,
         flags=0,
     )
 
@@ -152,6 +190,17 @@ def residents_section(state: ResidentState) -> ResidentsSection:
         heard_from=state.heard_from,
         first_source=state.first_source,
         outcome_flags=state.outcome_flags,
+    )
+
+
+def empty_deliveries_section() -> DeliveriesSection:
+    return DeliveriesSection(
+        store=np.zeros(0, np.uint16),
+        resident=np.zeros(0, np.uint32),
+        ordered_at=np.zeros(0, np.uint32),
+        picked_at=np.zeros(0, np.uint32),
+        delivered_at=np.zeros(0, np.uint32),
+        outcome=np.zeros(0, np.uint8),
     )
 
 
