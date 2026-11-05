@@ -317,7 +317,7 @@ SLOW = settings(
     max_examples=6,
     derandomize=True,
     deadline=None,
-    suppress_health_check=list(HealthCheck),
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large],
 )
 
 
