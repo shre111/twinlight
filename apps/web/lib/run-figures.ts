@@ -21,15 +21,17 @@ export function figuresAt(tape: StageTape, minutes: number): RunFigures {
   const lastTick = Math.min(Math.floor(inRun / tickMinutes), aggregates.adopted.length) - 1
   const residentCount = residents.awareAt.length
   const storeCount = stores.stockoutOffsets.length - 1
-  // The clock holds the last minute inside the run, so "today" does too.
-  const clockDay = Math.floor(Math.min(inRun, simMinutes - 1) / MINUTES_PER_DAY)
-  const dayFirstTick = Math.max(0, (clockDay * MINUTES_PER_DAY) / tickMinutes)
+  // The clock and the beacons hold the last minute inside the run: an open stockout ends at
+  // simMinutes, so reading that minute would show a store still out as restocked.
+  const heldMinute = Math.max(Math.min(minutes, simMinutes - 1), 0)
+  const clockDay = Math.floor(heldMinute / MINUTES_PER_DAY)
+  const dayFirstTick = Math.ceil((clockDay * MINUTES_PER_DAY) / tickMinutes)
   let ordersToday = 0
   for (let tick = dayFirstTick; tick <= lastTick; tick++)
     ordersToday += aggregates.orders[tick] ?? 0
   let storesOut = 0
   for (let store = 0; store < storeCount; store++) {
-    if (isOutOfStock(stores, store, inRun)) storesOut++
+    if (isOutOfStock(stores, store, heldMinute)) storesOut++
   }
   return {
     ordered: aggregates.adopted[lastTick] ?? 0,

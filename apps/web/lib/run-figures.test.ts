@@ -94,4 +94,15 @@ describe('figuresAt', () => {
     expect(figuresAt(run, 200).storesOut).toBe(1)
     expect(figuresAt(run, 300).storesOut).toBe(0)
   })
+
+  it('keeps a stockout still open at the end of the run, like the beacons', () => {
+    const run = tape({
+      stockouts: [
+        [100, SIM_MINUTES],
+        [100, 200],
+      ],
+    })
+    expect(figuresAt(run, SIM_MINUTES).storesOut).toBe(1)
+    expect(figuresAt(run, SIM_MINUTES * 2).storesOut).toBe(1)
+  })
 })
