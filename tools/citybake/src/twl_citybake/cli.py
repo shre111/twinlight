@@ -11,6 +11,8 @@ from twl_citybake.footprints.stage import build_buildings, write_building_layers
 from twl_citybake.footprints.vida import fetch_vida
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
+from twl_citybake.personas.pool import fetch_pool
+from twl_citybake.personas.stage import run_personas, write_persona_layers
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import extract_member, fetch
 from twl_citybake.store import table_digest
@@ -42,6 +44,10 @@ def build_parser() -> argparse.ArgumentParser:
         "population", help="place raster people in households per building, sample residents"
     )
     population_cmd.add_argument("city")
+    personas_cmd = commands.add_parser(
+        "personas", help="assign Nemotron personas and D-026 segments to residents"
+    )
+    personas_cmd.add_argument("city")
     return parser
 
 
@@ -190,6 +196,46 @@ def population_summary(report: dict, census_mean_size: float) -> str:
     )
 
 
+def run_personas_command(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    if config.personas is None:
+        raise SystemExit(f"{city} has no [personas] section")
+    population = dirs.stage(city, "population")
+    if not (population / "residents").exists():
+        raise SystemExit(f"{population} is incomplete; run `citybake population {city}` first")
+    out = dirs.stage(city, "personas")
+    pool = fetch_pool(config.personas, out / "pool.parquet")
+    layers = run_personas(population, pool, config)
+    write_persona_layers(layers, out)
+    print(personas_summary(layers.report))
+    print(out)
+
+
+def personas_summary(report: dict) -> str:
+    pool, married, couples = report["pool"], report["married"], report["couples"]
+    segments = [
+        f"  {name} {s['pool_share']:.2%} in the pool, {s['resident_share']:.2%} of residents"
+        for name, s in report["segments"].items()
+    ]
+    distances = ", ".join(
+        f"{name} {marginal['total_variation']}" for name, marginal in report["marginals"].items()
+    )
+    return "\n".join(
+        [
+            f"pool {pool['rows']:,} personas, {pool['district']}, {pool['state']}",
+            *segments,
+            f"max segment difference {report['max_segment_difference']:.2%}, "
+            f"within tolerance {report['within_tolerance']}",
+            f"total variation {distances}",
+            f"married {married['pool_share']:.2%} in the pool, {married['resident_share']:.2%} of "
+            f"residents, {married['free_draw_married_probability']:.2%} on a free draw",
+            f"couples {couples['count']:,} holding {couples['residents_in_couples']:,} residents, "
+            f"gap p10 {couples['gap_p10']} p50 {couples['gap_p50']} p90 {couples['gap_p90']}, "
+            f"husband older or equal {couples['husband_older_or_equal_share']:.2%}",
+        ]
+    )
+
+
 def summary(report: dict) -> str:
     b, r, w, d = report["buildings"], report["roads"], report["water"], report["districts"]
     sources = ", ".join(f"{k.lower()} {v}" for k, v in b["by_height_source"].items())
@@ -223,4 +269,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_footprints(args.city, dirs)
     elif args.command == "population":
         run_population_command(args.city, dirs)
+    elif args.command == "personas":
+        run_personas_command(args.city, dirs)
     return 0
