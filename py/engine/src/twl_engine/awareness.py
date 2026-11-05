@@ -27,9 +27,10 @@ def paid_exposure(
     becomes aware at a minute drawn inside the tick.
     """
     plan, residents = sim.world.paid, sim.residents
-    if start % MINUTES_PER_DAY == 0:
+    tick_minutes = end - start
+    if start // MINUTES_PER_DAY != (start - tick_minutes) // MINUTES_PER_DAY:
         residents.impressions_today[:] = 0
-    tick = start // (end - start)
+    tick = start // tick_minutes
     rng = streams["campaign"]
     for c in range(plan.per_tick.shape[0]):
         expected = plan.per_tick[c, tick]
