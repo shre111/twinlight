@@ -123,6 +123,12 @@ describe('decodePack', () => {
     expect(withOffsets(Uint32Array.of(0, 6, 5))).toThrow(/backwards at road 1/)
   })
 
+  it('carries the manifest bbox as minX, minY, maxX, maxY bounds', () => {
+    const withBox = decodePack({ ...manifest, bbox: [-13848, -12178, 13832, 12186] }, tinyPack())
+    expect(withBox.bounds).toEqual({ minX: -13848, minY: -12178, maxX: 13832, maxY: 12186 })
+    expect(decodePack(manifest, tinyPack()).bounds).toBeUndefined()
+  })
+
   it('rejects other formats and versions', () => {
     expect(() => decodePack({ ...manifest, version: 2 }, tinyPack())).toThrow(/v2/)
   })

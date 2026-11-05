@@ -12,9 +12,10 @@ const ROAD_STYLE = [
   { kind: ROAD_KIND.bridge, colour: palette.bridge, opacity: 0.6, lift: 2 },
 ] as const
 
-export function createRoads(roads: StageCity['roads'], fog: Fog): Layer[] {
+/** Lifts are toy-tuned metres; `scale` keeps them above depth resolution on larger cities. */
+export function createRoads(roads: StageCity['roads'], fog: Fog, scale = 1): Layer[] {
   return ROAD_STYLE.flatMap((style) => {
-    const positions = segmentPositions(roads, style.kind, style.lift)
+    const positions = segmentPositions(roads, style.kind, style.lift * scale)
     if (positions.length === 0) return []
     const geometry = new BufferGeometry().setAttribute(
       'position',

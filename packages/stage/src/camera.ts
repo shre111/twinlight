@@ -1,5 +1,6 @@
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { type PerspectiveCamera, Vector3 } from 'three/webgpu'
+import { type CityExtent, fitPoint, TOY_EXTENT } from './extent'
 
 export interface Pose {
   target: readonly [number, number, number]
@@ -8,6 +9,7 @@ export interface Pose {
   azimuth: number
 }
 
+/** Tuned on the toy city; `fit` scales them onto the loaded city's extent. */
 export const POSES = {
   home: { target: [-560, 0, -260], distance: 6200, polar: 1.3, azimuth: -0.5 },
   hero: { target: [-600, 0, -300], distance: 5900, polar: 1.33, azimuth: -0.48 },
@@ -16,25 +18,42 @@ export const POSES = {
 
 const PHONE_MAX_WIDTH = 700
 const FOV = { desktop: 40, phone: 46 }
-const TARGET_BOUNDS = { minX: -4200, maxX: 3200, minZ: -3800, maxZ: 3800 }
+const TOY_TARGET_BOUNDS = { minX: -4200, maxX: 3200, minZ: -3800, maxZ: 3800 }
+const TOY_DISTANCE = { min: 700, max: 16_000 }
+const TOY_CLIP = { near: 20, far: 90_000 }
 
 export class CameraRig {
   readonly #camera: PerspectiveCamera
   readonly #controls: OrbitControls
   readonly #shift = new Vector3()
+  #extent: CityExtent = TOY_EXTENT
+  #targetBounds = { ...TOY_TARGET_BOUNDS }
 
   constructor(camera: PerspectiveCamera, canvas: HTMLCanvasElement, reducedMotion: boolean) {
     this.#camera = camera
     const controls = new OrbitControls(camera, canvas)
     controls.enableDamping = !reducedMotion
     controls.dampingFactor = 0.07
-    controls.minDistance = 700
-    controls.maxDistance = 16_000
     controls.minPolarAngle = 0.12
     controls.maxPolarAngle = 1.38
     controls.screenSpacePanning = false
     controls.zoomSpeed = 0.8
     this.#controls = controls
+    this.fit(TOY_EXTENT)
+  }
+
+  /** Scales the toy-tuned poses, zoom range, target clamp and clip planes onto a city, then frames it. */
+  fit(extent: CityExtent): void {
+    this.#extent = extent
+    const { scale } = extent
+    const [minX, minZ] = fitPoint(TOY_TARGET_BOUNDS.minX, TOY_TARGET_BOUNDS.minZ, extent)
+    const [maxX, maxZ] = fitPoint(TOY_TARGET_BOUNDS.maxX, TOY_TARGET_BOUNDS.maxZ, extent)
+    this.#targetBounds = { minX, maxX, minZ, maxZ }
+    this.#controls.minDistance = TOY_DISTANCE.min * scale
+    this.#controls.maxDistance = TOY_DISTANCE.max * scale
+    this.#camera.near = TOY_CLIP.near * scale
+    this.#camera.far = TOY_CLIP.far * scale
+    this.#camera.updateProjectionMatrix()
     // The window, not the canvas, which may not be laid out yet.
     this.pose(window.innerWidth < PHONE_MAX_WIDTH ? POSES.phone : POSES.home)
   }
@@ -45,13 +64,15 @@ export class CameraRig {
     this.#camera.updateProjectionMatrix()
   }
 
+  /** Places the camera at a toy-tuned pose, scaled onto the current city. */
   pose({ target, distance, polar, azimuth }: Pose): void {
-    const [x, y, z] = target
-    this.#controls.target.set(x, y, z)
+    const [x, z] = fitPoint(target[0], target[2], this.#extent)
+    const d = distance * this.#extent.scale
+    this.#controls.target.set(x, target[1], z)
     this.#camera.position.set(
-      x + distance * Math.sin(polar) * Math.sin(azimuth),
-      y + distance * Math.cos(polar),
-      z + distance * Math.sin(polar) * Math.cos(azimuth),
+      x + d * Math.sin(polar) * Math.sin(azimuth),
+      target[1] + d * Math.cos(polar),
+      z + d * Math.sin(polar) * Math.cos(azimuth),
     )
     this.#camera.lookAt(this.#controls.target)
     this.#controls.update()
@@ -70,8 +91,9 @@ export class CameraRig {
 
   #clampTarget(): void {
     const target = this.#controls.target
-    const x = Math.min(TARGET_BOUNDS.maxX, Math.max(TARGET_BOUNDS.minX, target.x))
-    const z = Math.min(TARGET_BOUNDS.maxZ, Math.max(TARGET_BOUNDS.minZ, target.z))
+    const bounds = this.#targetBounds
+    const x = Math.min(bounds.maxX, Math.max(bounds.minX, target.x))
+    const z = Math.min(bounds.maxZ, Math.max(bounds.minZ, target.z))
     if (x === target.x && z === target.z && target.y === 0) return
     this.#shift.set(x - target.x, -target.y, z - target.z)
     target.add(this.#shift)

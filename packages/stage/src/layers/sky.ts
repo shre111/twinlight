@@ -4,10 +4,11 @@ import { palette } from '../palette'
 import type { Fog } from './fog'
 import type { Layer } from './layer'
 
-// Inside the far plane at any zoom; the sphere follows the camera, so its radius never shows.
-const RADIUS = 40_000
+// Inside the far plane at any zoom (both scale with the city); the sphere follows the camera,
+// so its radius never shows.
+const TOY_RADIUS = 40_000
 
-export function createSky(fog: Fog): Layer {
+export function createSky(fog: Fog, scale: number): Layer {
   const material = new MeshBasicNodeMaterial({
     side: BackSide,
     depthWrite: false,
@@ -31,7 +32,7 @@ export function createSky(fog: Fog): Layer {
     )
     return mix(fog.haze, banded, smoothstep(-0.015, 0, elevation))
   })()
-  const mesh = new Mesh(new SphereGeometry(RADIUS, 48, 24), material)
+  const mesh = new Mesh(new SphereGeometry(TOY_RADIUS * scale, 48, 24), material)
   mesh.renderOrder = -10
   mesh.frustumCulled = false
   return {

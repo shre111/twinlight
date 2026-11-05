@@ -81,8 +81,17 @@ export class ResidentsLayer {
   readonly #geometry: BufferGeometry
   readonly #material: PointsNodeMaterial
 
-  /** `glow` follows the tier's bloom: the low tier has none, so it skips the glow quads' fill. */
-  constructor(residents: Residents, events: Events, cap: number, fog: Fog, glow = true) {
+  /**
+   * `glow` follows the tier's bloom: the low tier has none, so it skips the glow quads' fill.
+   * `scale` is the city's size relative to the toy city, which the wall-clearing nudge was tuned on.
+   */
+  constructor(
+    residents: Residents,
+    events: Events,
+    cap: number,
+    fog: Fog,
+    { glow = true, scale = 1 }: { glow?: boolean; scale?: number } = {},
+  ) {
     const picks = residentSubset(residents.count, cap)
     this.count = picks.length
     this.#geometry = pointAndGlowQuads(glow)
@@ -98,7 +107,7 @@ export class ResidentsLayer {
       'orderAt',
       new InstancedBufferAttribute(eventMinutes(events.firstOrderAt, picks), 1),
     )
-    this.#material = this.#createMaterial(fog, glowDensity(this.count))
+    this.#material = this.#createMaterial(fog, glowDensity(this.count), MAX_NUDGE_METRES * scale)
     const sprite = new Sprite(this.#material)
     sprite.geometry = this.#geometry
     sprite.count = this.count
@@ -116,7 +125,7 @@ export class ResidentsLayer {
     this.object.removeFromParent()
   }
 
-  #createMaterial(fog: Fog, density: number): PointsNodeMaterial {
+  #createMaterial(fog: Fog, density: number, maxNudge: number): PointsNodeMaterial {
     const material = new PointsNodeMaterial({
       blending: AdditiveBlending,
       depthWrite: false,
@@ -162,7 +171,7 @@ export class ResidentsLayer {
 
     // The point is depth-tested at its own radius in front of the resident, like the near side
     // of a glowing sphere, so the wall it sits on cannot cut it while buildings in front still hide it.
-    const radius = min(pointSize.div(pixelsPerMetre).mul(0.5), MAX_NUDGE_METRES)
+    const radius = min(pointSize.div(pixelsPerMetre).mul(0.5), maxNudge)
     const towardCamera = normalize(cameraPosition.sub(home).add(vec3(0, 1e-3, 0)))
     const pointPosition = home.add(towardCamera.mul(radius))
     // The glow sits on the same view ray just past the near plane: same screen spot, in front of
