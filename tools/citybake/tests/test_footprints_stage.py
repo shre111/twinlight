@@ -437,7 +437,10 @@ def test_the_report_checks_the_raster_against_levels_tagged_osm_buildings(
     assert check["n"] == 2
     assert check["median_ratio"] == pytest.approx(1.5, rel=1e-2)
     assert check["median_abs_error_m"] == pytest.approx(6.4, rel=1e-2)
-    assert check["median_ratio_corrected"] == pytest.approx(1.0, abs=1e-3)
+    # raw 9.6 lies between centres 9.5 and 25.5: 9.6 + 0.1 / 16 * 3.2 = 9.62 against a 9.6 m target;
+    # raw 25.6 lies above the top centre, where the floor leaves it at 25.6 against 12.8 m
+    expected = np.median([9.62 / 9.6, 25.6 / 12.8])
+    assert check["median_ratio_corrected"] == pytest.approx(expected, abs=1e-3)
 
 
 def test_the_report_and_layer_json_carry_the_fitted_knots(
@@ -456,9 +459,22 @@ def test_the_report_validation_gives_every_storey_band_before_and_after(
 ) -> None:
     validation = find_dict(report, "height_correction", {"knots", "validation"})["validation"]
     assert validation["folds"] == 5
-    assert list(validation["bands"]) == ["1-2", "3-4", "5-7", "8-12", "13+"]
-    for stats in [*validation["bands"].values(), validation["overall"]]:
-        assert {"n", "before", "after"} <= set(stats)
+    assert set(validation["bands"]) == {"1-2", "3-4", "5-7", "8-12", "13+"}
+    assert set(validation["raster_bins"]) == {
+        "0-3",
+        "3-6",
+        "6-9",
+        "9-12",
+        "12-15",
+        "15-18",
+        "18-24",
+        "24-30",
+        "30+",
+    }
+    fields = {"n", "before", "after", "signed_before", "signed_after", "aggregate_after"}
+    groups = [*validation["bands"].values(), *validation["raster_bins"].values()]
+    for stats in [*groups, validation["overall"]]:
+        assert set(stats) == fields
 
 
 def test_the_report_gives_the_source_mix_per_district(

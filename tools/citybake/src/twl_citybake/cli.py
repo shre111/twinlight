@@ -121,7 +121,7 @@ def footprints_summary(report: dict[str, Any]) -> str:
     check, cover = report["raster_check"], report["coverage"]
     validation = report["height_correction"]["validation"]
     bands = ", ".join(
-        f"{band} {v['before']} to {v['after']} (n {v['n']:,})"
+        f"{band} {v['before']} to {v['after']} (signed {v['signed_after']}, n {v['n']:,})"
         for band, v in validation["bands"].items()
     )
     return "\n".join(
