@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { buildWorld, DISTRICTS } from '../../../design/prototype/toy-sim.mjs'
 import { NEVER, ROAD_KIND, type StageCity, type StageTape } from '../src/inputs'
-import { synthesizeToyRun } from '../src/synthetic'
+import { synthesizeTapeFor, synthesizeToyRun } from '../src/synthetic'
 
 const RESIDENTS = 3000
 let city: StageCity
@@ -99,5 +99,50 @@ describe('synthetic toy run', () => {
     for (let s = 0; s < city.stores.count; s++) {
       expect(stockoutOffsets[s + 1]).toBeGreaterThanOrEqual(stockoutOffsets[s] ?? 0)
     }
+  })
+})
+
+describe('synthesizeTapeFor', () => {
+  let packTape: StageTape
+
+  beforeAll(() => {
+    packTape = synthesizeTapeFor(city)
+  })
+
+  function adoptedShare(inSide: (x: number) => boolean): number {
+    const { firstOrderAt } = packTape.residents
+    let side = 0
+    let adopted = 0
+    for (let i = 0; i < city.residents.count; i++) {
+      if (!inSide(city.residents.x[i] ?? 0)) continue
+      side++
+      if (firstOrderAt[i] !== NEVER) adopted++
+    }
+    expect(side).toBeGreaterThan(50)
+    return adopted / side
+  }
+
+  it('fits the city it was made for', () => {
+    expect(packTape.residents.awareAt.length).toBe(city.residents.count)
+    expect(packTape.stores.stockoutOffsets.length).toBe(city.stores.count + 1)
+  })
+
+  it('counts the adopters the city will show', () => {
+    const adopters = packTape.residents.firstOrderAt.filter((at) => at !== NEVER).length
+    expect(adopters).toBeGreaterThan(0)
+    expect(packTape.aggregates.adopted.at(-1)).toBe(adopters)
+  })
+
+  it('tells nobody before the first ad', () => {
+    const firstHeard = Math.min(...packTape.residents.awareAt)
+    expect(firstHeard).toBeGreaterThanOrEqual(9 * 60)
+  })
+
+  it('warms the west of the river ahead of the east', () => {
+    expect(adoptedShare((x) => x < -1000)).toBeGreaterThan(adoptedShare((x) => x > 1200))
+  })
+
+  it('makes the same tape every time', () => {
+    expect(synthesizeTapeFor(city).residents.firstOrderAt).toEqual(packTape.residents.firstOrderAt)
   })
 })

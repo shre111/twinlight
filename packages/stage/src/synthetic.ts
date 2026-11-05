@@ -1,18 +1,35 @@
-import { buildWorld, HOURS } from '../../../design/prototype/toy-sim.mjs'
+import {
+  buildTies,
+  buildWorld,
+  DISTRICTS,
+  HOURS,
+  mulberry32,
+  simulate,
+} from '../../../design/prototype/toy-sim.mjs'
 import { TOY_BOUNDS } from './extent'
 import { NEVER, ROAD_KIND, type StageCity, type StageTape } from './inputs'
 
-// Stand-in for a real city pack and tape until P-010 and P-014 land. The toy sim works in
-// three.js axes (negative z is north) and float hours, so this converts to pack axes and minutes.
+// Stand-in for a real tape until P-014 lands. The toy sim works in three.js axes (negative z is
+// north) and float hours, so this converts to pack axes and minutes.
 
 type ToyWorld = ReturnType<typeof buildWorld>
+type ToySim = ToyWorld['sim']
+type ToyDistrict = { name: string; x: number; z: number; i: number; east: boolean }
+
+const TOY_DISTRICTS = DISTRICTS as unknown as ToyDistrict[]
 
 const SIM_MINUTES = HOURS * 60
 
 // Constants inside toy-sim.mjs that it does not export.
+const TOY_SEED = 49
 const TOY_DELIVERY_RADIUS_M = 900
 const TOY_RAIN_HOURS = { from: 264, to: 336 }
 const TOY_NEVER_HOURS = 1e9
+const TOY_AGE_SHARE_WEST = [0.2, 0.27, 0.27, 0.16, 0.1]
+const TOY_AGE_SHARE_EAST = [0.16, 0.22, 0.28, 0.21, 0.13]
+const TOY_AGE_AFFINITY = [1.35, 1.2, 0.9, 0.6, 0.38]
+const TOY_AGE_AD_WEIGHT = [1.0, 0.9, 0.62, 0.38, 0.2]
+const TOY_CREATOR_DISTRICTS = new Set(['Satellite', 'Bodakdev', 'Vastrapur'])
 
 /** The toy run's campaign moments, in sim minutes, as the timeline names them. */
 export const TOY_EVENTS = [
@@ -22,8 +39,95 @@ export const TOY_EVENTS = [
 
 export function synthesizeToyRun(residents: number): { city: StageCity; tape: StageTape } {
   const world = buildWorld(residents)
-  return { city: toyCity(world), tape: toyTape(world) }
+  return { city: toyCity(world), tape: toyTape(world.sim, world.res.count) }
 }
+
+/** The toy sim's launch over a generated pack's own residents and stores. */
+export function synthesizeTapeFor(city: StageCity): StageTape {
+  const rand = mulberry32(TOY_SEED)
+  const residents = toyResidents(city, rand)
+  const sim = simulate(residents, toyStores(city, residents), buildTies(residents, rand), rand)
+  return toyTape(sim, residents.count)
+}
+
+// A pack carries no campaign traits the stage reads, so they are drawn as the prototype draws them.
+function toyResidents(city: StageCity, rand: () => number) {
+  const count = city.residents.count
+  const x = city.residents.x
+  const z = negate(city.residents.y)
+  const dist = new Uint8Array(count)
+  const aff = new Float32Array(count)
+  const adW = new Float32Array(count)
+  for (let i = 0; i < count; i++) {
+    const district = nearestDistrict(x[i] ?? 0, z[i] ?? 0)
+    const band = ageBand(district.east ? TOY_AGE_SHARE_EAST : TOY_AGE_SHARE_WEST, rand())
+    const creator = TOY_CREATOR_DISTRICTS.has(district.name)
+    dist[i] = district.i
+    aff[i] =
+      (TOY_AGE_AFFINITY[band] ?? 0) *
+      (district.east ? 0.8 : 1.08) *
+      (creator ? 1.22 : 1) *
+      (0.45 + rand() * 1.1)
+    adW[i] = (TOY_AGE_AD_WEIGHT[band] ?? 0) * (district.east ? 0.72 : 1)
+  }
+  return { count, x, z, dist, aff, adW }
+}
+
+function nearestDistrict(x: number, z: number): ToyDistrict {
+  const distance = (d: ToyDistrict) => (x - d.x) ** 2 + (z - d.z) ** 2
+  return TOY_DISTRICTS.reduce((best, d) => (distance(d) < distance(best) ? d : best))
+}
+
+function ageBand(shares: number[], roll: number): number {
+  let left = roll
+  let band = 0
+  while (band < shares.length - 1 && left > (shares[band] ?? 0)) {
+    left -= shares[band] ?? 0
+    band++
+  }
+  return band
+}
+
+function toyStores(
+  city: StageCity,
+  residents: { count: number; x: Float32Array; z: Float32Array },
+) {
+  const { count } = residents
+  const storeX = city.stores.x
+  const storeZ = negate(city.stores.y)
+  const stores = Array.from({ length: city.stores.count }, () => ({ catchment: 0 }))
+  const near1 = new Uint8Array(count)
+  const near2 = new Uint8Array(count)
+  const d2 = new Float32Array(count)
+  for (let i = 0; i < count; i++) {
+    let first = 0
+    let second = 0
+    let firstDistance = Infinity
+    let secondDistance = Infinity
+    for (let s = 0; s < stores.length; s++) {
+      const distance = Math.hypot(
+        (residents.x[i] ?? 0) - (storeX[s] ?? 0),
+        (residents.z[i] ?? 0) - (storeZ[s] ?? 0),
+      )
+      if (distance < firstDistance) {
+        second = first
+        secondDistance = firstDistance
+        first = s
+        firstDistance = distance
+      } else if (distance < secondDistance) {
+        second = s
+        secondDistance = distance
+      }
+    }
+    near1[i] = first
+    near2[i] = second
+    d2[i] = secondDistance
+    const nearest = stores[first]
+    if (nearest) nearest.catchment++
+  }
+  return { stores, near1, near2, d2 }
+}
+
 function toyCity(world: ToyWorld): StageCity {
   const { buildings: b, roads, arterials, bridges } = world.city
   const res = world.res
@@ -61,8 +165,7 @@ function toyCity(world: ToyWorld): StageCity {
   }
 }
 
-function toyTape(world: ToyWorld): StageTape {
-  const { sim, res } = world
+function toyTape(sim: ToySim, residents: number): StageTape {
   const firstOrderAt = Uint32Array.from(sim.adoptT, toMinutes)
   return {
     simMinutes: SIM_MINUTES,
@@ -71,7 +174,7 @@ function toyTape(world: ToyWorld): StageTape {
     residents: {
       awareAt: Uint32Array.from(sim.awareT, toMinutes),
       firstOrderAt,
-      orderCount: orderCounts(sim.deliveries.res, firstOrderAt, res.count),
+      orderCount: orderCounts(sim.deliveries.res, firstOrderAt, residents),
     },
     stores: stockouts(sim.outIntervals as number[][][]),
     aggregates: {
