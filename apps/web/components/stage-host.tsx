@@ -2,6 +2,7 @@
 
 import type { BackendPreference, Stage, TierOption } from '@twinlight/stage'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { browserHasGraphics, startFailureMessage, withOneRetry } from '../lib/stage-start'
 import styles from './stage-host.module.css'
 
 interface StageHostProps {
@@ -26,47 +27,52 @@ export function StageHost({
 }: StageHostProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const ready = useEffectEvent((stage: Stage) => onReady?.(stage))
-  const [failed, setFailed] = useState(false)
+  const [startFailure, setStartFailure] = useState<string | null>(null)
 
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    setFailed(false)
-    // A fresh canvas per mount, because a canvas keeps the first GPU context it hands out.
-    const canvas = document.createElement('canvas')
-    canvas.setAttribute('role', 'img')
-    canvas.setAttribute('aria-label', 'Live city view')
-    host.append(canvas)
+    setStartFailure(null)
+    let canvas: HTMLCanvasElement | undefined
     let stage: Stage | undefined
     let release: (() => void) | undefined
     let disposed = false
 
-    import('@twinlight/stage')
-      .then(({ Stage }) => Stage.create(canvas, { tier, backend, hud, still }))
+    const start = async () => {
+      const { Stage } = await import('@twinlight/stage')
+      if (disposed) return undefined
+      canvas?.remove()
+      // A fresh canvas per attempt, because a canvas keeps the first GPU context it hands out.
+      canvas = document.createElement('canvas')
+      canvas.setAttribute('role', 'img')
+      canvas.setAttribute('aria-label', 'Live city view')
+      host.append(canvas)
+      return Stage.create(canvas, { tier, backend, hud, still })
+    }
+
+    withOneRetry(start)
       .then((created) => {
         if (disposed) {
-          created.dispose()
+          created?.dispose()
           return
         }
         stage = created
-        release = ready(created)
+        if (created) release = ready(created)
       })
       .catch((error: unknown) => {
         console.error(error)
-        if (!disposed) setFailed(true)
+        if (!disposed) setStartFailure(startFailureMessage(browserHasGraphics()))
       })
 
     return () => {
       disposed = true
       release?.()
       stage?.dispose()
-      canvas.remove()
+      canvas?.remove()
     }
   }, [tier, backend, hud, still])
 
-  const message = failed
-    ? 'This view needs WebGPU or WebGL 2. Try a recent Chrome, Edge, Safari or Firefox.'
-    : failure
+  const message = startFailure ?? failure
   return (
     <div ref={hostRef} className={styles.host}>
       {message && (
