@@ -1,0 +1,310 @@
+{
+  "file": {
+    "bytes": 504,
+    "blake3": "662bcce793eac819e313ae7c0f64a9e7ae4aabf1827dcf3adc9771b412323521"
+  },
+  "footer": {
+    "total_length": 464,
+    "blake3": "e457a0ab7392108bfd687289a933e752e27b5599933a001c3a6eafa2f09b999e"
+  },
+  "header": {
+    "version": 1,
+    "flags": 1,
+    "run_id": "00000000000000000000000000000000",
+    "seed": "0",
+    "engine_version": "",
+    "city_pack_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "scenario_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sim_minutes": 15,
+    "tick_minutes": 15,
+    "residents": 0,
+    "stores": 0,
+    "chatter_rows": 0,
+    "delivery_rows": 0,
+    "stockout_pairs": 0
+  },
+  "sections": [
+    {
+      "kind": 1,
+      "name": "residents",
+      "offset": 352,
+      "length": 9,
+      "raw_length": 0,
+      "crc32": 298642007
+    },
+    {
+      "kind": 2,
+      "name": "chatter",
+      "offset": 368,
+      "length": 9,
+      "raw_length": 0,
+      "crc32": 298642007
+    },
+    {
+      "kind": 3,
+      "name": "deliveries",
+      "offset": 384,
+      "length": 9,
+      "raw_length": 0,
+      "crc32": 298642007
+    },
+    {
+      "kind": 4,
+      "name": "stores",
+      "offset": 400,
+      "length": 17,
+      "raw_length": 8,
+      "crc32": 1996477187
+    },
+    {
+      "kind": 5,
+      "name": "aggregates",
+      "offset": 424,
+      "length": 17,
+      "raw_length": 40,
+      "crc32": 3277843307
+    },
+    {
+      "kind": 6,
+      "name": "chunks",
+      "offset": 448,
+      "length": 9,
+      "raw_length": 0,
+      "crc32": 298642007
+    }
+  ],
+  "columns": {
+    "residents": {
+      "aware_at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "first_order_at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "order_count": {
+        "dtype": "u16",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "heard_from": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "first_source": {
+        "dtype": "u8",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "outcome_flags": {
+        "dtype": "u8",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      }
+    },
+    "chatter": {
+      "from": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "to": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "kind": {
+        "dtype": "u8",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      }
+    },
+    "deliveries": {
+      "store": {
+        "dtype": "u16",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "resident": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "ordered_at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "picked_at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "delivered_at": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "outcome": {
+        "dtype": "u8",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      }
+    },
+    "stores": {
+      "stock": {
+        "dtype": "f32",
+        "length": 0,
+        "crc32": 0,
+        "head": [],
+        "tail": []
+      },
+      "orders": {
+        "dtype": "u16",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      },
+      "stockout_offsets": {
+        "dtype": "u32",
+        "length": 1,
+        "crc32": 558161692,
+        "sum": "0",
+        "head": [
+          0
+        ],
+        "tail": [
+          0
+        ]
+      },
+      "stockout_intervals": {
+        "dtype": "u32",
+        "length": 0,
+        "crc32": 0,
+        "sum": "0",
+        "head": [],
+        "tail": []
+      }
+    },
+    "aggregates": {
+      "aware": {
+        "dtype": "u32",
+        "length": 1,
+        "crc32": 558161692,
+        "sum": "0",
+        "head": [
+          0
+        ],
+        "tail": [
+          0
+        ]
+      },
+      "adopted": {
+        "dtype": "u32",
+        "length": 1,
+        "crc32": 558161692,
+        "sum": "0",
+        "head": [
+          0
+        ],
+        "tail": [
+          0
+        ]
+      },
+      "orders": {
+        "dtype": "u32",
+        "length": 1,
+        "crc32": 558161692,
+        "sum": "0",
+        "head": [
+          0
+        ],
+        "tail": [
+          0
+        ]
+      },
+      "stores_out": {
+        "dtype": "u16",
+        "length": 1,
+        "crc32": 1104745215,
+        "sum": "0",
+        "head": [
+          0
+        ],
+        "tail": [
+          0
+        ]
+      },
+      "rain_intensity": {
+        "dtype": "f32",
+        "length": 1,
+        "crc32": 558161692,
+        "head": [
+          0.0
+        ],
+        "tail": [
+          0.0
+        ]
+      }
+    }
+  }
+}
