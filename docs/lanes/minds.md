@@ -138,3 +138,104 @@ Limits:
 - Morton order matters: file order costs 7.63 MB against 5.77 MB for everything at 12 bytes. It means reindexing `building` when writing the pack.
 - Extruded footprints are out of budget alone: 9.08 MB for rings, before any index buffer.
 - Numbers shift a little if the population or footprints are rebaked.
+
+## P-025 pack layouts (proposal for ARCHITECTURE section 5; no code yet)
+
+For the lead to write into section 5, with Lane B choosing the instance precision. D-031's rule fits in 6 MB, but only just with meshopt. I propose replacing meshopt with plain delta-coded columns, which is smaller and needs no encoder: the first-load download is **5.19 MB** with district and 0.5 m sizes, against 5.94 MB with meshopt and no district. This changes "meshopt-compressed" in P-025 and section 5, so it needs your decision.
+
+### The D-031 rule, measured
+
+A footprint goes to the detail file when its area is under 30 m2 and its polygon lies more than 3.0 m from every other footprint, measured against all 1,054,627, small ones included.
+
+| Rule | First-load buildings | Detail file | Walled floor kept | Walled buildings kept | All floor kept | Residents repointed |
+|---|---|---|---|---|---|---|
+| Keep everything | 1,054,627 | 0 | 100.00% | 100.0% | 100.00% | 0 |
+| Plain 30 m2 | 835,384 | 219,243 | 94.65% | 73.7% | 97.48% | 125 |
+| Touching only | 962,902 | 91,725 | 98.64% | 92.7% | 99.01% | 91 |
+| Within 1 m | 1,004,048 | 50,579 | 99.68% | 98.1% | 99.47% | 76 |
+| **Within 3 m (D-031)** | 1,026,145 | 28,482 | 99.88% | 99.3% | 99.71% | 57 |
+| Within 5 m | 1,035,692 | 18,935 | 99.93% | 99.6% | 99.81% | 49 |
+
+- 190,761 of the 219,243 small footprints are within 3 m of another building, so the rule keeps 97.3% of all buildings. It protects the pol houses as intended, but removes little: 1,026,145 boxes, 23% more than a plain 30 m2 for P-048 to hold at 60 fps.
+- The 57 residents repointed stand for 4,723 of 8.08M people; p50 47 m, max 179 m.
+- The result barely moves between 2 m and 5 m, so "about 3 m" is not a sensitive choice.
+
+### Why columns instead of meshopt
+
+| 1,026,145 buildings, brotli 11 | Meshopt | Columns |
+|---|---|---|
+| 8-byte precision | 4.78 MB | 4.05 MB |
+| 12-byte precision, with district | 5.61 MB | 4.94 MB |
+| Roads, 350,594 points | 0.75 MB | 0.71 MB |
+
+- Morton order makes the sorted position code nearly monotonic, so its deltas compress far better than the meshopt vertex filter does here.
+- No encoder is needed. The Python `meshoptimizer` package is an alpha third-party wrapper (0.2.30a0, no wheels, no licence metadata), so meshopt would otherwise mean running the JS encoder from citybake.
+- Decoding is plain arithmetic in TypeScript and Python. For all 1,026,145 buildings on this machine in Node: 40 ms for brotli and 3 to 9 ms for positions. Not measured in a browser.
+- What it gives up: no glTF container, and Lane B decodes into instance attributes itself. If Lane B has a reason to keep meshopt, 8-byte meshopt still fits, with only 60 KB of margin.
+
+### Instance precision, for Lane B to pick
+
+All at 1,026,145 buildings. Browser total adds 1.12 MB for roads, residents, stores, river and districts.
+
+| Attributes after x, y | Buildings MB | Browser total MB | With gzip | Notes |
+|---|---|---|---|---|
+| x, y; w, d, h at 0.5 m; rotation | 4.05 | **5.17** | 5.66 | clips 336 widths, 22 depths, 1 height at 127.5 m |
+| the same plus u8 district | 4.07 | **5.19** | 5.68 | same clipping; district costs 22 KB |
+| w, d on a square-root scale; h at 0.5 m | 4.06 | **5.18** | 5.67 | no clipping; 0.37 m at 5 m wide, 1.67 m at 100 m |
+| w, d at 0.25 m in u16; h at 0.5 m | 4.30 | **5.42** | 5.90 | no width or depth clipping |
+| w, d, h at 0.1 m in u16 | 4.92 | **6.04** | 6.51 | misses, narrowly |
+
+### Exact layouts
+
+Positions are quantised to the manifest `bbox`: `q = round((v - min) / (max - min) * 65535)`, about 0.42 m by 0.37 m on Ahmedabad. The bbox must enclose every coordinate in the pack. A byte-plane column writes all the lowest bytes, then the next, and so on, little-endian. Each column stays padded to 8 bytes.
+
+First-load, the `first_load` size report:
+
+- `buildings.bin` replaces `buildings.glb`, with `counts.buildings` rows in ascending Morton order, which defines the building index:
+  - `u32 position_delta` in byte planes: the Morton code of (qx, qy) with x in the even bits, as a delta from the previous row, the first from 0.
+  - Then Lane B's chosen attributes. Rotation is `u8`, radians = value / 255 * pi. Boxes repeat every pi.
+- `roads.bin`, no longer `f32`:
+  - `u16 points[roads]`: points per road; the longest has 114.
+  - `u8 class[roads]`: unchanged, 0 street, 1 arterial, 2 bridge.
+  - `u16 dx[roadPoints]`, `u16 dy[roadPoints]` in byte planes: zigzag delta of the quantised position, across the whole column, the first from 0.
+- `residents.bin`, order is the resident index:
+  - `u16 x[n]`, `u16 y[n]`: quantised, not delta-coded.
+  - `u8 floor[n]`: z = (floor + 0.5) * 3.2 m. The baked z is mid-floor.
+  - `u32 building[n]`: the index in `buildings.bin`, repointed for dropped buildings.
+  - `u8 segment[n]`.
+- `stores.bin` and `districts.json`: unchanged.
+- `river.bin`: see below.
+
+Engine-only, the `engine` size report:
+
+- `residents_engine.bin`: `u32 hex[n]`, `u32 persona_ref[n]`, `f32 weight[n]`, same order. 0.21 MB.
+- `graph.bin`, `travel.bin`, `hexes.bin`: unchanged.
+- Total 2.67 MB against the soft 10 MB.
+
+Optional, the `detail` size report:
+
+- `buildings_detail.bin`: the same layout as `buildings.bin`, with its own Morton order and `counts.detailBuildings` rows. No resident points to it. 0.12 to 0.14 MB.
+
+`manifest.json`:
+
+- `counts` gains `detailBuildings` and `riverRings`, alongside `hexes` and `bands`.
+- `sizes` is new: `{"first_load": {"files": [...], "bytes": n, "budget": 6000000}, "engine": {"files": [...], "bytes": n, "budget": 10000000}, "detail": {"files": [...], "bytes": n}}`. `bytes` is brotli 11, and the manifest itself is not counted.
+- Objects are stored brotli-compressed with `Content-Encoding: br`. `files` hashes stay over the uncompressed bytes.
+
+### Holes in water (the owner's request)
+
+- `river.bin` becomes: `u32 offsets[riverRings + 1]` into points, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]`, `u16 rings[riverPolygons]`.
+- Each polygon takes its next `rings[p]` rings: the first is the exterior, counter-clockwise, and the rest are holes, clockwise. `rings[p] >= 1` and they sum to `riverRings`. Toy packs write all 1.
+- The stage passes the holes to `ShapeUtils.triangulateShape`, whose indices run over the exterior then the holes. `distanceToRing` must include hole rings too, or the sheen will not fade at an island's shore.
+- Ahmedabad has one hole, 15.5 KB for the whole file: Lapkaman Lake (relation/13498663), 0.34 ha, with no buildings or residents. It is not Kankaria. OSM draws Kankaria Lake (way/29340465) as a single outline running around Naginawadi, which overlaps our water by 0.00 ha, so that island is dry with or without this change.
+- The case for it is other cities and getting the format right once, not Ahmedabad.
+
+### Costs and limits
+
+- The toy pack changes with all of this, so its `pack_hash` and the golden tapes that carry it regenerate, with no change to simulation output. Worth folding into one regeneration.
+- `brotli` (Google, MIT, with wheels) becomes a citybake dependency, for writing objects and the size report. A version bump can change `sizes` and so `pack_hash`, so it stays pinned.
+- The budget assumes brotli. With gzip the 0.5 m options still fit, at about 5.7 MB.
+- D-031 names buildings, roads, residents and stores; I count river and districts too, since the stage loads the river. Together they are 22 KB.
+- Frame rate is still P-048's: this is ten times the 100k pack Lane B measured.
+- Quantised positions apply to the engine too if it reads them. That is your call as the reader's owner.
+- Found while checking water, not changed: 331 building centroids and 43 residents fall inside water polygons. The largest groups are the river (95 buildings, 24 residents) and one 3.1 ha lake at 72.6413, 22.9873 (75 buildings, 14 residents). Boxes will stand in water there. I can filter them when writing the pack if you want.
