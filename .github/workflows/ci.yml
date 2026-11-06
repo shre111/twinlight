@@ -66,7 +66,7 @@ jobs:
               - 'packages/tape/**'
               - 'fixtures/tape/**'
               - 'py/pack/**'
-              - 'packages/stage/src/pack*.ts'
+              - 'packages/stage/src/**'
               - 'packages/stage/test/pack-golden.test.ts'
               - 'fixtures/pack/**'
 
