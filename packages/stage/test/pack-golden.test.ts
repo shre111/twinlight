@@ -153,7 +153,8 @@ describe('the v2 golden pack', () => {
     let wrapped = 0
     let singlePoint = 0
     for (const probe of probes.roads) {
-      const start = firstSegment[probe.road] ?? 0
+      const start = firstSegment[probe.road] as number
+      expect(start, `road ${probe.road} is in the file`).toBeDefined()
       expect(points[probe.road], `points of road ${probe.road}`).toBe(probe.points.length)
       if (probe.points.length < 2) singlePoint++
       probe.points.forEach(([qx, qy], p) => {
