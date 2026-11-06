@@ -239,3 +239,44 @@ Optional, the `detail` size report:
 - Frame rate is still P-048's: this is ten times the 100k pack Lane B measured.
 - Quantised positions apply to the engine too if it reads them. That is your call as the reader's owner.
 - Found while checking water, not changed: 331 building centroids and 43 residents fall inside water polygons. The largest groups are the river (95 buildings, 24 residents) and one 3.1 ha lake at 72.6413, 22.9873 (75 buildings, 14 residents). Boxes will stand in water there. I can filter them when writing the pack if you want.
+
+### Update: zstd, water filter and tile index
+
+This updates the layouts above. Delta-coded columns are D-032. The container is zstd -19, provisionally, so its figures replace the brotli ones above. The lead measures JS decode in Chrome, Firefox and WebKit at the start of P-014 against the 1.5 s load target. If that is too slow, the fallback is brotli with `Content-Encoding: br`, so the pack writer keeps the compressor as a single switch.
+
+First-load at zstd -19, with the water filter and a level-6 tile index, against 6 MB:
+
+| Attributes after x, y, with district | Buildings MB | First load MB |
+|---|---|---|
+| 0.5 m | 4.37 | 5.58 |
+| Square-root width and depth, height 0.5 m | 4.39 | 5.60 |
+| 0.25 m width and depth, height 0.5 m | 4.58 | 5.78 |
+| 0.1 m | 5.19 | 6.40, misses |
+
+The other browser files are 1.20 MB. Engine-only files are 2.94 MB, and the detail file is 0.13 to 0.15 MB.
+
+Water filter: 331 buildings dropped (270 from first-load, 61 from the detail file), leaving 1,025,875 and 28,421. 43 residents stood in water and move to their nearest kept building; they are not removed, because that would renumber the resident index, the graph and the tape. 99 residents are repointed in all, max 256 m.
+
+**Tile index, proposed for `buildings.bin` and `buildings_detail.bin`:**
+
+- First column: `u32 tile_start[4^L + 1]`, with L in `manifest.counts.buildingTileLevel`.
+- Tile `i` is the buildings `tile_start[i]` to `tile_start[i + 1]`, where `i` is the Morton code shifted right by `32 - 2L`. Empty tiles have equal entries.
+- A tile's cell comes from de-interleaving `i`, as for positions, and its bounds from the manifest `bbox`.
+- One table gives the whole quadtree. At `k` levels coarser, tile `j` runs from `tile_start[j * 4^k]` to `tile_start[(j + 1) * 4^k]`, always one contiguous range. P-048 can cull and choose LOD at any level with no second structure.
+
+| Level | Tiles | Tile size | Occupied | Buildings per occupied tile, p50 / p90 / max | Index, zstd |
+|---|---|---|---|---|---|
+| 5 | 32 x 32 | 865 x 761 m | 1,020 | 544 / 2,721 / 6,374 | 3.0 KB |
+| **6** | **64 x 64** | **433 x 381 m** | **3,988** | **125 / 714 / 2,102** | **9.5 KB** |
+| 7 | 128 x 128 | 216 x 190 m | 14,084 | 37 / 205 / 647 | 25.9 KB |
+
+I recommend level 6: the coarser levels come free, a tile is about the size of a few city blocks, and the table costs 9.5 KB. Lane B owns P-048 and has been asked to confirm the level against its culling, along with the precision pick. The lead writes section 5 when both are in.
+
+For culling:
+
+- Buildings are binned by centre, so a box can overhang its tile. Half-diagonals are p50 6 m, p99 26 m, p99.9 52 m, and max 212 m; 78 boxes reach over 100 m. A fixed margin must either be large or clip those few, so per-tile bounds work better.
+- I would not store per-tile bounds. The worker can compute reach and maximum height (137.6 m) in one pass over the decoded columns, which saves pack bytes. Lane B may prefer otherwise.
+
+Every column stays independently decodable. Column offsets come only from `counts`, with each column padded to 8 bytes, so a worker decompresses once and transfers that buffer, with each direct column as a view into it. `tile_start` and `u8` columns need no decoding. Only positions, and any `u16` byte-plane attributes, produce new arrays, which is one more point in favour of the `u8` options.
+
+Buildings and roads join the cross-language goldens: Python writes, TypeScript decodes, and checksums and probe buildings must match.
