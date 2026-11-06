@@ -16,6 +16,8 @@ export interface StageCity {
     depth: Float32Array
     height: Float32Array
     rotation: Float32Array
+    /** v2 packs: tile i holds buildings tileStart[i] to tileStart[i + 1], in Morton order. */
+    tileStart?: Uint32Array
   }
   /** Segments as x0, y0, x1, y1, with one `ROAD_KIND` per segment. */
   roads: { segments: Float32Array; kind: Uint8Array }

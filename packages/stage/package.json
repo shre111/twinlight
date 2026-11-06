@@ -15,10 +15,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@twinlight/tape": "workspace:*",
     "@twinlight/ui": "workspace:*",
     "three": "0.186.1"
   },
   "devDependencies": {
+    "@noble/hashes": "2.4.0",
     "@twinlight/config": "workspace:*",
     "@types/node": "24.19.2",
     "@types/three": "0.186.0",
