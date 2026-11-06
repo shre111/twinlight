@@ -1,15 +1,17 @@
+import dataclasses
 from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
 
 from twl_engine.world import SupplyPlan, World
-from twl_tape import NEVER, AggregatesSection, ChatterSection
+from twl_tape import NEVER, AggregatesSection, ChatterSection, DeliveriesSection
 
 NOT_OUT = -1
 NOT_WAITING = -1
-ATTEMPTS, SERVED, SPILLED, DEFERRED, LOST, LATE, STOCKOUT_ROWS = range(7)
-TALLIES = 7
+ATTEMPTS, SERVED, SPILLED, DEFERRED, LOST, LATE, STOCKOUT_ROWS, DELIVERY_ROWS = range(8)
+TALLIES = 8
+INITIAL_DELIVERY_ROWS = 1024
 
 
 @dataclass(eq=False)
@@ -90,11 +92,61 @@ def new_chatter_log(residents: int) -> ChatterLog:
 
 
 @dataclass(eq=False)
+class DeliveryLog:
+    """The tape's delivery columns, one row per served order in the order they were placed.
+
+    The row count is `SupplyState.tally[DELIVERY_ROWS]`; the arrays are capacity.
+    """
+
+    store: NDArray[np.uint16]
+    resident: NDArray[np.uint32]
+    ordered_at: NDArray[np.uint32]
+    picked_at: NDArray[np.uint32]
+    delivered_at: NDArray[np.uint32]
+    outcome: NDArray[np.uint8]
+
+    def reserve(self, rows: int) -> None:
+        """Grow by doubling until `rows` fit."""
+        capacity = max(self.store.shape[0], 1)
+        if rows <= self.store.shape[0]:
+            return
+        while capacity < rows:
+            capacity *= 2
+        for field in dataclasses.fields(self):
+            column = getattr(self, field.name)
+            grown = np.zeros(capacity, dtype=column.dtype)
+            grown[: column.shape[0]] = column
+            setattr(self, field.name, grown)
+
+    def section(self, rows: int) -> DeliveriesSection:
+        return DeliveriesSection(
+            store=self.store[:rows].copy(),
+            resident=self.resident[:rows].copy(),
+            ordered_at=self.ordered_at[:rows].copy(),
+            picked_at=self.picked_at[:rows].copy(),
+            delivered_at=self.delivered_at[:rows].copy(),
+            outcome=self.outcome[:rows].copy(),
+        )
+
+
+def new_delivery_log(capacity: int = INITIAL_DELIVERY_ROWS) -> DeliveryLog:
+    return DeliveryLog(
+        store=np.zeros(capacity, dtype=np.uint16),
+        resident=np.zeros(capacity, dtype=np.uint32),
+        ordered_at=np.zeros(capacity, dtype=np.uint32),
+        picked_at=np.zeros(capacity, dtype=np.uint32),
+        delivered_at=np.zeros(capacity, dtype=np.uint32),
+        outcome=np.zeros(capacity, dtype=np.uint8),
+    )
+
+
+@dataclass(eq=False)
 class SupplyState:
     """Stores, residents' supply memory and the logs the tape is cut from (MODEL.md section 12).
 
     `out_since` is the minute a store ran out (`NOT_OUT` while it has stock) and `waiting_until`
-    the minute from which a resident tries again (`NOT_WAITING` otherwise). Stockouts that ended
+    the minute from which a resident tries again (`NOT_WAITING` otherwise). `picker_free` and
+    `rider_free` ([store, rider]) are the minutes from which each is free. Stockouts that ended
     are rows of `stockout_*`; `last_stockout` is each store's latest row. `tally` counts attempts
     and their outcomes and holds the row count of each log.
     """
@@ -102,6 +154,8 @@ class SupplyState:
     stock: NDArray[np.int64]
     in_transit: NDArray[np.int64]
     restocked: NDArray[np.int64]
+    picker_free: NDArray[np.int64]
+    rider_free: NDArray[np.int64]
     out_since: NDArray[np.int64]
     last_stockout: NDArray[np.int64]
     satisfaction: NDArray[np.float64]
@@ -111,6 +165,7 @@ class SupplyState:
     stockout_store: NDArray[np.int64]
     stockout_start: NDArray[np.int64]
     stockout_end: NDArray[np.int64]
+    deliveries: DeliveryLog
     tally: NDArray[np.int64]
 
 
@@ -124,6 +179,8 @@ def new_supply_state(plan: SupplyPlan, world: World) -> SupplyState:
         stock=plan.initial_stock.copy(),
         in_transit=np.zeros(stores, dtype=np.int64),
         restocked=np.zeros(stores, dtype=np.int64),
+        picker_free=np.zeros(stores, dtype=np.int64),
+        rider_free=np.zeros((stores, supply.riders_per_store), dtype=np.int64),
         out_since=np.where(plan.initial_stock < 1, 0, NOT_OUT).astype(np.int64),
         last_stockout=np.full(stores, -1, dtype=np.int64),
         satisfaction=np.zeros(world.residents, dtype=np.float64),
@@ -133,6 +190,7 @@ def new_supply_state(plan: SupplyPlan, world: World) -> SupplyState:
         stockout_store=np.zeros(stockouts, dtype=np.int64),
         stockout_start=np.zeros(stockouts, dtype=np.int64),
         stockout_end=np.zeros(stockouts, dtype=np.int64),
+        deliveries=new_delivery_log(),
         tally=np.zeros(TALLIES, dtype=np.int64),
     )
 
