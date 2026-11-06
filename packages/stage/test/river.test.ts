@@ -156,6 +156,56 @@ describe('waterMesh with a longest edge', () => {
   })
 })
 
+describe('waterMesh with holes', () => {
+  // A 200 m square lake with a 40 m square island in the middle, on one polygon.
+  const lake = {
+    offsets: Uint32Array.of(0, 4, 8),
+    x: Float32Array.of(0, 200, 200, 0, 80, 80, 120, 120),
+    y: Float32Array.of(0, 0, 200, 200, 80, 120, 120, 80),
+    rings: Uint16Array.of(2),
+  }
+  const { positions, banks, indices } = waterMesh(lake, 15)
+  const at = (vertex: number) => [positions[vertex * 3] ?? 0, positions[vertex * 3 + 2] ?? 0]
+  const onIsland = (x: number, z: number) => x > 80 && x < 120 && -z > 80 && -z < 120
+
+  it('leaves the hole dry and fills the rest', () => {
+    let area = 0
+    for (let i = 0; i < indices.length; i += 3) {
+      const [a = 0, b = 0, c = 0] = indices.subarray(i, i + 3)
+      const [ax = 0, az = 0] = at(a)
+      const [bx = 0, bz = 0] = at(b)
+      const [cx = 0, cz = 0] = at(c)
+      area += Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax)) / 2
+      expect(onIsland((ax + bx + cx) / 3, (az + bz + cz) / 3), 'triangle on the island').toBe(false)
+    }
+    expect(area).toBeCloseTo(200 * 200 - 40 * 40, 0)
+  })
+
+  it('counts an island shore as a bank, so the sheen fades there too', () => {
+    banks.forEach((bank, vertex) => {
+      const [x = 0, z = 0] = at(vertex)
+      const y = -z
+      const toOuter = Math.min(x, 200 - x, y, 200 - y)
+      const dx = Math.max(80 - x, 0, x - 120)
+      const dy = Math.max(80 - y, 0, y - 120)
+      expect(bank).toBeCloseTo(Math.min(toOuter, Math.hypot(dx, dy)), 3)
+    })
+    expect(Array.from(banks.subarray(4, 8))).toEqual([0, 0, 0, 0])
+  })
+
+  it('walks rings across polygons: a holed lake then a plain one', () => {
+    const { indices: both, positions: bothPositions } = waterMesh({
+      offsets: Uint32Array.of(0, 4, 8, 11),
+      x: Float32Array.of(0, 200, 200, 0, 80, 80, 120, 120, 500, 600, 550),
+      y: Float32Array.of(0, 0, 200, 200, 80, 120, 120, 80, 0, 0, 90),
+      rings: Uint16Array.of(2, 1),
+    })
+    expect(bothPositions).toHaveLength(11 * 3)
+    expect(both.length).toBeGreaterThan(0)
+    expect(Array.from(both).some((vertex) => vertex >= 8)).toBe(true)
+  })
+})
+
 describe('createRiver', () => {
   const inputs = [new Fog(), uniform(0), uniform(0), false] as const
 
