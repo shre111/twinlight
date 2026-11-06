@@ -156,7 +156,7 @@ Footer
 ## 5. City pack format (one per city version)
 ```
 manifest.json      name, bbox, crs, counts, hashes, attributions, version
-buildings.glb      meshopt-compressed instanced boxes or extruded footprints (LOD0/LOD1)
+buildings.bin      instanced boxes as delta-coded columns in Morton order with a tile index (D-032); small isolated footprints go to an optional buildings_detail.bin (D-031)
 roads.bin          polylines for rendering (f32 xy, u8 class: 0 street, 1 arterial incl. ring road, 2 bridge)
 river.bin          water polygons (river, lakes)
 residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)

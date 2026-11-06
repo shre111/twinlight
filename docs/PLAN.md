@@ -36,7 +36,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-012 Awareness and adoption v0** Lane A. Paid campaign exposure, word of mouth over the graph, logistic purchase decision, repeat purchases. `[tests] [deep]`
   AC: Bass-limit test (MODEL.md section 4, conditions and tolerance in D-027); monotonicity property tests (hypothesis) pass; the prototype's launch scenario (`simulate` in `design/prototype/toy-sim.mjs`) lands within 3 points of its numbers on days 6, 13 and 30 (23/4.5, 42/11, 63/23 percent heard/ordered; `node design/prototype/toy-sim.mjs` prints them).
   Day 20 (51.9/16.1) is asserted too, as the held-out check (D-029).
-- [ ] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
+- [x] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
   AC: conservation tests pass; a scenario with low stock produces stockout intervals.
 - [ ] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
   AC: TS decodes Python-written fixtures with matching checksums and probe values; streaming decode of day chunks works.
@@ -63,7 +63,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
   AC: coverage of residents >= 90%; travel table complete.
   Rebaked on the D-030 population: 24 stores, 92.5% coverage. The owner's hand check of 30 travel pairs (D-022) is pending.
-- [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with meshopt-compressed buildings; Python and TS loaders. `[tests]`
+- [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with delta-coded building and road columns (D-032); Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
   Per D-031: first-load download under 6 MB with isolated sub-30 m² footprints moved to an optional detail file; engine-only files under a soft 10 MB; report walled-city floor kept.
 
@@ -88,6 +88,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-046 Visual regression** Lane B. Playwright stills (desktop + phone, three sim times) compared with tolerance; wired into `just shots` and CI for stage PRs. `[tests]`
 - [ ] **P-048 Building LOD and culling** Lane B. Level of detail and culling for buildings, with the pack's optional detail file loaded on zoom-in (D-031).
   AC: the full Ahmedabad building set holds 60 fps with the whole city in frame on the M4 at the default tier; zooming in loads the detail footprints without a visible pop.
+  Depends on P-045: with the resident glow stand-in on, the M4 holds 34 fps at 1.05M buildings and 33.6 fps even at 90k; with the glow off it holds 59.3 fps with no LOD at all (Lane B, 2026-11-06). Do P-045 first or alongside.
 - [ ] **P-047 Build-the-city transition** Lane B. Buildings rise in a wave from the river outward and residents light up when a new city pack loads.
 
 ## M5 Product shell
