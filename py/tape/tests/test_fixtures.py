@@ -147,7 +147,9 @@ def test_probes_agree_with_the_reader_and_the_file(name: str) -> None:
         probe, rows = probed[label], values.tolist()
         assert probe["length"] == len(rows), label
         assert probe["head"] == rows[:8] and probe["tail"] == rows[-8:], label
-        assert probe["crc32"] == zlib.crc32(values.tobytes()), label
+        assert probe["crc32"] == zlib.crc32(
+            values.astype(values.dtype.newbyteorder("<")).tobytes()
+        ), label
         if probe["dtype"] == "f32":
             assert "sum" not in probe, label
         else:
