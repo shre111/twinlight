@@ -1,4 +1,5 @@
 from twl_pack.format import NO_PERSONA, PACK_VERSION, PackError
+from twl_pack.reader import PackReader
 from twl_pack.types import (
     Band,
     BuildingColumns,
@@ -21,6 +22,7 @@ __all__ = [
     "GraphColumns",
     "PackContents",
     "PackError",
+    "PackReader",
     "ResidentColumns",
     "ResidentEngineColumns",
     "RiverColumns",
