@@ -18,11 +18,12 @@ export function startFailureMessage(hasGraphics: boolean): string {
   return hasGraphics ? CONTEXT_LOST : NO_GRAPHICS
 }
 
-export function browserHasGraphics(): boolean {
-  if ('gpu' in navigator) return true
+export async function browserHasGraphics(): Promise<boolean> {
   try {
-    return document.createElement('canvas').getContext('webgl2') !== null
+    if (document.createElement('canvas').getContext('webgl2')) return true
   } catch {
     return true
   }
+  // WebGPU can be exposed with no adapter behind it, which a reload would not change.
+  return 'gpu' in navigator && (await navigator.gpu.requestAdapter().catch(() => null)) !== null
 }

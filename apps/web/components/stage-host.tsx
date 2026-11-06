@@ -59,9 +59,10 @@ export function StageHost({
         stage = created
         if (created) release = ready(created)
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         console.error(error)
-        if (!disposed) setStartFailure(startFailureMessage(browserHasGraphics()))
+        const hasGraphics = await browserHasGraphics()
+        if (!disposed) setStartFailure(startFailureMessage(hasGraphics))
       })
 
     return () => {

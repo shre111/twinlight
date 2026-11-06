@@ -136,6 +136,18 @@ test.describe('when graphics fail at startup', () => {
     await page.goto('/dev/stage?hud=0')
     await expect(alert(page)).toContainText('needs WebGPU or WebGL 2')
   })
+
+  test('WebGPU with no adapter and no WebGL 2 counts as no graphics', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'runs once')
+    await page.addInitScript(() => {
+      GPU.prototype.requestAdapter = async () => null
+      HTMLCanvasElement.prototype.getContext = () => null
+    })
+    await page.goto('/dev/stage?hud=0')
+    await expect(alert(page)).toContainText('needs WebGPU or WebGL 2')
+  })
 })
 
 test('frame report', async ({ page }, testInfo) => {
