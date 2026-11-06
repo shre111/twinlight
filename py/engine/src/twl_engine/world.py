@@ -7,9 +7,17 @@ from numpy.typing import NDArray
 
 from twl_engine.clock import Clock
 from twl_engine.fixtures import ToyCity
-from twl_engine.scenario import HOURS_PER_DAY, MINUTES_PER_DAY, Campaign, Params, Scenario
+from twl_engine.scenario import (
+    HOURS_PER_DAY,
+    MINUTES_PER_DAY,
+    Campaign,
+    Params,
+    Scenario,
+    Supply,
+)
 
 NO_CAP = -1
+NO_STORE = -1
 
 
 @dataclass(frozen=True, eq=False)
@@ -47,14 +55,40 @@ class TalkGraph:
 class ChoiceModel:
     """Purchase decisions (MODEL.md section 4) with everything constant per resident folded in.
 
-    `first_logit` is U without the awareness term, `repeat_logit` the whole repeat utility; until
-    P-013 both hold `avail = 1` and `satisfaction = 0`. `occasion_probability` is per tick.
+    `first_logit` is U without the awareness term, `repeat_logit` the whole repeat utility, both
+    at `avail = 1` and `satisfaction = 0`; with supply on the tick takes `delta` off where
+    `avail = 0` and adds `satisfaction_r` (section 12). `occasion_probability` is per tick.
     """
 
     occasion_probability: NDArray[np.float64]
     first_logit: NDArray[np.float64]
     repeat_logit: NDArray[np.float64]
     gamma: float
+    delta: float
+
+
+@dataclass(frozen=True, eq=False)
+class SupplyPlan:
+    """Who serves whom and what each store holds (MODEL.md section 12).
+
+    `own_store` is the nearest store whose radius contains the resident, `spill_store` the
+    nearest other store within `spill_radius_factor` times its own radius; `NO_STORE` where there
+    is none. Distances are straight-line metres. Stock levels are whole agent orders: the
+    scenario's rate times the store's catchment, rounded.
+    """
+
+    own_store: NDArray[np.int64]
+    spill_store: NDArray[np.int64]
+    own_distance: NDArray[np.float64]
+    spill_distance: NDArray[np.float64]
+    catchment: NDArray[np.int64]
+    initial_stock: NDArray[np.int64]
+    reorder_point: NDArray[np.int64]
+    order_up_to: NDArray[np.int64]
+
+    @property
+    def stores(self) -> int:
+        return self.catchment.shape[0]
 
 
 @dataclass(frozen=True, eq=False)
@@ -66,6 +100,7 @@ class World:
     paid: PaidPlan
     talk: TalkGraph
     choice: ChoiceModel
+    supply: SupplyPlan | None
     decay_per_tick: float
     affinity: NDArray[np.float64]
     repeat_taste: NDArray[np.float64]
@@ -87,6 +122,7 @@ def build_world(
         paid=build_paid_plan(city, scenario, params, clock),
         talk=build_talk_graph(city, params, clock),
         choice=build_choice_model(city, scenario, params, clock, affinity, repeat_taste),
+        supply=None if scenario.supply is None else build_supply_plan(city, scenario.supply),
         decay_per_tick=awareness_decay_per_tick(params, clock),
         affinity=affinity,
         repeat_taste=repeat_taste,
@@ -183,7 +219,52 @@ def build_choice_model(
         first_logit=alpha + affinity - price_term + params.delta,
         repeat_logit=params.alpha_rep + repeat_taste - price_term,
         gamma=params.gamma,
+        delta=params.delta,
     )
+
+
+def build_supply_plan(city: ToyCity, supply: Supply) -> SupplyPlan:
+    stores = city.stores
+    distance = np.hypot(
+        city.residents.x.astype(np.float64)[:, None] - stores.x.astype(np.float64)[None, :],
+        city.residents.y.astype(np.float64)[:, None] - stores.y.astype(np.float64)[None, :],
+    )
+    radius = stores.radius_m.astype(np.float64)[None, :]
+    own_store, own_distance = nearest_allowed_store(distance, distance <= radius)
+    other = np.arange(radius.shape[1])[None, :] != own_store[:, None]
+    in_spill_reach = distance <= supply.spill_radius_factor * radius
+    spill_store, spill_distance = nearest_allowed_store(
+        distance, other & in_spill_reach & (own_store != NO_STORE)[:, None]
+    )
+    catchment = np.bincount(own_store[own_store != NO_STORE], minlength=radius.shape[1])
+    return SupplyPlan(
+        own_store=own_store,
+        spill_store=spill_store,
+        own_distance=own_distance,
+        spill_distance=spill_distance,
+        catchment=catchment.astype(np.int64),
+        initial_stock=stock_level(supply.initial_stock, catchment),
+        reorder_point=stock_level(supply.reorder_point, catchment),
+        order_up_to=stock_level(supply.order_up_to, catchment),
+    )
+
+
+def nearest_allowed_store(
+    distance: NDArray[np.float64], allowed: NDArray[np.bool_]
+) -> tuple[NDArray[np.int64], NDArray[np.float64]]:
+    """Per resident the nearest allowed store (lowest index on a tie) and its distance."""
+    residents, stores = distance.shape
+    if stores == 0:
+        return np.full(residents, NO_STORE, dtype=np.int64), np.zeros(residents)
+    reach = np.where(allowed, distance, np.inf)
+    nearest = np.argmin(reach, axis=1).astype(np.int64)
+    best = reach[np.arange(residents), nearest]
+    found = np.isfinite(best)
+    return np.where(found, nearest, NO_STORE), np.where(found, best, 0.0)
+
+
+def stock_level(rate: float, catchment: NDArray[np.int64]) -> NDArray[np.int64]:
+    return np.rint(rate * catchment).astype(np.int64)
 
 
 def occasion_probability_per_tick(params: Params, clock: Clock) -> NDArray[np.float64]:

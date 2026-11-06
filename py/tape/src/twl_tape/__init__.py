@@ -1,6 +1,11 @@
 from twl_tape.format import (
     CHATTER_HEARD,
     CHATTER_NUDGED,
+    DELIVERY_LATE,
+    DELIVERY_SPILLED,
+    FLAG_GAVE_UP,
+    FLAG_SPILLED,
+    FLAG_STOCKOUT,
     MINUTES_30_DAYS,
     NEVER,
     SOURCE_NONE,
@@ -26,6 +31,11 @@ from twl_tape.writer import tape_hash, write_tape
 __all__ = [
     "CHATTER_HEARD",
     "CHATTER_NUDGED",
+    "DELIVERY_LATE",
+    "DELIVERY_SPILLED",
+    "FLAG_GAVE_UP",
+    "FLAG_SPILLED",
+    "FLAG_STOCKOUT",
     "MINUTES_30_DAYS",
     "NEVER",
     "SOURCE_NONE",

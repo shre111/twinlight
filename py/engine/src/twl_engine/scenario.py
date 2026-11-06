@@ -65,19 +65,82 @@ class Campaign:
 
 
 @dataclass(frozen=True)
+class Supply:
+    """How stores and riders are run (MODEL.md section 12 defaults).
+
+    The three stock levels are rates per catchment resident; a store holds the rate times its
+    catchment, rounded to whole agent orders.
+    """
+
+    initial_stock: float = 0.036
+    reorder_point: float = 0.012
+    order_up_to: float = 0.036
+    review_minutes: int = 60
+    lead_minutes: int = 1440
+    picks_per_hour: float = 120.0
+    riders_per_store: int = 6
+    rider_speed_kmh: float = 20.0
+    travel_noise_sigma: float = 0.15
+    promise_minutes: int = 20
+    spill_radius_factor: float = 1.67
+    wait_minutes: int = 1440
+
+    def __post_init__(self) -> None:
+        floats = (
+            "initial_stock",
+            "reorder_point",
+            "order_up_to",
+            "picks_per_hour",
+            "rider_speed_kmh",
+            "travel_noise_sigma",
+            "spill_radius_factor",
+        )
+        _coerce(self, floats=floats, vectors=())
+        _require_ints(
+            self,
+            (
+                "review_minutes",
+                "lead_minutes",
+                "riders_per_store",
+                "promise_minutes",
+                "wait_minutes",
+            ),
+        )
+        for name in floats:
+            value = getattr(self, name)
+            if value < 0 or not math.isfinite(value):
+                raise ValueError(f"supply {name} must be finite and >= 0")
+        for name in ("picks_per_hour", "rider_speed_kmh"):
+            if getattr(self, name) <= 0:
+                raise ValueError(f"supply {name} must be positive")
+        for name in ("review_minutes", "riders_per_store"):
+            if getattr(self, name) < 1:
+                raise ValueError(f"supply {name} must be at least 1")
+        for name in ("lead_minutes", "promise_minutes", "wait_minutes"):
+            if getattr(self, name) < 0:
+                raise ValueError(f"supply {name} must be >= 0")
+
+
+@dataclass(frozen=True)
 class Scenario:
-    """What is launched and when: the price and the paid campaigns. P-013 adds the stock."""
+    """What is launched and when: the price, the paid campaigns and how supply is run.
+
+    Without `supply` nothing limits orders (MODEL.md section 12).
+    """
 
     days: int = 30
     tick_minutes: int = 15
     price: float = 49.0
     ref_price: float = 49.0
     campaigns: tuple[Campaign, ...] = ()
+    supply: Supply | None = None
 
     def __post_init__(self) -> None:
         _coerce(self, floats=("price", "ref_price"), vectors=())
         _require_ints(self, ("days", "tick_minutes"))
         object.__setattr__(self, "campaigns", tuple(self.campaigns))
+        if self.supply is not None and not isinstance(self.supply, Supply):
+            raise TypeError("supply must be a Supply instance or None")
         if self.days < 1:
             raise ValueError("a scenario runs for at least one day")
         if self.tick_minutes < 1:
@@ -102,7 +165,7 @@ class Scenario:
 
 @dataclass(frozen=True)
 class Params:
-    """Per-run model parameters with the MODEL.md section 11 defaults; rates are per hour."""
+    """Per-run model parameters with the MODEL.md section 11 and 12 defaults; rates are per hour."""
 
     theta_aware: float = 1.0
     impression_gain: float = 0.6
@@ -127,6 +190,9 @@ class Params:
     paid_scale: float = 1.0
     wom_mixing: str = "graph"
     order_on_awareness: bool = False
+    p_spill: float = 0.42
+    p_wait: float = 0.38
+    satisfaction_drop: float = 0.8
 
     def __post_init__(self) -> None:
         _coerce(
@@ -147,6 +213,9 @@ class Params:
                 "alpha_rep",
                 "rho_sd",
                 "paid_scale",
+                "p_spill",
+                "p_wait",
+                "satisfaction_drop",
             ),
             vectors=("kappa", "talk_kind", "occasion_profile", "alpha_segment"),
             optional_floats=("talk_decay_hours", "awareness_half_life_days"),
@@ -166,9 +235,14 @@ class Params:
             "affinity_sd",
             "rho_sd",
             "paid_scale",
+            "p_spill",
+            "p_wait",
+            "satisfaction_drop",
         ):
             if getattr(self, name) < 0:
                 raise ValueError(f"{name} must be >= 0")
+        if self.p_spill + self.p_wait > 1.0 + 1e-9:
+            raise ValueError("p_spill + p_wait is a share of out-of-stock orders, at most 1")
         for name in ("talk_decay_hours", "awareness_half_life_days"):
             value = getattr(self, name)
             if value is not None and value <= 0:
@@ -227,16 +301,25 @@ def _canonical(value: object) -> bytes:
 
 
 def load_scenario(path: Path) -> tuple[Scenario, Params]:
-    """Read `[scenario]`, `[[scenario.campaigns]]` and `[params]` from TOML; unknown keys raise."""
+    """Read `[scenario]`, `[[scenario.campaigns]]`, `[scenario.supply]` and `[params]` from TOML.
+
+    Unknown keys raise. Without a `[scenario.supply]` table the scenario has no supply limits.
+    """
     data = tomllib.loads(path.read_text())
     _reject_unknown(str(path), data, ("scenario", "params"))
     scenario_table = dict(data.get("scenario", {}))
     campaign_tables = scenario_table.pop("campaigns", [])
+    supply_table = scenario_table.pop("supply", None)
     campaigns = tuple(
         _from_table(Campaign, f"campaign {index}", table)
         for index, table in enumerate(campaign_tables)
     )
-    scenario = _from_table(Scenario, "[scenario]", scenario_table, campaigns=campaigns)
+    supply = (
+        None if supply_table is None else _from_table(Supply, "[scenario.supply]", supply_table)
+    )
+    scenario = _from_table(
+        Scenario, "[scenario]", scenario_table, campaigns=campaigns, supply=supply
+    )
     return scenario, _from_table(Params, "[params]", data.get("params", {}))
 
 
