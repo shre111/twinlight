@@ -55,6 +55,7 @@ Streams = dict[str, np.random.Generator]
 
 NOT_SERVED, SERVED_REPEAT, SERVED_FIRST = 0, 1, 2
 NO_MINUTE = np.iinfo(np.int64).max
+MAX_ORDERS_PER_TICK = np.iinfo(np.uint16).max
 NOBODY = np.zeros(0, dtype=np.int64)
 METRES_PER_KM = 1000.0
 
@@ -437,7 +438,8 @@ def serve_tick(
                 stock[store] -= 1
                 if stock[store] < 1:
                     out_since[store] = attempt_at
-                orders_series[store * ticks + tick] += 1
+                if orders_series[store * ticks + tick] < MAX_ORDERS_PER_TICK:
+                    orders_series[store * ticks + tick] += 1
                 orders_in_tick[tick] += 1
                 outcome[attempt] = count_order(
                     resident, attempt_at, first_order_at, last_order_at, order_count
@@ -456,9 +458,8 @@ def serve_tick(
                 delivery_picked_at[row] = picked if picked < sim_minutes else NEVER
                 delivery_delivered_at[row] = delivered if delivered < sim_minutes else NEVER
                 delivery_outcome[row] = DELIVERY_SPILLED if spilled else 0
-                if delivered < sim_minutes:
-                    if delivered - attempt_at > promise_minutes:
-                        delivery_outcome[row] |= DELIVERY_LATE
+                if delivered < sim_minutes and delivered - attempt_at > promise_minutes:
+                    delivery_outcome[row] |= DELIVERY_LATE
                     heap_push(heap, heap_count, delivered, next_seq, DELIVERY_DONE, row, 0)
                     heap_count += 1
                     next_seq += 1
