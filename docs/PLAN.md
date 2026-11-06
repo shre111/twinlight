@@ -66,6 +66,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with delta-coded building and road columns (D-032); Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
   Per D-031: first-load download under 6 MB with isolated sub-30 m² footprints moved to an optional detail file; engine-only files under a soft 10 MB; report walled-city floor kept.
+  Split: Lane C writes `py/pack` (`twl_pack`: codecs, writer, reader) and the citybake pack stage with the D-031 rules; Lane B the TypeScript reader in a worker and its side of the goldens; Lane A moves the toy fixture onto `twl_pack`, regenerates goldens once (with P-014) and extends the CI formats filter.
 
 ## M3 Full engine
 - [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels. `[tests]`
