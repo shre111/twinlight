@@ -2,6 +2,7 @@
 
 Strict hashes are only meaningful on the pinned platform (D-023); `just goldens` sets the
 environment, and CI confirms the values. Tables other than `engine` are kept as they are.
+`--write` also checks in the tapes of `TAPE_FIXTURE_RUNS` for the cross-language goldens.
 """
 
 import argparse
@@ -16,6 +17,7 @@ from twl_engine.fixtures import build_toy_city, pack_hash
 from twl_engine.run import RunInputs, SupplyStats, run_seed_bytes, run_seed_with_stats
 from twl_engine.scenario import EMPTY, Params, Scenario, Supply, load_scenario
 from twl_tape import Tape, read_tape, tape_hash, write_tape
+from twl_tape.fixtures import write_fixture
 
 FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
 GOLDEN_PATH = FIXTURES / "golden" / "hashes.toml"
@@ -105,6 +107,7 @@ GOLDEN_RUNS: tuple[tuple[str, Callable[[int], RunInputs], int], ...] = (
     ("slow_riders_seed2", slow_riders_inputs, 2),
 )
 SUPPLY_RUNS = ("supply_small", "low_stock", "slow_riders")
+TAPE_FIXTURE_RUNS = ("supply_small_seed1",)
 
 
 def golden_run_pid(seed: int) -> int:
@@ -136,14 +139,23 @@ def supply_probes(tape: Tape, stats: SupplyStats) -> Probes:
     }
 
 
-def compute_engine_goldens() -> dict[str, Probes]:
+def tape_fixture_name(run: str) -> str:
+    return f"engine_{run}"
+
+
+def compute_engine_goldens() -> tuple[dict[str, Probes], dict[str, bytes]]:
+    """The probes of every golden run, and the tape bytes of the runs kept as tape fixtures."""
     goldens: dict[str, Probes] = {}
+    fixture_tapes: dict[str, bytes] = {}
     for name, inputs_for, seed in GOLDEN_RUNS:
         tape, stats = run_seed_with_stats(inputs_for(seed))
-        goldens[name] = tape_probes(write_tape(tape))
+        data = write_tape(tape)
+        goldens[name] = tape_probes(data)
         if name.startswith(SUPPLY_RUNS):
             goldens[name] |= supply_probes(tape, stats)
-    return goldens
+        if name in TAPE_FIXTURE_RUNS:
+            fixture_tapes[tape_fixture_name(name)] = data
+    return goldens, fixture_tapes
 
 
 def render_toml(tables: dict[str, dict[str, Probes]]) -> str:
@@ -173,7 +185,11 @@ def _toml_value(path: str, value: object) -> str:
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m twl_engine.goldens")
-    parser.add_argument("--write", action="store_true", help=f"rewrite {GOLDEN_PATH}")
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help=f"rewrite {GOLDEN_PATH} and the engine tape fixtures",
+    )
     args = parser.parse_args(argv)
     if args.write and os.environ.get("TWL_GOLDEN_STRICT") != "1":
         raise SystemExit(
@@ -181,11 +197,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             "use `just goldens`, which sets the pinned environment (D-023)"
         )
     tables = read_goldens()
-    tables["engine"] = compute_engine_goldens()
+    tables["engine"], fixture_tapes = compute_engine_goldens()
     text = render_toml(tables)
     if args.write:
         GOLDEN_PATH.write_text(text)
         print(f"wrote {GOLDEN_PATH}")
+        for name, data in fixture_tapes.items():
+            write_fixture(name, data)
+            print(f"wrote tape fixture {name}")
     else:
         print(text, end="")
 
