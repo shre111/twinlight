@@ -3,6 +3,8 @@ import { ZSTDDecoder } from 'zstddec'
 const FRAME_MAGIC = 0xfd2fb528
 const MAX_RAW_BYTES = 2 ** 28
 const DICTIONARY_ID_BYTES = [0, 1, 2, 4] as const
+const EMPTY_LAST_BLOCK = [1, 0, 0]
+const EMPTY_CHECKSUM = [0x99, 0xe9, 0xd8, 0x51]
 
 let ready: Promise<ZSTDDecoder> | undefined
 
@@ -42,12 +44,13 @@ function readFrameHeader(bytes: Uint8Array): FrameHeader {
 }
 
 // A failed decode and an empty result look the same from zstddec, so an empty frame is checked
-// by shape instead: the header, one empty raw last block, and the checksum if flagged.
+// by shape instead: the header, one empty raw last block, and the checksum of nothing if flagged.
 function checkEmptyFrame(bytes: Uint8Array, header: FrameHeader): void {
-  const at = header.headerBytes
-  const length = at + 3 + (header.hasChecksum ? 4 : 0)
-  const emptyLastBlock = bytes[at] === 1 && bytes[at + 1] === 0 && bytes[at + 2] === 0
-  if (bytes.length !== length || !emptyLastBlock) throw new Error('zstd frame is corrupt')
+  const expected = header.hasChecksum ? [...EMPTY_LAST_BLOCK, ...EMPTY_CHECKSUM] : EMPTY_LAST_BLOCK
+  const rest = bytes.subarray(header.headerBytes)
+  if (rest.length !== expected.length || rest.some((byte, index) => byte !== expected[index])) {
+    throw new Error('zstd frame is corrupt')
+  }
 }
 
 /**
@@ -75,7 +78,6 @@ export async function decompressZstd(
     return new Uint8Array(0)
   }
   const zstd = await decoder()
-  // A failed decode comes back from zstddec as an empty array, never as an exception.
   const raw = zstd.decode(bytes, size)
   if (raw.length !== size) throw new Error('zstd frame is corrupt or truncated')
   return raw as Uint8Array<ArrayBuffer>
