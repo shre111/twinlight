@@ -105,16 +105,18 @@ export function waterMesh(
   const positions: number[] = []
   const banks: number[] = []
   const indices: number[] = []
-  const polygons = (river?.offsets.length ?? 1) - 1
+  const ringCount = (river?.offsets.length ?? 1) - 1
+  const polygons = river?.rings?.length ?? ringCount
+  let nextRing = 0
   for (let p = 0; p < polygons && river; p++) {
-    const ring: Vector2[] = []
-    for (let i = river.offsets[p] ?? 0; i < (river.offsets[p + 1] ?? 0); i++) {
-      ring.push(new Vector2(river.x[i] ?? 0, river.y[i] ?? 0))
-    }
-    // Drops a closing point that repeats the first, so read the ring only after this.
-    const faces = ShapeUtils.triangulateShape(ring, [])
-    const coarsest = Math.sqrt((2 * Math.abs(ShapeUtils.area(ring))) / RING_TRIANGLE_TARGET)
-    const refined = refine(ring, faces, Math.max(maxEdge, coarsest))
+    const rings: Vector2[][] = []
+    const ringsInPolygon = river.rings?.[p] ?? 1
+    for (let r = 0; r < ringsInPolygon; r++, nextRing++) rings.push(ringPoints(river, nextRing))
+    const [exterior = [], ...holes] = rings
+    // Drops a closing point that repeats the first, so read the rings only after this.
+    const faces = ShapeUtils.triangulateShape(exterior, holes)
+    const coarsest = Math.sqrt((2 * Math.abs(ShapeUtils.area(exterior))) / RING_TRIANGLE_TARGET)
+    const refined = refine(rings, faces, Math.max(maxEdge, coarsest))
     const first = positions.length / 3
     refined.x.forEach((x, i) => {
       positions.push(x, 0, -(refined.y[i] ?? 0))
@@ -129,12 +131,22 @@ export function waterMesh(
   }
 }
 
+function ringPoints(river: NonNullable<StageCity['river']>, ring: number): Vector2[] {
+  const points: Vector2[] = []
+  for (let i = river.offsets[ring] ?? 0; i < (river.offsets[ring + 1] ?? 0); i++) {
+    points.push(new Vector2(river.x[i] ?? 0, river.y[i] ?? 0))
+  }
+  return points
+}
+
 // Splits each triangle's longest edge until none is too long. Every edge that is too long ends up
-// split, and both of its triangles share that midpoint, so the mesh has no cracks.
-function refine(ring: Vector2[], faces: number[][], maxEdge: number) {
-  const x = ring.map((point) => point.x)
-  const y = ring.map((point) => point.y)
-  const banks = ring.map(() => 0)
+// split, and both of its triangles share that midpoint, so the mesh has no cracks. Face corners
+// index the exterior's points followed by each hole's, so `rings` flattens in that order.
+function refine(rings: Vector2[][], faces: number[][], maxEdge: number) {
+  const points = rings.flat()
+  const x = points.map((point) => point.x)
+  const y = points.map((point) => point.y)
+  const banks = points.map(() => 0)
   const triangles: number[] = []
   const midpoints = new Map<number, number>()
   const limit = maxEdge * maxEdge
@@ -149,7 +161,7 @@ function refine(ring: Vector2[], faces: number[][], maxEdge: number) {
     const created = x.length
     x.push(mx)
     y.push(my)
-    banks.push(distanceToRing(mx, my, ring))
+    banks.push(Math.min(...rings.map((ring) => distanceToRing(mx, my, ring))))
     midpoints.set(key, created)
     return created
   }
