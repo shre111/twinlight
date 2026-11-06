@@ -205,6 +205,7 @@ describe('the v2 golden pack', () => {
     ).toBe(true)
     for (const probe of probes.river) {
       expect(river?.rings?.[probe.polygon]).toBe(probe.rings.length)
+      expect(probe.points).toHaveLength(probe.rings.length)
       probe.points.forEach((points, r) => {
         const start = river?.offsets[(firstRing[probe.polygon] ?? 0) + r] ?? 0
         expect(points).toHaveLength(probe.rings[r] ?? 0)
