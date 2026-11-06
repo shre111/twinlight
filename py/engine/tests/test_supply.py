@@ -218,13 +218,21 @@ def test_stockout_interval_begins_on_the_last_unit_and_ends_at_a_restock(
 def test_store_serves_no_new_order_strictly_inside_its_stockout_interval(
     name: str, seed: int
 ) -> None:
+    """Adjacent intervals merge, so an order can sit inside one only at a restock that sold out
+    in the minute it arrived (MODEL.md section 12): its tick must then show an arrival."""
     r = config_result(name, seed)
     d = r.tape.deliveries
     ordered = d.ordered_at.astype(np.int64)
+    orders = r.tape.stores.orders.reshape(r.stock.shape).astype(np.int64)
+    tick_minutes = r.tape.header.tick_minutes
     for store in range(r.tape.header.stores):
         mine = ordered[d.store == store]
+        before = np.concatenate(([r.stats.initial_stock[store]], r.stock[store, :-1]))
+        arrivals = r.stock[store] - before + orders[store]
         for start, end in r.intervals(store):
-            assert not np.any((mine > start) & (mine < end))
+            inside = mine[(mine > start) & (mine < end)]
+            ticks, counts = np.unique(inside // tick_minutes, return_counts=True)
+            assert np.all(arrivals[ticks] >= counts)
 
 
 @pytest.mark.parametrize(("name", "seed"), every_run())
