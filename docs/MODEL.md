@@ -135,3 +135,41 @@ Every constant below is a field of the run parameters with this default, so test
 | evening rain boost | 0.12 (events arrive with P-034) |
 
 The prototype-parity fixture fits three of these (a paid reach multiplier, `q` and `alpha_0`) and checks them in next to the scenario.
+
+## 12. v1 supply parameters and pinned readings (P-013)
+Supply is on when the scenario carries a supply block. Without one the engine keeps the no-supply-limit behaviour the Bass and parity tests use: every aware resident can order, an order is counted at its occasion, `avail = 1`, `satisfaction = 0`.
+
+**Readings**
+- Units: stock and orders are in agent orders (one resident placing one order); a real pack divides brand quantities by the mean resident weight.
+- Serving store: a resident's own store is the nearest store whose radius contains them. A resident inside no radius cannot order while supply is on (they can still hear about the product). A store's catchment is the residents it is the own store of.
+- Stock is taken when the order is placed, so queued orders always complete and stock never goes negative. A store is out of stock while its stock is below 1; the interval starts at the minute of the order that took the last unit and ends at the minute a restock arrives.
+- Decision: `avail_r = 1` when the own store has stock at the start of the tick and its quoted ETA (wait for the picker, mean picking time, wait for a rider, straight-line travel without noise) is within the promise; otherwise 0. A resident can still decide to order with `avail = 0`.
+- Out of stock at the own store when the order is placed: one uniform draw. Below `p_spill`, and the next nearest store within `spill_radius_factor` times its radius has stock, the order is served from there (spilled). Otherwise, below `p_spill + p_wait`, the resident waits: at their first occasion at least 24 hours later they try again without a new decision. Otherwise the sale is lost. Every such hit, whatever its outcome, lowers `satisfaction_r` by 0.8 and sets the stockout flag; a spill and a loss set their own flags.
+- Within a tick, restock arrivals and order attempts are processed in minute order, arrivals first on a tie. A restock that sells out in the minute it arrives leaves the store out of stock again at once, so the two intervals merge into one and that order sits inside it.
+- Restock: every `review_minutes` each store with `stock <= s_k` orders `S_k - stock - in_transit`, arriving after a fixed lead time (v0; the Gamma lead time arrives with P-032). In a minute where several things fall together the order is arrivals, then the review, then order attempts. A store never reorders when that quantity is not positive, so an order-up-to level of zero means no restocking.
+- A store whose initial stock is below 1 (for example one with an empty catchment) is out of stock from minute 0 and is logged and counted as such.
+- `avail` counts a restock that arrives exactly at the start of the tick, not one arriving later in it.
+- The spill store is the nearest other store whose extended radius contains the resident, which can differ from the second-nearest store. A draw below `p_spill` when that store is empty or absent falls through to waiting.
+- `satisfaction_r` has no floor and applies to residents who have not ordered yet too, but it only enters the repeat-order utility.
+- Picking: one picker per store, first come first served; each pick takes `max(1, ceil(Exp(60 / mu_k)))` whole minutes. Riders: a fixed pool per store; a picked order leaves with the rider free earliest (lowest index on a tie); travel is `max(1, ceil(distance / speed * LogNormal(0, 0.15)))` minutes along the straight line; the rider is free again after twice the travel time. Road travel times, shifts and rain arrive with P-033 and P-034.
+- An order is late when `delivered_at - ordered_at` exceeds the promise; lateness lowers `satisfaction_r` by 0.8 at the delivery minute.
+- `first_order_at`, `order_count` and the per-tick order aggregates count served orders only.
+- Conservation: attempts = served + deferred + lost; delivery rows = served; per store, initial stock + restocked units - stock at the end = orders it served.
+- Seen-nearby exposure needs real cells and arrives with P-033.
+
+**Defaults** (stock rates are per catchment resident)
+| Parameter | Default |
+| --- | --- |
+| initial stock, order-up-to level `S_k` | 0.036 |
+| reorder point `s_k` | 0.012 |
+| review period | 60 minutes |
+| lead time | 24 hours |
+| picking rate `mu_k` | 120 orders per hour |
+| riders per store | 6 |
+| rider speed | 20 km/h |
+| travel noise sigma | 0.15 |
+| promise | 20 minutes |
+| `p_spill`, `p_wait` | 0.42, 0.38 (the prototype's shares; the remaining 0.20 is lost) |
+| wait before retrying | 24 hours |
+| `spill_radius_factor` | 1.67 (the prototype's 1,500 m against its 900 m radius) |
+| satisfaction drop | 0.8 |

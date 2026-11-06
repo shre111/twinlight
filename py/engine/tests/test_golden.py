@@ -12,9 +12,17 @@ import blake3
 import numpy as np
 import pytest
 
-from twl_engine.goldens import golden_inputs, golden_run_pid, prototype_small_inputs
+from twl_engine.goldens import (
+    golden_inputs,
+    golden_run_pid,
+    low_stock_inputs,
+    prototype_small_inputs,
+    slow_riders_inputs,
+    supply_small_inputs,
+)
 from twl_engine.montecarlo import run_seeds
-from twl_engine.run import RunInputs, run_seed_bytes
+from twl_engine.run import RunInputs, run_seed_bytes, run_seed_with_stats
+from twl_tape import write_tape
 from twl_tape.format import SectionKind
 from twl_tape.reader import read_tape
 
@@ -23,9 +31,17 @@ STRICT = os.environ.get("TWL_GOLDEN_STRICT") == "1"
 PINNED_SEEDS = [1, 2]
 WORKER_SEEDS = list(range(1, 9))
 PROBE_KEYS = ["aware_day30", "adopted_day30", "orders_total", "tape_bytes", "chatter_rows"]
+SUPPLY_PROBE_KEYS = ["deliveries", "late", "stockout_pairs", "lost"]
 PINNED: dict[str, Callable[[int], RunInputs]] = {
     "empty": golden_inputs,
     "prototype_small": prototype_small_inputs,
+    "supply_small": supply_small_inputs,
+    "low_stock": low_stock_inputs,
+    "slow_riders": slow_riders_inputs,
+}
+WORKER_INPUTS: dict[str, Callable[[int], RunInputs]] = {
+    "prototype_small": prototype_small_inputs,
+    "supply_small": supply_small_inputs,
 }
 
 pytestmark = pytest.mark.golden
@@ -94,16 +110,26 @@ def in_process() -> dict[int, bytes]:
     return {seed: run_seed_bytes(prototype_small_inputs(seed)) for seed in WORKER_SEEDS}
 
 
+@pytest.fixture(scope="module")
+def in_process_supply() -> dict[int, bytes]:
+    return {seed: run_seed_bytes(supply_small_inputs(seed)) for seed in WORKER_SEEDS}
+
+
 @pytest.mark.parametrize("workers", [1, 4, 8])
+@pytest.mark.parametrize("name", list(WORKER_INPUTS))
 def test_hashes_are_identical_across_worker_counts_and_in_process_runs(
-    workers: int, in_process: dict[int, bytes]
+    name: str,
+    workers: int,
+    in_process: dict[int, bytes],
+    in_process_supply: dict[int, bytes],
 ) -> None:
-    tapes = run_seeds(prototype_small_inputs, WORKER_SEEDS, workers=workers)
+    reference = in_process if name == "prototype_small" else in_process_supply
+    tapes = run_seeds(WORKER_INPUTS[name], WORKER_SEEDS, workers=workers)
     assert len(tapes) == len(WORKER_SEEDS)
     for seed, got in zip(WORKER_SEEDS, tapes, strict=True):
-        want = in_process[seed]
+        want = reference[seed]
         assert digest(got) == digest(want), (
-            f"seed {seed} with {workers} workers: {first_difference(got, want)}"
+            f"{name} seed {seed} with {workers} workers: {first_difference(got, want)}"
         )
 
 
@@ -130,15 +156,27 @@ def test_run_matches_the_checked_in_golden(
     name: str, seed: int, in_process: dict[int, bytes]
 ) -> None:
     expected = golden_table(name, seed)
-    data = in_process[seed] if name == "prototype_small" else run_seed_bytes(PINNED[name](seed))
-    actual = probes(data)
     label = f"[engine.{name}_seed{seed}]"
+    keys = PROBE_KEYS
+    if name in ("supply_small", "low_stock", "slow_riders"):
+        tape, stats = run_seed_with_stats(PINNED[name](seed))
+        data = write_tape(tape)
+        actual = probes(data) | {
+            "deliveries": tape.header.delivery_rows,
+            "late": stats.late,
+            "stockout_pairs": tape.header.stockout_pairs,
+            "lost": stats.lost,
+        }
+        keys = PROBE_KEYS + SUPPLY_PROBE_KEYS
+    else:
+        data = in_process[seed] if name == "prototype_small" else run_seed_bytes(PINNED[name](seed))
+        actual = probes(data)
     if STRICT:
         assert digest(data) == expected["hash"], (
             f"{label} hash is {digest(data)}, golden {expected['hash']}; probes {actual}"
         )
         return
-    for key in PROBE_KEYS:
+    for key in keys:
         assert key in expected, f"{label} is missing probe {key}"
         assert actual[key] == expected[key], (
             f"{label} {key}: {actual[key]} vs golden {expected[key]}"

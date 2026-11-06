@@ -135,7 +135,10 @@ Sections
               u8  outcome_flags   (bit0 hit stockout, bit1 spilled to other store, bit2 gave up)
   CHATTER     sorted by at: u32 from, u32 to, u32 at, u8 kind (1 heard, 2 nudged; D-028)
   DELIVERIES  sorted by ordered_at: u16 store, u32 resident, u32 ordered_at, u32 picked_at, u32 delivered_at, u8 outcome
+              (one row per served order; outcome bit0 late, bit1 spilled from the resident's own store;
+               picked_at and delivered_at are u32::MAX when they fall after the end of the run)
   STORES      per store: f32 stock[ticks], u16 orders[ticks]; stockout intervals as (u32 start, u32 end) list
+              (stock is the level at the end of the tick, orders those served by the store in the tick)
   AGGREGATES  per tick: u32 aware, u32 adopted, u32 orders, u16 stores_out, f32 rain_intensity
               (aware and adopted are cumulative counts at the end of the tick; orders are those placed in the tick;
                stores_out is the number of stores out of stock at the end of the tick; rain_intensity its mean over the tick)
@@ -153,7 +156,7 @@ Footer
 ## 5. City pack format (one per city version)
 ```
 manifest.json      name, bbox, crs, counts, hashes, attributions, version
-buildings.glb      meshopt-compressed instanced boxes or extruded footprints (LOD0/LOD1)
+buildings.bin      instanced boxes as delta-coded columns in Morton order with a tile index (D-032); small isolated footprints go to an optional buildings_detail.bin (D-031)
 roads.bin          polylines for rendering (f32 xy, u8 class: 0 street, 1 arterial incl. ring road, 2 bridge)
 river.bin          water polygons (river, lakes)
 residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)

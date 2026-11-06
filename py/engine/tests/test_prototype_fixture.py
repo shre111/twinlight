@@ -152,12 +152,21 @@ def test_prototype_small_inputs_are_the_fixture_on_the_golden_city() -> None:
 def test_checked_in_goldens_cover_every_engine_run_with_all_probes() -> None:
     engine = read_goldens()["engine"]
     probes = ["hash", "aware_day30", "adopted_day30", "orders_total", "tape_bytes", "chatter_rows"]
+    supply_probes = ["deliveries", "late", "stockout_pairs", "lost"]
     assert list(engine) == [
         "empty_seed1",
         "empty_seed2",
         "prototype_small_seed1",
         "prototype_small_seed2",
+        "supply_small_seed1",
+        "supply_small_seed2",
+        "low_stock_seed1",
+        "low_stock_seed2",
+        "slow_riders_seed1",
+        "slow_riders_seed2",
     ]
-    assert all(list(table) == probes for table in engine.values())
+    for name, table in engine.items():
+        with_supply = name.startswith(("supply_small", "low_stock", "slow_riders"))
+        assert list(table) == (probes + supply_probes if with_supply else probes), name
     assert engine["empty_seed1"]["chatter_rows"] == 0
     assert int(engine["prototype_small_seed1"]["chatter_rows"]) > 0
