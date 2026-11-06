@@ -1,4 +1,4 @@
-import { crc32 as nodeCrc32, zstdCompressSync } from 'node:zlib'
+import { constants, crc32 as nodeCrc32, zstdCompressSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { crc32, decompressZstd } from '../src/index'
 import { frameWithoutContentSize, hasContentSize } from './helpers'
@@ -11,6 +11,17 @@ function frame(data: Uint8Array): Uint8Array {
   const out = new Uint8Array(zstdCompressSync(data, { pledgedSrcSize: data.length }))
   expect(hasContentSize(out)).toBe(true)
   return out
+}
+
+function checksummed(data: Uint8Array): Uint8Array {
+  const params = { [constants.ZSTD_c_checksumFlag]: 1 }
+  const out = new Uint8Array(zstdCompressSync(data, { params, pledgedSrcSize: data.length }))
+  expect((out[4] ?? 0) & 4).toBe(4)
+  return out
+}
+
+function bare(length: number): Uint8Array {
+  return frameWithoutContentSize(sample(length, 1))
 }
 
 describe('decompressZstd', () => {
@@ -37,6 +48,42 @@ describe('decompressZstd', () => {
     await expect(decompressZstd(sample(64, 3))).rejects.toThrow()
     await expect(decompressZstd(packed.slice(0, packed.length >> 1))).rejects.toThrow()
     await expect(decompressZstd(new Uint8Array(0))).rejects.toThrow()
+  })
+
+  it('rejects a header cut off before its content size', async () => {
+    await expect(decompressZstd(packed.slice(0, 6))).rejects.toThrow()
+  })
+
+  it('rejects a second frame or garbage after the frame', async () => {
+    const twice = new Uint8Array([...packed, ...packed])
+    await expect(decompressZstd(twice)).rejects.toThrow()
+    await expect(decompressZstd(new Uint8Array([...packed, 1, 2, 3, 4, 5, 6, 7]))).rejects.toThrow()
+  })
+
+  it('rejects a rawLength of 0 for a frame that holds bytes', async () => {
+    await expect(decompressZstd(packed, 0)).rejects.toThrow()
+  })
+
+  it('rejects a frame that claims more than the size limit', async () => {
+    const huge = new Uint8Array([0x28, 0xb5, 0x2f, 0xfd, 0xe0, 0, 0, 0, 0, 0, 0, 0x20, 0, 1, 0, 0])
+    await expect(decompressZstd(huge)).rejects.toThrow(/limit/)
+    await expect(decompressZstd(bare(1), 2 ** 28 + 1)).rejects.toThrow(/limit/)
+  })
+
+  it('checks the checksum of a frame that carries one', async () => {
+    const sealed = checksummed(data)
+    expect(await decompressZstd(sealed)).toEqual(data)
+    const broken = sealed.slice()
+    broken[broken.length - 1] = (broken.at(-1) ?? 0) ^ 0xff
+    await expect(decompressZstd(broken)).rejects.toThrow()
+  })
+
+  it('checks the checksum of an empty frame', async () => {
+    const sealed = checksummed(new Uint8Array(0))
+    expect((await decompressZstd(sealed)).length).toBe(0)
+    const broken = sealed.slice()
+    broken[broken.length - 1] = (broken.at(-1) ?? 0) ^ 0xff
+    await expect(decompressZstd(broken)).rejects.toThrow()
   })
 
   it('needs rawLength for a frame without content size', async () => {
