@@ -38,7 +38,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   Day 20 (51.9/16.1) is asserted too, as the held-out check (D-029).
 - [x] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
   AC: conservation tests pass; a scenario with low stock produces stockout intervals.
-- [ ] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
+- [x] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
   AC: TS decodes Python-written fixtures with matching checksums and probe values. (No streaming in v1, D-033.)
 - [x] **P-015 Stage core** Lane B. `Stage.create`, WebGPU with WebGL2 fallback, render loop, resize, DPR caps, quality tiers, perf HUD (dev only).
   AC: runs on Chrome, Safari 26, Firefox; HUD shows backend and frame time.
