@@ -4,7 +4,7 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M1 First light (Lane A, B); Lane C on M2.
-- Point: P-013 done. Next Lane A: P-014 tape v1 (`[tests] [deep]`): the TS decoder, fixture tapes and cross-language goldens; start by choosing the JS zstd decoder and timing an 11 MB decode in Chrome, Firefox and WebKit (it also decides the pack's compressor, D-032). Also owed by Lane A: ARCHITECTURE section 5 for pack v1 from `docs/lanes/minds.md` (Lane C waits on it). Lane B: P-019 on a synthetic tape until P-014; P-045 before P-048. Lane C: P-025 waiting for section 5.
+- Point: P-014 tape v1 in progress (`[tests] [deep]`): the TS decoder in `packages/tape`, fixture tapes and cross-language goldens; no streaming (D-033), `CHUNKS` stays empty. zstd is settled for tape and pack: the WASM `zstddec` decodes 11 MB in 13 to 18 ms in Chrome, Firefox and WebKit; `packages/tape` exports `decompressZstd(bytes, rawLength?)` for the pack reader. Lane B: v1/v2 pack reader, then P-019 on a real tape once P-014 lands; P-045 before P-048. Lane C: P-025 `py/pack` (`twl_pack`) against ARCHITECTURE section 5; when it lands Lane A adds it to the CI filters and moves the toy fixture onto it (pack hash and goldens change once).
 - Branch: none
 - Next: write section 5, then `/start-point P-014`. The demo fixture scenario needs sensible stock levels (the section 12 defaults under-stock every store).
 
