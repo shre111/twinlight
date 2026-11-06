@@ -127,16 +127,32 @@ describe.each(names)('tape %s', (name) => {
     }
   })
 
-  it('hands out columns aligned for GPU upload', () => {
+  it('starts every column on an 8-byte boundary of its section buffer', () => {
     for (const section of ['residents', 'chatter', 'deliveries', 'stores', 'aggregates'] as const) {
       for (const column of Object.values(tape[section]) as TypedArray[]) {
-        expect(column.byteOffset % column.BYTES_PER_ELEMENT).toBe(0)
+        expect(column.byteOffset % 8).toBe(0)
       }
     }
   })
 })
 
 describe('decoding', () => {
+  it('copies the header fields and hash out of a Node Buffer', async () => {
+    const input = Buffer.from(loadFixture('small'))
+    const tape = await decodeTape(input)
+    const fields = () =>
+      [tape.header.runId, tape.header.cityPackHash, tape.header.scenarioHash, tape.hash].map(hex)
+    const before = fields()
+    input.fill(0xa5)
+    expect(fields()).toEqual(before)
+    expect(before).toEqual([
+      loadProbes('small').header.run_id,
+      loadProbes('small').header.city_pack_hash,
+      loadProbes('small').header.scenario_hash,
+      loadProbes('small').footer.blake3,
+    ])
+  })
+
   it('works on a subarray at an odd byte offset and leaves the input untouched', async () => {
     const original = loadFixture('small')
     const backing = new Uint8Array(original.length + 3)
