@@ -65,6 +65,10 @@ jobs:
               - 'py/tape/**'
               - 'packages/tape/**'
               - 'fixtures/tape/**'
+              - 'py/pack/**'
+              - 'packages/stage/src/pack*.ts'
+              - 'packages/stage/test/pack-golden.test.ts'
+              - 'fixtures/pack/**'
 
   web:
     needs: changes
@@ -145,6 +149,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: uv run python -m twl_tape.fixtures --check
       - run: pnpm -F @twinlight/tape test
+      - run: pnpm -F @twinlight/stage exec vitest run test/pack-golden.test.ts
 
   ci-ok:
     needs: [changes, web, engine, python, cross-language-goldens]
