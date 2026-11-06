@@ -36,6 +36,9 @@ goldens:
     uv run python -m twl_tape.fixtures
     uv run python -m twl_pack.fixture fixtures/pack/v2/small
 
+fixture:
+    uv run python -m twl_engine.fixtures --out data/cache/packs/toy --tape data/cache/tapes/toy.twlt
+
 fixture-pack:
     uv run python -m twl_engine.fixtures --out data/cache/packs/toy
 

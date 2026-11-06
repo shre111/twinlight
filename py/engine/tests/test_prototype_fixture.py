@@ -13,9 +13,12 @@ from twl_engine.fit_prototype import (
     fit_inputs,
     rewrite_params,
 )
+from twl_engine.fixtures import build_toy_city
 from twl_engine.fixtures.geometry import DISTRICT_TABLE
 from twl_engine.goldens import (
+    DEMO_SUPPLY,
     PROTOTYPE_SCENARIO_PATH,
+    demo_inputs,
     prototype_small_inputs,
     read_goldens,
 )
@@ -147,6 +150,17 @@ def test_prototype_small_inputs_are_the_fixture_on_the_golden_city() -> None:
     same_reach = dataclasses.replace(inputs.params, paid_scale=params.paid_scale)
     assert same_reach == params
     assert inputs.params.paid_scale == pytest.approx(params.paid_scale * 5_000 / 48_000)
+
+
+def test_demo_inputs_are_the_fixture_with_demo_supply_on_the_given_city() -> None:
+    city = build_toy_city(seed=49, residents=2_400)
+    inputs = demo_inputs(5, city)
+    scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
+    assert inputs.seed == 5 and inputs.city is city
+    assert inputs.scenario == dataclasses.replace(scenario, supply=DEMO_SUPPLY)
+    assert dataclasses.replace(inputs.params, paid_scale=params.paid_scale) == params
+    assert inputs.params.paid_scale == pytest.approx(params.paid_scale * 2_400 / 48_000)
+    assert DEMO_SUPPLY.reorder_point < DEMO_SUPPLY.order_up_to == DEMO_SUPPLY.initial_stock
 
 
 def test_checked_in_goldens_cover_every_engine_run_with_all_probes() -> None:

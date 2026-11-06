@@ -13,7 +13,7 @@ import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from twl_engine.fixtures import build_toy_city, pack_hash
+from twl_engine.fixtures import ToyCity, build_toy_city, pack_hash
 from twl_engine.run import RunInputs, SupplyStats, run_seed_bytes, run_seed_with_stats
 from twl_engine.scenario import EMPTY, Params, Scenario, Supply, load_scenario
 from twl_tape import Tape, read_tape, tape_hash, write_tape
@@ -27,6 +27,7 @@ TOY_PACK_KEY = "seed49_residents5000"
 GOLDEN_RESIDENTS = 5_000
 LOW_STOCK = Supply(initial_stock=0.004, reorder_point=0.001, order_up_to=0.004, lead_minutes=2880)
 SLOW_RIDERS = Supply(riders_per_store=1, rider_speed_kmh=3.0)
+DEMO_SUPPLY = Supply(initial_stock=0.08, reorder_point=0.03, order_up_to=0.08)
 HEADER = (
     "# Strict hashes are checked on the pinned CI platform (TWL_GOLDEN_STRICT=1); "
     "elsewhere the probes are compared with tolerance.\n"
@@ -87,6 +88,23 @@ def low_stock_inputs(seed: int) -> RunInputs:
 def slow_riders_inputs(seed: int) -> RunInputs:
     """The same launch with one slow rider per store, so deliveries queue and run late."""
     return _with_supply(prototype_small_inputs(seed), SLOW_RIDERS)
+
+
+def demo_inputs(seed: int, city: ToyCity | None = None) -> RunInputs:
+    """The prototype launch with stock for about half the stores to last: the dev demo tape.
+
+    Paid reach is scaled to the city's residents as in `prototype_small_inputs`.
+    """
+    city = build_toy_city(seed=49, residents=PROTOTYPE_RESIDENTS) if city is None else city
+    scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
+    reach = params.paid_scale * city.residents.x.shape[0] / PROTOTYPE_RESIDENTS
+    return RunInputs(
+        city=city,
+        city_pack_hash=bytes.fromhex(pack_hash(city)),
+        scenario=dataclasses.replace(scenario, supply=DEMO_SUPPLY),
+        params=dataclasses.replace(params, paid_scale=reach),
+        seed=seed,
+    )
 
 
 def _with_supply(inputs: RunInputs, supply: Supply) -> RunInputs:
