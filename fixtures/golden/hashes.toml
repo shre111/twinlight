@@ -54,7 +54,7 @@ chatter_rows = 1535
 deliveries = 1965
 late = 0
 stockout_pairs = 130
-lost = 76
+lost = 79
 
 [engine.supply_small_seed2]
 hash = "3c6b937b21b8f4091d59fa2532cacbbc8d001364b7fd2c6987d086dfb3f3614a"
@@ -66,7 +66,7 @@ chatter_rows = 1486
 deliveries = 1966
 late = 0
 stockout_pairs = 144
-lost = 87
+lost = 90
 
 [engine.low_stock_seed1]
 hash = "0adae973735810025911c6a4f8a83e7e236efec3c789c58dfffd7f182b491bfd"
@@ -78,7 +78,7 @@ chatter_rows = 585
 deliveries = 239
 late = 0
 stockout_pairs = 210
-lost = 226
+lost = 244
 
 [engine.low_stock_seed2]
 hash = "4fd7b1900ccf91ff169ce2f27f9cdc059243ce7d074ed83bd318482428c34b92"
@@ -90,4 +90,4 @@ chatter_rows = 558
 deliveries = 234
 late = 0
 stockout_pairs = 200
-lost = 218
+lost = 240

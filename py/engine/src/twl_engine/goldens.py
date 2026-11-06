@@ -12,12 +12,10 @@ import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-import numpy as np
-
 from twl_engine.fixtures import build_toy_city, pack_hash
-from twl_engine.run import RunInputs, run_seed_bytes
+from twl_engine.run import RunInputs, SupplyStats, run_seed_bytes, run_seed_with_stats
 from twl_engine.scenario import EMPTY, Params, Scenario, Supply, load_scenario
-from twl_tape import DELIVERY_LATE, FLAG_GAVE_UP, read_tape, tape_hash
+from twl_tape import Tape, read_tape, tape_hash, write_tape
 
 FIXTURES = Path(__file__).resolve().parents[4] / "fixtures"
 GOLDEN_PATH = FIXTURES / "golden" / "hashes.toml"
@@ -120,25 +118,23 @@ def tape_probes(data: bytes) -> Probes:
     }
 
 
-def supply_probes(data: bytes) -> Probes:
-    """What supply left on the tape. `lost` counts residents with the gave-up flag, which is
-    what a tape can show; a resident who lost several sales counts once."""
-    tape = read_tape(data)
+def supply_probes(tape: Tape, stats: SupplyStats) -> Probes:
+    """Deliveries and stockouts from the tape; late deliveries and lost sales from the stats."""
     return {
         "deliveries": tape.header.delivery_rows,
-        "late": int(np.count_nonzero(tape.deliveries.outcome & DELIVERY_LATE)),
+        "late": stats.late,
         "stockout_pairs": tape.header.stockout_pairs,
-        "lost": int(np.count_nonzero(tape.residents.outcome_flags & FLAG_GAVE_UP)),
+        "lost": stats.lost,
     }
 
 
 def compute_engine_goldens() -> dict[str, Probes]:
     goldens: dict[str, Probes] = {}
     for name, inputs_for, seed in GOLDEN_RUNS:
-        data = run_seed_bytes(inputs_for(seed))
-        goldens[name] = tape_probes(data)
+        tape, stats = run_seed_with_stats(inputs_for(seed))
+        goldens[name] = tape_probes(write_tape(tape))
         if name.startswith(SUPPLY_RUNS):
-            goldens[name] |= supply_probes(data)
+            goldens[name] |= supply_probes(tape, stats)
     return goldens
 
 
