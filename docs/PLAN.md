@@ -39,7 +39,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-013 Supply v0** Lane A. Store stock, (s,S) restock with fixed lead time, picking queue, riders with straight-line travel, as Numba kernels. `[tests]`
   AC: conservation tests pass; a scenario with low stock produces stockout intervals.
 - [ ] **P-014 Tape v1** Lane A. Writer in `py/tape`, decoder in `packages/tape`, fixture tapes and cross-language goldens. `[tests] [deep]`
-  AC: TS decodes Python-written fixtures with matching checksums and probe values; streaming decode of day chunks works.
+  AC: TS decodes Python-written fixtures with matching checksums and probe values. (No streaming in v1, D-033.)
 - [x] **P-015 Stage core** Lane B. `Stage.create`, WebGPU with WebGL2 fallback, render loop, resize, DPR caps, quality tiers, perf HUD (dev only).
   AC: runs on Chrome, Safari 26, Firefox; HUD shows backend and frame time.
 - [x] **P-016 City and residents layers** Lane B. Instanced buildings from the pack, roads, sky, fog; residents as GPU points evaluated from event times at `uTime`, including the amber flare. `[deep]`
@@ -76,7 +76,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
 - [ ] **P-034 Scenario events** Lane A. rain, festival, match night, price change, store closed. `[tests]`
   AC: event isolation test (MODEL.md section 10).
-- [ ] **P-035 Runner service** Lane A. FastAPI `POST /runs` backed by a process pool, streams day chunks to MinIO, progress to Redis, returns tape URI and hash. `[tests]`
+- [ ] **P-035 Runner service** Lane A. FastAPI `POST /runs` backed by a process pool, uploads each finished tape to MinIO, progress (day N of 30) to Redis, returns tape URI and hash. `[tests]`
 - [ ] **P-036 Benchmarks** Lane A. pytest-benchmark suite and py-spy profiles; move hot loops into Numba; meet ARCHITECTURE.md section 9 engine budgets on 100k residents.
 
 ## M4 Full stage (the jaw-drop)
@@ -95,7 +95,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 ## M5 Product shell
 - [ ] **P-050 Auth and orgs** Lane A. Google OAuth + email magic link, sessions, orgs. `[tests]`
 - [ ] **P-051 Brief composer** Lane B. Sentence-style form ("I'm launching [product] at [price] in [city] on [apps] with [budget] on [channels]") -> scenario via contracts. `[tests]`
-- [ ] **P-052 Runs API and live progress** Lane A. Create run, WebSocket progress, seed 1 streams live while others run. `[tests]`
+- [ ] **P-052 Runs API and live progress** Lane A. Create run, WebSocket progress; seed 1 plays as soon as its tape lands and the readouts' ranges tighten as seeds 2 to 50 arrive (D-033). `[tests]`
 - [ ] **P-053 City view** Lane B. Stage + timeline + layers + readouts + legend, wired to real runs.
 - [ ] **P-054 Resident and store cards** Lane B. Stories derived from tape events; store stock sparkline with stockout spans.
 - [ ] **P-055 Plan view** Lane B + A. Fan chart of adopters (P10 to P90), per-store stock plan table, next-city ranking, calibration panel, CSV export. `[tests]`
