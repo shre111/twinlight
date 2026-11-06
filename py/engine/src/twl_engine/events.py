@@ -10,6 +10,10 @@ MINUTE, SEQ, KIND, A, B = 0, 1, 2, 3, 4
 FIELDS = 5
 INITIAL_CAPACITY = 1024
 
+# Event kinds. RESTOCK_ARRIVAL: a = store, b = units. DELIVERY_DONE: a = delivery row.
+RESTOCK_ARRIVAL = 1
+DELIVERY_DONE = 2
+
 
 @dataclass(frozen=True, eq=False)
 class Events:
@@ -83,6 +87,17 @@ class EventQueue:
         self.count += n
         self.next_seq += n
         return np.arange(first_seq, first_seq + n, dtype=np.int64)
+
+    def reserve(self, extra: int) -> None:
+        """Make room for a kernel to push `extra` events onto `heap` itself with `heap_push`."""
+        self._reserve(self.count + extra)
+
+    def adopt(self, count: int, next_seq: int) -> None:
+        """Take the size and next seq a kernel left after pushing and popping on `heap`."""
+        if not 0 <= count <= self.heap.shape[0] or next_seq < self.next_seq:
+            raise ValueError("a kernel cannot leave more events than fit or reuse a seq")
+        self.count = count
+        self.next_seq = next_seq
 
     def peek_minute(self) -> int | None:
         return int(self.heap[0, MINUTE]) if self.count else None
@@ -170,6 +185,17 @@ def heap_pop_until(heap: NDArray[np.int64], count: int, bound: int, out: NDArray
                 heap[0, f] = heap[count, f]
             _sift_down(heap, count)
     return popped
+
+
+@njit(cache=True)
+def heap_remove_first(heap: NDArray[np.int64], count: int) -> int:
+    """Drop the earliest event (read it from row 0 first) and return the new count."""
+    count -= 1
+    if count > 0:
+        for f in range(FIELDS):
+            heap[0, f] = heap[count, f]
+        _sift_down(heap, count)
+    return count
 
 
 @njit(cache=True)

@@ -3,7 +3,7 @@ import heapq
 import numpy as np
 import pytest
 
-from twl_engine.events import EventQueue
+from twl_engine.events import EventQueue, heap_push, heap_remove_first
 
 
 def test_pop_until_returns_events_in_minute_then_seq_order() -> None:
@@ -50,3 +50,32 @@ def test_pop_until_leaves_future_events_and_peek_reports_the_next_minute() -> No
 def test_negative_minutes_are_rejected() -> None:
     with pytest.raises(ValueError):
         EventQueue().push(-1, kind=0)
+
+
+def test_a_kernel_can_push_and_pop_on_the_heap_between_reserve_and_adopt() -> None:
+    queue = EventQueue(capacity=2)
+    queue.push(30, 1)
+    queue.push(10, 1)
+    queue.reserve(5)
+    assert queue.heap.shape[0] >= 7
+    heap, count, seq = queue.heap, queue.count, queue.next_seq
+    for minute in (20, 10, 40):
+        heap_push(heap, count, minute, seq, 2, minute, 0)
+        count, seq = count + 1, seq + 1
+    popped = []
+    while count and heap[0, 0] <= 20:
+        popped.append((int(heap[0, 0]), int(heap[0, 1])))
+        count = heap_remove_first(heap, count)
+    queue.adopt(count, seq)
+    assert popped == [(10, 1), (10, 3), (20, 2)]
+    assert (len(queue), queue.next_seq) == (2, 5)
+    assert queue.pop_until(100).minute.tolist() == [30, 40]
+
+
+def test_adopt_rejects_a_reused_seq_or_more_events_than_fit() -> None:
+    queue = EventQueue(capacity=2)
+    queue.push(5, 1)
+    with pytest.raises(ValueError):
+        queue.adopt(1, 0)
+    with pytest.raises(ValueError):
+        queue.adopt(3, 1)
