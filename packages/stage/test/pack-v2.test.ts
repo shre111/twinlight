@@ -179,6 +179,26 @@ describe('decodePack v2', () => {
     expect(city.river?.x[8]).toBe(500)
   })
 
+  it('scales quantised positions to a bbox that is neither square nor in whole units', () => {
+    const [minX, minY, maxX, maxY] = [-13848, -12181, 13844, 12186]
+    const files = pack()
+    // 13107 is exactly a fifth of 65535, so the expected metres need no quantisation arithmetic.
+    files['residents.bin'] = file(
+      Uint16Array.of(13107, 65535),
+      Uint16Array.of(52428, 0),
+      Uint8Array.of(0, 0),
+      Uint32Array.of(0, 0),
+      Uint8Array.of(0, 0),
+    )
+    const scaled = decodePack({ ...manifest, bbox: [minX, minY, maxX, maxY] }, files)
+    expect(scaled.residents.x[0]).toBeCloseTo(minX + (maxX - minX) / 5, 2)
+    expect(scaled.residents.y[0]).toBeCloseTo(minY + ((maxY - minY) * 4) / 5, 2)
+    expect(scaled.residents.x[1]).toBe(maxX)
+    expect(scaled.residents.y[1]).toBe(minY)
+    expect(scaled.buildings.x[2]).toBe(maxX)
+    expect(scaled.buildings.y[2]).toBe(maxY)
+  })
+
   it('carries the bbox as bounds', () => {
     expect(city.bounds).toEqual({ minX: -30000, minY: -20000, maxX: 35535, maxY: 45535 })
   })
