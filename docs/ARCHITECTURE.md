@@ -224,7 +224,8 @@ All request and response shapes are zod schemas in `packages/contracts`.
 | --- | --- |
 | Engine, 100k residents, 30 days, one seed | under 10 s on one modern core |
 | Run of 50 seeds on an 8 vCPU box | under 90 s wall time |
-| City pack transfer (Ahmedabad) | under 6 MB compressed |
+| City pack first-load download (Ahmedabad: buildings, roads, residents, stores) | under 6 MB compressed (D-031) |
+| City pack engine-only files (graph, travel, cells, engine resident columns) | under 10 MB, soft, reported in the manifest |
 | Tape per seed | under 3 MB compressed |
 | First city frame on a mid laptop, cold cache | under 2.5 s |
 | Frame time, default tier | 16.7 ms p95 on an M1 / RTX 3060 class GPU; 33 ms p95 on a mid Android phone at `low` |

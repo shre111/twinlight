@@ -65,6 +65,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   Rebaked on the D-030 population: 24 stores, 92.5% coverage. The owner's hand check of 30 travel pairs (D-022) is pending.
 - [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with meshopt-compressed buildings; Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
+  Per D-031: first-load download under 6 MB with isolated sub-30 m² footprints moved to an optional detail file; engine-only files under a soft 10 MB; report walled-city floor kept.
 
 ## M3 Full engine
 - [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels. `[tests]`
@@ -85,6 +86,8 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-044 Picking** Lane B. GPU id-buffer picking for residents and stores; CPU spatial-hash fallback. `[tests]`
 - [ ] **P-045 Post-processing and tiers** Lane B. Bloom, tone mapping, vignette; auto tier selection from intro frame timings.
 - [ ] **P-046 Visual regression** Lane B. Playwright stills (desktop + phone, three sim times) compared with tolerance; wired into `just shots` and CI for stage PRs. `[tests]`
+- [ ] **P-048 Building LOD and culling** Lane B. Level of detail and culling for buildings, with the pack's optional detail file loaded on zoom-in (D-031).
+  AC: the full Ahmedabad building set holds 60 fps with the whole city in frame on the M4 at the default tier; zooming in loads the detail footprints without a visible pop.
 - [ ] **P-047 Build-the-city transition** Lane B. Buildings rise in a wave from the river outward and residents light up when a new city pack loads.
 
 ## M5 Product shell
