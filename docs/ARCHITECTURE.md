@@ -125,33 +125,37 @@ Header
   city_pack_hash (32 bytes), scenario_hash (32 bytes)
   u32 sim_minutes (43_200 for 30 days), u32 tick_minutes (15)
   u32 residents, u32 stores, u32 chatter_rows, u32 delivery_rows, u32 stockout_pairs, u32 reserved (0)
-  section table: [u32 kind, u64 offset, u64 length, u64 raw_length, u32 crc32] x n
+  section table: [u32 kind, u64 offset, u64 length, u64 raw_length, u32 crc32] x 6, packed (32 bytes a row),
+              kinds 1 to 6 in order; length is the compressed size without alignment padding and
+              crc32 is over the compressed bytes. The header is 352 bytes.
 Sections
   RESIDENTS   SoA, count = residents in city pack order
               u32 aware_at        (minutes, u32::MAX = never)
               u32 first_order_at  (u32::MAX = never)
               u16 order_count
-              u32 heard_from      (resident index, u32::MAX = paid channel)
+              u32 heard_from      (resident index; u32::MAX when no resident told them: paid, seen nearby
+                                   or never aware, which first_source tells apart)
               u8  first_source    (0 none, 1 paid, 2 word of mouth, 3 seen nearby)
               u8  outcome_flags   (bit0 hit stockout, bit1 spilled to other store, bit2 gave up)
   CHATTER     sorted by at: u32 from, u32 to, u32 at, u8 kind (1 heard, 2 nudged; D-028)
   DELIVERIES  sorted by ordered_at: u16 store, u32 resident, u32 ordered_at, u32 picked_at, u32 delivered_at, u8 outcome
               (one row per served order; outcome bit0 late, bit1 spilled from the resident's own store;
                picked_at and delivered_at are u32::MAX when they fall after the end of the run)
-  STORES      per store: f32 stock[ticks], u16 orders[ticks]; stockout intervals as (u32 start, u32 end) list
+  STORES      f32 stock[stores * ticks], u16 orders[stores * ticks], u32 stockout_offsets[stores + 1],
+              u32 stockout_intervals[2 * stockout_pairs] as (start, end) pairs: four whole columns
               (stock is the level at the end of the tick, orders those served by the store in the tick)
   AGGREGATES  per tick: u32 aware, u32 adopted, u32 orders, u16 stores_out, f32 rain_intensity
               (aware and adopted are cumulative counts at the end of the tick; orders are those placed in the tick;
                stores_out is the number of stores out of stock at the end of the tick; rain_intensity its mean over the tick)
   CHUNKS      reserved, written empty (D-033)
 Footer
-  u64 total_length, blake3 hash of everything before it
+  u64 total_length (the bytes before the footer), blake3 hash of those bytes
 ```
 - No streaming in v1 (D-033): a tape is one immutable object written when its seed finishes. Object stores cannot append, and offsets, checksums and the final hash are unknown until the end. Revisit if seed 1 takes longer than the intro camera move on the production box.
 - Golden tests: `py/tape` writes `fixtures/tape/v1/*.twlt`; `packages/tape` decodes them and must reproduce the checksums and a set of probe values.
 - Reproducibility: the body of the tape is a pure function of `(city_pack_hash, scenario_hash, params_hash, seed)`. Header fields that could vary between runs with the same inputs are therefore fixed or derived: `run_id` is the first 16 bytes of `blake3(city_pack_hash ‖ scenario_hash ‖ params_hash ‖ seed as u64 LE)`, and `engine_version` is the engine's format-relevant version string padded with zeros (not a git describe), so identical inputs give identical bytes and one golden hash. The runner records the git sha and wall clock in its own run metadata, never in the tape.
 - Counts live in the header, never inferred from byte lengths: a reader sizes every column from `residents`, `stores`, `ticks = sim_minutes / tick_minutes`, `chatter_rows`, `delivery_rows` and `stockout_pairs`, and `raw_length` is a check, not a source of truth.
-- Section kinds: 1 RESIDENTS, 2 CHATTER, 3 DELIVERIES, 4 STORES, 5 AGGREGATES, 6 CHUNKS. `flags` bit0 = complete (footer present). Version 1 writes every column padded to 8 bytes as in the pack format (§5), with each section's compressed bytes 8-byte aligned in the file; `CHUNKS` is reserved and empty.
+- Section kinds: 1 RESIDENTS, 2 CHATTER, 3 DELIVERIES, 4 STORES, 5 AGGREGATES, 6 CHUNKS. `flags` bit0 = complete (footer present). Version 1 writes every column padded to 8 bytes as in the pack format (§5), with each section's compressed bytes 8-byte aligned in the file; `CHUNKS` is reserved and empty. An empty section is still a zstd frame, one that decompresses to nothing, with `raw_length` 0. Readers ignore `flags` bits they do not know and reject a non-zero `reserved`.
 - TS decode names (`packages/tape`): camelCase of the fields above (`awareAt`, `firstOrderAt`, `storesOut`, ...), times in minutes, `0xFFFFFFFF` = never. Per-store series are flat row-major `[store * ticks + tick]`; stockout intervals are CSR: `stockoutOffsets` (storeCount + 1) indexes (start, end) pairs in `stockoutIntervals`, so the last offset equals `stockoutIntervals.length / 2`. Per store the pairs are sorted by start, disjoint and end-exclusive (out of stock while `start <= t < end`; adjacent intervals are merged); a stockout still open at the end of the run has `end = sim_minutes`. Header exposes `simMinutes`, `tickMinutes`, `seed`.
 
 ## 5. City pack format (one per city version)
