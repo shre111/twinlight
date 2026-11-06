@@ -280,3 +280,40 @@ For culling:
 Every column stays independently decodable. Column offsets come only from `counts`, with each column padded to 8 bytes, so a worker decompresses once and transfers that buffer, with each direct column as a view into it. `tile_start` and `u8` columns need no decoding. Only positions, and any `u16` byte-plane attributes, produce new arrays, which is one more point in favour of the `u8` options.
 
 Buildings and roads join the cross-language goldens: Python writes, TypeScript decodes, and checksums and probe buildings must match.
+
+### Lane B's picks, for section 5
+
+Lane B chose from renders of the real bake. This settles instance precision and tile level, and replaces the proposals above where they differ.
+
+`buildings.bin`, `counts.buildings` rows in ascending Morton order, each column padded to 8 bytes:
+
+| Column | Type | Meaning |
+|---|---|---|
+| `tile_start[4^L + 1]` | `u32` | L is `counts.buildingTileLevel`, 6 for Ahmedabad |
+| `position_delta[n]` | `u32` byte planes | as above |
+| `width[n]`, `depth[n]`, `height[n]` | `u8` | metres = (value / 12)^2, written as round(sqrt(metres) * 12) |
+| `rotation[n]` | `u8` | radians = value / 255 * pi |
+| `district[n]` | `u8` | the stage does not upload it to the GPU |
+
+`buildings_detail.bin` has the same columns without `tile_start`, in its own Morton order. Lane B fetches it once and merges it in the worker. No per-tile bounds are stored; the worker computes them.
+
+At zstd -19, buildings are 4,428,419 bytes and the first load is 5.63 MB, 0.37 MB under budget. The detail file is 133,524 bytes.
+
+Lane B asked for square-root height if it cost next to nothing. It costs 32 KB against 0.5 m height, so I took it:
+
+| Height | Mean error under 10 m | 10 to 30 m | 30 m and up | Tallest (true 137.6 m) | Buildings bytes |
+|---|---|---|---|---|---|
+| 0.5 m | 0.116 m | 0.123 m | 0.119 m | 127.5 m | 4,396,005 |
+| Square root, scale 12 | 0.110 m | 0.150 m | 0.232 m | 138.1 m | 4,428,419 |
+
+- 92.4% of buildings are under 10 m, where it is as accurate as 0.5 m.
+- All three sizes share one formula, and it reaches 451.6 m, which other cities will need.
+- Scales 16 and 21 are tighter but cost 75 KB and 124 KB against 0.5 m. Lane B's renders show no need.
+
+What this means for the pack writer, with no layout change:
+
+- 10 of the 43 residents moved out of water would stand above their new roof, by up to 2.52 m. They take the highest floor that fits the new home.
+- Rounded heights put 227 of the other 99,896 residents above their roof, by at most 0.24 m. At full precision none are. I've asked Lane B whether its points rely on depth; if so, heights round up instead of to nearest.
+- The writer refuses a city with over 255 districts, since the column is `u8` (Ahmedabad has 105), and reports any size clipped at 451.6 m (none here).
+
+Stage order is not pack order: Lane B sorts by size inside each tile and merges the detail file in the worker. `residents.bin` `building` holds the pack index, so the stage keeps a map from pack index to its own order.
