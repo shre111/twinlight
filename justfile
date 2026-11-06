@@ -34,6 +34,7 @@ test-engine:
 goldens:
     TWL_GOLDEN_STRICT=1 NPY_ENABLE_CPU_FEATURES=X86_V3 NUMBA_CPU_NAME=generic NUMBA_DISABLE_INTEL_SVML=1 OPENBLAS_CORETYPE=Haswell OPENBLAS_NUM_THREADS=1 uv run python -m twl_engine.goldens --write
     uv run python -m twl_tape.fixtures
+    uv run python -m twl_pack.fixture fixtures/pack/v2/small
 
 fixture-pack:
     uv run python -m twl_engine.fixtures --out data/cache/packs/toy
