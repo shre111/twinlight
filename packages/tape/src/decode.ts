@@ -47,7 +47,7 @@ export async function decodeTape(bytes: Uint8Array, options: DecodeOptions = {})
   if (view.getBigUint64(bodyLength, true) !== BigInt(bodyLength)) {
     throw new TapeError('footer total_length does not match the file size')
   }
-  const hash = bytes.slice(bodyLength + 8)
+  const hash = copy(bytes, bodyLength + 8, bytes.length)
   if (options.verifyHash !== false && !sameBytes(blake3(bytes.subarray(0, bodyLength)), hash)) {
     throw new TapeError('footer hash does not match the file contents')
   }
@@ -95,11 +95,11 @@ function readHeader(bytes: Uint8Array, view: DataView): TapeHeader {
   return {
     version: TAPE_VERSION,
     flags,
-    runId: bytes.slice(8, 24),
+    runId: copy(bytes, 8, 24),
     seed: view.getBigUint64(24, true),
     engineVersion: engineVersion(bytes.subarray(32, 64)),
-    cityPackHash: bytes.slice(64, 96),
-    scenarioHash: bytes.slice(96, 128),
+    cityPackHash: copy(bytes, 64, 96),
+    scenarioHash: copy(bytes, 96, 128),
     simMinutes,
     tickMinutes,
     ticks: simMinutes / tickMinutes,
@@ -297,6 +297,11 @@ class Columns {
 
 function padded(bytes: number): number {
   return Math.ceil(bytes / ALIGN) * ALIGN
+}
+
+// A Node Buffer's own slice is a view; the header fields must not alias the caller's bytes.
+function copy(bytes: Uint8Array, start: number, end: number): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes.subarray(start, end))
 }
 
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
