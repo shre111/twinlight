@@ -59,7 +59,8 @@ jobs:
               - 'services/minds/**'
               - 'tools/**'
             formats:
-              - *workflow
+              - *node
+              - *uv
               - 'py/tape/**'
               - 'packages/tape/**'
               - 'fixtures/tape/**'

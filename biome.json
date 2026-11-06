@@ -13,7 +13,7 @@
       "!**/*.yaml",
       "!.claude",
       "!design",
-      "!fixtures",
+      "!fixtures/tape",
       "!packages/ui/src/generated"
     ]
   },

@@ -251,6 +251,8 @@ def _planted(values: NDArray[Any], dtype: type, extremes: Sequence[float]) -> ND
     """`values` as `dtype` with the extremes written at evenly spaced rows."""
     planted = values.astype(dtype)
     spacing = planted.shape[0] // (len(extremes) + 1)
+    if spacing == 0:
+        raise ValueError(f"{planted.shape[0]} rows cannot hold {len(extremes)} extremes")
     for place, extreme in enumerate(extremes, start=1):
         planted[place * spacing] = extreme
     return planted
