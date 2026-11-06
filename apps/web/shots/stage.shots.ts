@@ -92,6 +92,64 @@ test('timeline event labels stay apart at every width', async ({ page }, testInf
   }
 })
 
+test.describe('when graphics fail at startup', () => {
+  // Next's route announcer is also an alert, so name the stage's own.
+  const alert = (page: Page) => page.locator('p[role="alert"]')
+
+  test('one lost context is retried without the viewer noticing', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'runs once')
+    await page.addInitScript(() => {
+      const realGetContext = HTMLCanvasElement.prototype.getContext
+      let failed = false
+      // @ts-expect-error a stand-in for every getContext overload
+      HTMLCanvasElement.prototype.getContext = function (...args: [string, unknown?]) {
+        if (!failed) {
+          failed = true
+          throw new Error('context lost')
+        }
+        return realGetContext.apply(this, args)
+      }
+    })
+    await openStage(page, 'hud=0&still=1&day=6')
+    await expect(alert(page)).toHaveCount(0)
+    await expect(page.getByRole('img', { name: 'Live city view' })).toHaveCount(1)
+  })
+
+  test('a context lost twice is named and suggests a reload', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'runs once')
+    await page.addInitScript(() => {
+      HTMLCanvasElement.prototype.getContext = () => {
+        throw new Error('context lost')
+      }
+    })
+    await page.goto('/dev/stage?hud=0')
+    await expect(alert(page)).toContainText('graphics context was lost')
+    await expect(alert(page)).toContainText('Reload')
+  })
+
+  test('a browser without graphics is told what it needs', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'runs once')
+    await page.addInitScript(() => {
+      Reflect.deleteProperty(Navigator.prototype, 'gpu')
+      HTMLCanvasElement.prototype.getContext = () => null
+    })
+    await page.goto('/dev/stage?hud=0')
+    await expect(alert(page)).toContainText('needs WebGPU or WebGL 2')
+  })
+
+  test('WebGPU with no adapter and no WebGL 2 counts as no graphics', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'runs once')
+    await page.addInitScript(() => {
+      GPU.prototype.requestAdapter = async () => null
+      HTMLCanvasElement.prototype.getContext = () => null
+    })
+    await page.goto('/dev/stage?hud=0')
+    await expect(alert(page)).toContainText('needs WebGPU or WebGL 2')
+  })
+})
+
 test('frame report', async ({ page }, testInfo) => {
   // Three tiers of 60 software GL frames with 20k residents run past the default timeout.
   test.slow()
