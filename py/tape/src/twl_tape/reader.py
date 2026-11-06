@@ -53,16 +53,26 @@ def read_tape(data: bytes) -> Tape:
     )
 
 
-def _verify_footer(data: bytes) -> bytes:
+def read_footer(data: bytes) -> tuple[int, bytes]:
+    """The stored `(total_length, blake3 digest)`, verified against the bytes before the footer."""
     if len(data) < HEADER_SIZE + _FOOTER_SIZE:
         raise TapeError("file is too short to be a tape")
     total_length, digest = struct.unpack(FOOTER_STRUCT, data[-_FOOTER_SIZE:])
     if total_length != len(data) - _FOOTER_SIZE:
         raise TapeError("footer total_length does not match the file size")
-    body = data[:total_length]
-    if blake3(body).digest() != digest:
+    if blake3(data[:total_length]).digest() != digest:
         raise TapeError("footer hash does not match the file contents")
-    return body
+    return total_length, digest
+
+
+def read_section_table(data: bytes) -> list[TableRow]:
+    """The stored `(kind, offset, length, raw_length, crc32)` rows, in kind order."""
+    return _read_table(_verify_footer(data))
+
+
+def _verify_footer(data: bytes) -> bytes:
+    total_length, _digest = read_footer(data)
+    return data[:total_length]
 
 
 def _read_header(body: bytes) -> TapeHeader:
