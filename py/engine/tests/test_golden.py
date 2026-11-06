@@ -17,6 +17,7 @@ from twl_engine.goldens import (
     golden_run_pid,
     low_stock_inputs,
     prototype_small_inputs,
+    slow_riders_inputs,
     supply_small_inputs,
 )
 from twl_engine.montecarlo import run_seeds
@@ -36,6 +37,7 @@ PINNED: dict[str, Callable[[int], RunInputs]] = {
     "prototype_small": prototype_small_inputs,
     "supply_small": supply_small_inputs,
     "low_stock": low_stock_inputs,
+    "slow_riders": slow_riders_inputs,
 }
 WORKER_INPUTS: dict[str, Callable[[int], RunInputs]] = {
     "prototype_small": prototype_small_inputs,
@@ -156,7 +158,7 @@ def test_run_matches_the_checked_in_golden(
     expected = golden_table(name, seed)
     label = f"[engine.{name}_seed{seed}]"
     keys = PROBE_KEYS
-    if name in ("supply_small", "low_stock"):
+    if name in ("supply_small", "low_stock", "slow_riders"):
         tape, stats = run_seed_with_stats(PINNED[name](seed))
         data = write_tape(tape)
         actual = probes(data) | {

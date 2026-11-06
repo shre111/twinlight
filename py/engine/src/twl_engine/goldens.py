@@ -24,6 +24,7 @@ PROTOTYPE_RESIDENTS = 48_000
 TOY_PACK_KEY = "seed49_residents5000"
 GOLDEN_RESIDENTS = 5_000
 LOW_STOCK = Supply(initial_stock=0.004, reorder_point=0.001, order_up_to=0.004, lead_minutes=2880)
+SLOW_RIDERS = Supply(riders_per_store=1, rider_speed_kmh=3.0)
 HEADER = (
     "# Strict hashes are checked on the pinned CI platform (TWL_GOLDEN_STRICT=1); "
     "elsewhere the probes are compared with tolerance.\n"
@@ -81,6 +82,11 @@ def low_stock_inputs(seed: int) -> RunInputs:
     return _with_supply(prototype_small_inputs(seed), LOW_STOCK)
 
 
+def slow_riders_inputs(seed: int) -> RunInputs:
+    """The same launch with one slow rider per store, so deliveries queue and run late."""
+    return _with_supply(prototype_small_inputs(seed), SLOW_RIDERS)
+
+
 def _with_supply(inputs: RunInputs, supply: Supply) -> RunInputs:
     scenario = dataclasses.replace(inputs.scenario, supply=supply)
     return dataclasses.replace(inputs, scenario=scenario)
@@ -95,8 +101,10 @@ GOLDEN_RUNS: tuple[tuple[str, Callable[[int], RunInputs], int], ...] = (
     ("supply_small_seed2", supply_small_inputs, 2),
     ("low_stock_seed1", low_stock_inputs, 1),
     ("low_stock_seed2", low_stock_inputs, 2),
+    ("slow_riders_seed1", slow_riders_inputs, 1),
+    ("slow_riders_seed2", slow_riders_inputs, 2),
 )
-SUPPLY_RUNS = ("supply_small", "low_stock")
+SUPPLY_RUNS = ("supply_small", "low_stock", "slow_riders")
 
 
 def golden_run_pid(seed: int) -> int:

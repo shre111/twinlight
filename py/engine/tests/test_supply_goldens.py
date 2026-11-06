@@ -49,7 +49,9 @@ def test_every_supply_fixture_is_pinned_at_seeds_1_and_2() -> None:
     for name in names:
         assert name in engine, f"run `just goldens`: [engine.{name}] is missing"
         has_supply_probes = all(key in engine[name] for key in SUPPLY_PROBES)
-        assert has_supply_probes == name.startswith(("supply_small", "low_stock")), name
+        assert has_supply_probes == name.startswith(("supply_small", "low_stock", "slow_riders")), (
+            name
+        )
 
 
 @pytest.mark.golden

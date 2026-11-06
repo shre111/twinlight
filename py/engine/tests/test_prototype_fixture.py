@@ -162,9 +162,11 @@ def test_checked_in_goldens_cover_every_engine_run_with_all_probes() -> None:
         "supply_small_seed2",
         "low_stock_seed1",
         "low_stock_seed2",
+        "slow_riders_seed1",
+        "slow_riders_seed2",
     ]
     for name, table in engine.items():
-        with_supply = name.startswith(("supply_small", "low_stock"))
+        with_supply = name.startswith(("supply_small", "low_stock", "slow_riders"))
         assert list(table) == (probes + supply_probes if with_supply else probes), name
     assert engine["empty_seed1"]["chatter_rows"] == 0
     assert int(engine["prototype_small_seed1"]["chatter_rows"]) > 0

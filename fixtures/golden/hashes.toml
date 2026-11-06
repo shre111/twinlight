@@ -91,3 +91,27 @@ deliveries = 234
 late = 0
 stockout_pairs = 200
 lost = 240
+
+[engine.slow_riders_seed1]
+hash = "a28acaf617fb3fb4f54feb29802dc361ac5521e8cc9b4730bc633b111bd82267"
+aware_day30 = 2854
+adopted_day30 = 903
+orders_total = 2020
+tape_bytes = 70928
+chatter_rows = 1622
+deliveries = 2020
+late = 304
+stockout_pairs = 164
+lost = 74
+
+[engine.slow_riders_seed2]
+hash = "9c1dc5e582d3ff310ba9fee8908839d49a3cb7529239d258d20b688e9b40d8db"
+aware_day30 = 2664
+adopted_day30 = 815
+orders_total = 1843
+tape_bytes = 65160
+chatter_rows = 1426
+deliveries = 1843
+late = 263
+stockout_pairs = 137
+lost = 69
