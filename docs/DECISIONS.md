@@ -26,7 +26,7 @@ Status: Accepted (2026-11-03)
 - **Consequences:** Pin the three.js version; upgrades are their own `chore/` PR with `/scene-check`.
 
 ### D-004 Render from event times, not frames
-Status: Accepted (2026-11-03)
+Status: Accepted (2026-11-03); streaming by appended chunks dropped by D-033
 - **Decision:** The engine emits per-entity event times (aware_at, first_order_at, chatter (from, to, at), deliveries). The client uploads them once and shaders evaluate state at `uTime`.
 - **Why:** Scrubbing to any moment is O(1); a 30-day run fits in a few MB instead of gigabytes of frames; live runs stream as appended chunks.
 - **Alternatives:** Per-frame state snapshots (huge, slow to scrub); keyframes + deltas for everything (complex for monotonic state that event times express directly).
@@ -217,4 +217,11 @@ Status: Accepted (2026-11-06)
 - **Why:** Measured with the real encoders on the 1,026,145 first-load buildings (brotli 11): meshopt 4.78 MB against 4.05 MB for columns at 8-byte precision, 5.61 against 4.94 MB with the district, and roads 0.75 against 0.71 MB. Morton order makes position deltas nearly monotonic. Columns need no encoder: the Python meshopt wrapper is an alpha third-party package with no wheels or licence metadata, so meshopt meant running the JS encoder from citybake.
 - **Alternatives:** meshopt in a .glb as first planned (fits 6 MB at 8-byte precision by only 60 KB, with the encoder problem above).
 - **Consequences:** No glTF container; the stage reads buildings as typed-array columns. At zstd -19 the first-load total is 5.58 MB with 0.5 m sizes and a district column (5.19 MB with brotli); 0.1 m precision does not fit. JS zstd decode time for about 11 MB is measured at the start of P-014 and can reverse the zstd choice, so the pack writer keeps the compressor a single switch. P-025's text and ARCHITECTURE.md section 5 drop meshopt and the .glb.
+
+### D-033 No tape streaming in v1
+Status: Accepted (2026-11-06)
+- **Decision:** A tape is one immutable object written when its seed finishes. The append-and-range-fetch design in ARCHITECTURE.md is dropped, and the tape's CHUNKS section stays reserved and empty. While seed 1 runs (a second or two), the client shows the city from the pack and "day N of 30" from the existing Redis progress events, covered by the intro camera move; seed 1 plays as soon as its tape lands, and the readouts' ranges tighten as seeds 2 to 50 arrive.
+- **Why:** S3 and MinIO objects cannot be appended to, and a tape's section offsets, checksums and final hash are not known until the run ends. A seed takes about a second, so the city can appear from the pack at once and nothing is lost by waiting for the whole tape.
+- **Alternatives:** One object per simulated day applied in order by the client (works, but adds a second format, a writer, a reader and an equivalence test for a wait the intro already covers); specifying day chunks now and building them later.
+- **Consequences:** P-014 loses its streaming-decode criterion; P-035's runner uploads finished tapes; P-052 becomes "seed 1 plays as soon as its tape lands". Revisit when seed 1 takes longer than the intro on the production box, for example with bigger cities or longer horizons.
 
