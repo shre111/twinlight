@@ -161,6 +161,28 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2))
 
+  packages/tape:
+    dependencies:
+      '@noble/hashes':
+        specifier: 2.4.0
+        version: 2.4.0
+      zstddec:
+        specifier: 0.3.4
+        version: 0.3.4
+    devDependencies:
+      '@twinlight/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2))
+
   packages/ui:
     devDependencies:
       '@twinlight/config':
@@ -661,6 +683,10 @@ packages:
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
+
+  '@noble/hashes@2.4.0':
+    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
+    engines: {node: '>= 20.19.0'}
 
   '@node-rs/xxhash-android-arm-eabi@1.7.8':
     resolution: {integrity: sha512-dOwbmnDzULc5uRgbIvcrxDa7vGdk51GQVREcY98DdxTBd0lomRg/gqAR9ny/S533cD5QTRSvrK+q8KEJMqoG4w==}
@@ -2085,6 +2111,9 @@ packages:
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
+  zstddec@0.3.4:
+    resolution: {integrity: sha512-3Y/NMP6MNdp9b0fWhjCUGiybog7RC3EbUSIJLWnfjylOvnbuGykeu4zYUuH4IRLy5xI7NytXTHN3CWQKIN3cSg==}
+
 snapshots:
 
   '@aws-sdk/checksums@3.1002.1':
@@ -2544,6 +2573,8 @@ snapshots:
 
   '@next/swc-win32-x64-msvc@16.4.4':
     optional: true
+
+  '@noble/hashes@2.4.0': {}
 
   '@node-rs/xxhash-android-arm-eabi@1.7.8':
     optional: true
@@ -3765,3 +3796,5 @@ snapshots:
   wrappy@1.0.2: {}
 
   zod@4.6.7: {}
+
+  zstddec@0.3.4: {}

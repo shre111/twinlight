@@ -1,0 +1,9 @@
+{
+  "extends": "@twinlight/config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "erasableSyntaxOnly": true,
+    "types": []
+  },
+  "include": ["src"]
+}

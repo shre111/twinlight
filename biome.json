@@ -14,6 +14,7 @@
       "!.claude",
       "!design",
       "!fixtures/tape",
+      "!fixtures/pack",
       "!packages/ui/src/generated"
     ]
   },
