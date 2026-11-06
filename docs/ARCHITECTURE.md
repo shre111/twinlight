@@ -71,6 +71,7 @@ stage.dispose()
 - **Render from event times, not frames.** Each resident carries `aware_at`, `first_order_at`, `order_count`; each chatter arc carries `(from, to, at)`; each delivery carries `(store, resident, ordered_at, picked_at, delivered_at)`. Shaders evaluate state at `uTime`. Scrubbing to any minute is a uniform change. A live run streams day chunks that append to these buffers.
 - Picking: GPU id buffer for residents and stores (render ids to a 1x1 target around the pointer), CPU fallback with a spatial hash on WebGL.
 - Quality tiers (`auto` picks by GPU timing during the intro): `high` 100k residents, bloom full res; `medium` 60k, bloom half res; `low` 25k, no bloom, no rain particles. Device pixel ratio capped per tier.
+- Buildings at city scale (P-048): draw calls are the cost in three.js, not instances (`render()` JS measured 0.8 ms at 12 draws, 4 ms at 188, 26.7 ms at 658), so culling and level of detail compact the visible tile ranges into one instanced buffer and draw once; rebuilding it takes about 1.8 ms. Pack columns are decompressed and decoded in a Web Worker and transferred.
 - Camera director: intro flight, focus on selection, idle drift, scripted shots for the landing film. Reduced motion swaps flights for cuts.
 
 ### packages/tape (TypeScript)
@@ -155,32 +156,47 @@ Footer
 
 ## 5. City pack format (one per city version)
 ```
-manifest.json      name, bbox, crs, counts, hashes, attributions, version
-buildings.bin      instanced boxes as delta-coded columns in Morton order with a tile index (D-032); small isolated footprints go to an optional buildings_detail.bin (D-031)
-roads.bin          polylines for rendering (f32 xy, u8 class: 0 street, 1 arterial incl. ring road, 2 bridge)
-river.bin          water polygons (river, lakes)
-residents.bin      SoA: f32 x, f32 y, f32 z (floor height), u32 building, u32 hex(h3 res 9 index id), u16 segment, u32 persona_ref, f32 weight (people represented)
-graph.bin          CSR adjacency: u32 offsets[n+1], u32 targets[m], u8 tie_kind[m], f32 strength[m]
-stores.bin         per store: f32 x, f32 y, u32 hex, f32 radius_m, district id
-travel.bin         travel minutes store -> hex (u16), from the baked road graph (D-022), per time-of-day band
-hexes.bin          the H3 cells residents and stores refer to
-districts.json     names, polygons, marginals used in synthesis
+manifest.json           name, bbox, crs, counts, segments, bands, file hashes, sizes, attributions, version
+first load (the browser downloads these; 6 MB budget, D-031)
+  buildings.bin         instanced boxes: tile index and delta-coded columns in Morton order (D-032)
+  roads.bin             polylines for rendering, delta-coded
+  residents.bin         position, floor, building, segment
+  stores.bin            dark stores
+  river.bin             water polygons with holes (river, lakes)
+  districts.json        names and polygons
+engine only (soft 10 MB budget)
+  residents_engine.bin  cell, persona reference, weight
+  graph.bin             social ties, CSR
+  hexes.bin             the H3 cells residents and stores refer to
+  travel.bin            travel minutes store -> cell per time-of-day band (D-022)
+optional
+  buildings_detail.bin  small isolated footprints left out of the first load (D-031), for zoom-in
 ```
-Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up (floor height). The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`.
+Coordinates are local metres in a city-specific projection with the origin at the bbox centre: `x` east, `y` north, `z` up. The stage maps them to three.js as `(x, z, -y)`, so north is -Z. Packs are immutable and content-addressed by `pack_hash`. One Python library, `py/pack` (`twl_pack`), writes and reads the format for citybake and for the engine's toy city; the stage has the TypeScript reader.
 
-**Binary layout (v1).** Every `.bin` file is a sequence of little-endian columns in the order listed, each zero-padded to a multiple of 8 bytes, so every column starts 8-byte aligned (a client views it as a typed array without copying) and the file size is the sum of the padded columns. Lengths come from `manifest.json` `counts`, which has exactly the keys `buildings`, `residents`, `ties`, `stores`, `roads`, `roadPoints`, `riverPolygons`, `riverPoints`. Variable-length lists are CSR: `u32 offsets[n + 1]`, then the flat columns.
-- `buildings.bin` (toy packs, until P-025 brings `buildings.glb`): `f32 x, y, width, depth, height, rotation` (radians about up, counter-clockwise from east), `u16 district`. Count `buildings`.
-- `residents.bin`: the columns above. Count `residents`; `building` indexes `buildings`.
-- `graph.bin`: directed ties; resident `i` talks to `targets[offsets[i]..offsets[i + 1]]`, and an undirected relation appears in both directions. Count `ties` = length of `targets`. `tie_kind`: 0 household, 1 neighbour, 2 friend, 3 work.
+**Binary layout (v2, from P-025).** Every `.bin` is a sequence of little-endian columns in the order listed, each zero-padded to a multiple of 8 bytes, so a reader can view each direct column as a typed array without copying; lengths come from `manifest.json` `counts`. Variable-length lists are CSR: `u32 offsets[n + 1]`, then the flat columns.
+- **Quantised positions.** `q = round((v - min) / (max - min) * 65535)` per axis against the manifest `bbox`, which must enclose every quantised coordinate (about 0.42 by 0.37 m on Ahmedabad). The engine reads the same quantised positions the stage draws. A **byte-plane** column writes every value's lowest byte, then every next byte, and so on. A **Morton code** interleaves `qx` (even bits) and `qy` (odd bits) into a `u32`.
+- `buildings.bin`, `counts.buildings` rows in ascending Morton order (stable on ties); that order is the building index:
+  - `u32 tile_start[4^L + 1]`, `L = counts.buildingTileLevel` (6 for Ahmedabad: 64 by 64 tiles of about 433 by 381 m). Tile `i` is the Morton code shifted right by `32 - 2L` and holds buildings `tile_start[i]` to `tile_start[i + 1]`; a tile `k` levels coarser is the contiguous range `tile_start[j * 4^k]` to `tile_start[(j + 1) * 4^k]`, so one table serves every level. Buildings are binned by centre and can overhang their tile (up to 212 m on Ahmedabad); no per-tile bounds are stored, the reader computes them.
+  - `u32 position_delta[n]` in byte planes: each row's Morton code minus the previous row's, the first from 0.
+  - `u8 width[n]`, `u8 depth[n]`, `u8 height[n]`: metres = `(value / 12)^2`, written as `round(sqrt(metres) * 12)` (reaches 451.6 m; the writer reports anything clipped).
+  - `u8 rotation[n]`: radians = `value / 255 * pi` about up, counter-clockwise from east (a box repeats every pi).
+  - `u8 district[n]` (a city has at most 255 districts; the stage does not upload this column).
+- `buildings_detail.bin`: the same columns without `tile_start`, `counts.detailBuildings` rows in their own Morton order. No resident refers to it. Omitted when empty.
+- `roads.bin`: `u16 points[roads]` (points per road), `u8 class[roads]` (0 street, 1 arterial incl. ring road, 2 bridge), `u16 dx[roadPoints]`, `u16 dy[roadPoints]` in byte planes: the zigzag-coded delta of the quantised position from the previous point across the whole column, the first from 0.
+- `residents.bin`, in resident index order: `u16 x[n]`, `u16 y[n]` (quantised), `u8 floor[n]` with `z = (floor + 0.5) * 3.2 m`, `u32 building[n]` (index into `buildings.bin`; a resident whose building was dropped keeps their position and points at the nearest kept one), `u8 segment[n]`. `segment` indexes `manifest.json` `segments`, the ordered list of segment names (for Ahmedabad per D-026: senior, young_single, homemaker, working_graduate, working_other, other_adult); the engine and calibration key parameters by that list, never by a hard-coded order.
+- `residents_engine.bin`, same order: `u32 hex[n]`, `u32 persona_ref[n]`, `f32 weight[n]`.
 - `stores.bin`: `f32 x, y`, `u32 hex`, `f32 radius_m`, `u16 district`. Count `stores`.
-- `roads.bin`: `u32 offsets[roads + 1]` into points, `f32 x[roadPoints]`, `f32 y[roadPoints]`, `u8 class[roads]`.
-- `river.bin`: `u32 offsets[riverPolygons + 1]`, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake). One exterior ring per polygon, no holes in v1.
-- `hexes.bin`: `u64 h3[hexes]`; `hex` in `residents.bin` and `stores.bin` indexes it densely. Count `hexes`.
-- `travel.bin`: `u16 minutes[stores * hexes * bands]`, flat in (store, hex, band) order, whole minutes rounded up, minimum 1, no sentinel (the bake fails on an unreachable pair). `manifest.json` carries `bands`, an ordered list of `{"name", "start_minute"}` (minute of day), and `counts` gains `hexes` and `bands`; the engine reads band boundaries from the pack.
+- `river.bin`: `u32 offsets[riverRings + 1]` into points, `f32 x[riverPoints]`, `f32 y[riverPoints]`, `u8 kind[riverPolygons]` (0 river, 1 lake), `u16 rings[riverPolygons]`. Each polygon takes its next `rings[p]` rings: the first is the exterior, counter-clockwise, the rest are holes, clockwise.
+- `graph.bin`: `u32 offsets[residents + 1]`, `u32 targets[ties]`, `u8 tie_kind[ties]` (0 household, 1 neighbour, 2 friend, 3 work), `f32 strength[ties]`. Directed: resident `i` talks to `targets[offsets[i]..offsets[i + 1]]`, and an undirected relation appears in both directions.
+- `hexes.bin`: `u64 h3[hexes]`; `hex` in `residents_engine.bin` and `stores.bin` indexes it densely.
+- `travel.bin`: `u16 minutes[stores * hexes * bands]`, flat in (store, hex, band) order, whole minutes rounded up, minimum 1, no sentinel (the bake fails on an unreachable pair). The engine reads band boundaries from the manifest.
 - `districts.json`: `[{"id", "name", "x", "y", "east"}]` ordered by id; real packs add `name_local` (the OSM name when the display name is its English form), polygons (a district can have several parts) and marginals.
-- `segment` in `residents.bin` indexes `manifest.json` `segments`, the ordered list of segment names (for Ahmedabad per D-026: senior, young_single, homemaker, working_graduate, working_other, other_adult); the engine and calibration key parameters by that list, never by a hard-coded order.
-- `manifest.json`: `{"format": "twinlight-pack", "version": 1, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "files": {name: blake3 hex}, "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `pack_hash` is the blake3 of the manifest bytes.
-- Toy packs: `hex` = 0 (no cells and no `travel.bin`), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, `crs` = `"local"`. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre, and the river ring runs past the bbox (6 km either way).
+- `manifest.json`: `{"format": "twinlight-pack", "version": 2, "kind": "toy" | "city", "name", "seed" (toy only), "crs", "bbox": [minX, minY, maxX, maxY], "counts", "segments", "bands": [{"name", "start_minute"}], "compression", "files": {name: blake3 hex of the uncompressed bytes}, "sizes", "attributions"}`, written with sorted keys, no insignificant whitespace and no timestamps. `counts` has `buildings`, `detailBuildings`, `buildingTileLevel`, `residents`, `ties`, `stores`, `roads`, `roadPoints`, `riverPolygons`, `riverRings`, `riverPoints`, `hexes`, `bands`. `sizes` reports compressed bytes against the budgets: `{"first_load": {"files", "bytes", "budget": 6000000}, "engine": {"files", "bytes", "budget": 10000000}, "detail": {"files", "bytes"}}`; the manifest is not counted. `pack_hash` is the blake3 of the manifest bytes.
+- **Compression (D-032).** Every pack object except the manifest is stored compressed, and `compression` names how: `"zstd"`, one zstd frame per object (level 19, single-threaded, content size written), decompressed in the browser by the same decoder as the tape; or `"br"`, stored with `Content-Encoding: br` and decoded by the browser's HTTP layer, never in JS. zstd is provisional until JS decode time for about 11 MB is measured against the 1.5 s load target at the start of P-014. The stage decompresses and decodes in a Web Worker and transfers the arrays.
+- **Pack-time rules (D-031).** Footprints under 30 m² that are not within 3 m of another building go to the detail file; buildings whose centre is in water are dropped; a resident standing in water or in a dropped building moves to the nearest kept building, taking its highest floor that fits. No resident is ever removed, so the resident index stays the same across pack, graph and tape. Ahmedabad: 1,025,875 first-load buildings, 28,421 in the detail file, first load 5.63 MB at zstd -19.
+- Toy packs: `kind` `"toy"`, `crs` `"local"`, no cells (`hexes` and `bands` are 0, no `hexes.bin` or `travel.bin`, `hex` = 0), `persona_ref` = `0xFFFFFFFF`, `segment` = age band 0 to 4, `weight` = 1, no detail file. Toy ties are one-way (each resident's out-list, as in the prototype), so a few residents have fewer than 3. They keep the prototype's origin rather than the bbox centre; the river ring is `f32` and runs past the bbox (6 km either way).
+- Cross-language goldens (P-025): Python writes `fixtures/pack/v2/`, the TypeScript reader decodes it, and file checksums and probe buildings, roads and residents must match.
 
 ## 6. Data model (Postgres)
 ```
