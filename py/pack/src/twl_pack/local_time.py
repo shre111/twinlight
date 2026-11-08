@@ -27,13 +27,14 @@ def check_weekend_days(days: object) -> tuple[int, ...]:
     """ISO weekdays, 1 Monday to 7 Sunday, strictly ascending; empty for a city with no weekend."""
     if isinstance(days, str | bytes) or not isinstance(days, Sequence):
         raise PackError(f"weekend_days must be a list of ISO weekdays, got {days!r}")
-    previous = MONDAY - 1
+    checked: list[int] = []
     for day in days:
         if not isinstance(day, Integral) or isinstance(day, bool):
             raise PackError(f"weekend_days must hold whole ISO weekdays, got {day!r}")
-        if not MONDAY <= day <= SUNDAY:
-            raise PackError(f"weekend_days {day} is outside {MONDAY}..{SUNDAY}")
-        if day <= previous:
+        weekday = int(day)
+        if not MONDAY <= weekday <= SUNDAY:
+            raise PackError(f"weekend_days {weekday} is outside {MONDAY}..{SUNDAY}")
+        if checked and weekday <= checked[-1]:
             raise PackError(f"weekend_days must ascend strictly, got {list(days)!r}")
-        previous = day
-    return tuple(int(day) for day in days)
+        checked.append(weekday)
+    return tuple(checked)
