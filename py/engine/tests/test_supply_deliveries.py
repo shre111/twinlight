@@ -67,6 +67,7 @@ def line_city() -> ToyCity:
         segment=np.zeros(n, dtype=np.uint16),
         persona_ref=np.zeros(n, dtype=np.uint32),
         weight=np.ones(n, dtype=np.float32),
+        tier=np.ones(n, dtype=np.uint8),
     )
     stores = Stores(
         x=np.array([0.0, 1000.0], dtype=np.float32),

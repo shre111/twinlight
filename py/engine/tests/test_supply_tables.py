@@ -30,6 +30,7 @@ def line_city(resident_x: list[float], store_x: list[float], radius: list[float]
         hex=np.zeros(n, dtype=np.uint32),
         segment=np.zeros(n, dtype=np.uint16),
         persona_ref=np.zeros(n, dtype=np.uint32),
+        tier=np.ones(n, dtype=np.uint8),
         weight=np.ones(n, dtype=np.float32),
     )
     stores = Stores(

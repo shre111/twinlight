@@ -2,6 +2,7 @@ import numpy as np
 
 from twl_engine.fixtures.types import (
     NO_PERSONA,
+    TIER_MIDDLE,
     Buildings,
     District,
     Residents,
@@ -45,6 +46,7 @@ def build_uniform_city(residents: int = 50_000) -> ToyCity:
             segment=np.zeros(residents, dtype=np.uint16),
             persona_ref=np.full(residents, NO_PERSONA, dtype=np.uint32),
             weight=np.ones(residents, dtype=np.float32),
+            tier=np.full(residents, TIER_MIDDLE, dtype=np.uint8),
         ),
         ties=Ties(
             offsets=np.zeros(residents + 1, dtype=np.uint32),

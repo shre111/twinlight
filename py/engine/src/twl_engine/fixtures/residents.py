@@ -1,7 +1,7 @@
 import numpy as np
 
 from twl_engine.fixtures.geometry import DISTRICT_EAST
-from twl_engine.fixtures.types import NO_PERSONA, Buildings, Residents
+from twl_engine.fixtures.types import NO_PERSONA, TIER_MIDDLE, Buildings, Residents
 
 AGE_SHARE_WEST = np.array([0.2, 0.27, 0.27, 0.16, 0.1])
 AGE_SHARE_EAST = np.array([0.16, 0.22, 0.28, 0.21, 0.13])
@@ -49,4 +49,5 @@ def place_residents(buildings: Buildings, count: int, rng: np.random.Generator) 
         segment=band.astype(np.uint16),
         persona_ref=np.full(count, NO_PERSONA, dtype=np.uint32),
         weight=np.ones(count, dtype=np.float32),
+        tier=np.full(count, TIER_MIDDLE, dtype=np.uint8),
     )
