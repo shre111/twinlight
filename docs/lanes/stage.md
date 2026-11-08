@@ -8,7 +8,8 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - What it shows: Day 5 1,215 ordered and 21% heard; Day 9 2,204 and 29%; Day 13 4,177 and 40%, with 3 of 14 stores out and their beacons red. The first stockout is on Day 10 at 3:30 pm.
 - Frames on the M4 in Chrome, WebGPU, tier high, 16x on the real tape with the readouts card and timeline visible: p50 16.7, p95 17.6 ms, 60 fps, 12 draw calls, and the same while recording. On battery at 65% with Low Power Mode off.
 - The fixture route also passes in Firefox and Playwright WebKit (`SHOTS_ENGINES=1`, `-g fixture`).
-- Next: move the stills to `/dev/fixture` (one rebaseline) and drop `pack-v1.ts`, since nothing writes v1 now.
+- The `just shots` stills and frame report now use the fixture run (`/dev/stage?fixture=toy`), rebaselined once. The frame report measures 48k residents instead of 20k, so software GL timings start from a new reference (desktop high p50 583 ms against 350). The timeline label test stays on the toy run, since only it has a monsoon.
+- Next: drop `pack-v1.ts`, since nothing writes v1 now.
 - Timeline event labels use short names below 1400 px, a breakpoint tuned to the toy run's two campaigns and monsoon. When real events feed the timeline, labels need collision handling from their measured widths, and every event needs a `short` name.
 
 ## River layer
