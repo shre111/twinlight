@@ -50,7 +50,7 @@ def sample_city(pack_dir: Path, config: SampleConfig = DEFAULT_CONFIG) -> CitySa
         segments=segments,
         config=config,
         sample=sample,
-        district=district.astype(np.uint8),
+        district=district,
     )
 
 
