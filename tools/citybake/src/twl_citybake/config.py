@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from twl_citybake.osm.tags import BuildingKind, RoadClass
+from twl_citybake.population.tier import check_shares
 from twl_pack.format import MAX_TILE_LEVEL
 
 MINUTES_PER_DAY = 1440
@@ -717,6 +718,24 @@ class PackConfig:
 
 
 @dataclass(frozen=True)
+class TierConfig:
+    """D-035: housed buildings are ranked by floor area per person and cut so that `low_share` of
+    households are low tier and `high_share` high; each share states its source."""
+
+    low_share: float
+    high_share: float
+    low_share_source: str
+    high_share_source: str
+    attribution: str
+
+    def __post_init__(self) -> None:
+        check_shares(self.low_share, self.high_share)
+        for name in ("low_share_source", "high_share_source", "attribution"):
+            if not _is_text(getattr(self, name)):
+                raise ValueError(f"tier.{name} must not be blank")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
@@ -731,6 +750,7 @@ class CityConfig:
     population_check: PopulationCheck | None = None
     population: PopulationConfig = field(default_factory=PopulationConfig)
     households: HouseholdConfig | None = None
+    tier: TierConfig | None = None
     footprints: FootprintsConfig | None = None
     personas: PersonasConfig | None = None
     graph: GraphConfig = field(default_factory=GraphConfig)
@@ -758,6 +778,7 @@ def load_city(slug: str) -> CityConfig:
         population_check=_population_check(raw.get("population_check")),
         population=PopulationConfig(**raw.get("population", {})),
         households=_households(raw.get("households")),
+        tier=_tier(raw.get("tier")),
         footprints=_footprints(raw.get("footprints")),
         personas=_personas(raw.get("personas")),
         graph=_graph(raw.get("graph", {})),
@@ -874,6 +895,18 @@ def _households(raw: dict[str, Any] | None) -> HouseholdConfig | None:
         counts=tuple(raw["counts"]),
         size_shrink=float(raw.get("size_shrink", 1.0)),
     )
+
+
+def _tier(raw: Any) -> TierConfig | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("[tier] must be a table")
+    required = {f.name for f in fields(TierConfig)}
+    _known_keys("[tier]", raw, required)
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[tier] needs {missing[0]!r}")
+    return TierConfig(**raw)
 
 
 def _footprints(raw: dict[str, Any] | None) -> FootprintsConfig | None:

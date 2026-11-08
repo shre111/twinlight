@@ -224,7 +224,7 @@ def population_summary(report: dict, census_mean_size: float) -> str:
     raster, cap, d = report["raster"], report["capacity"], report["districts"]
     hh, fit, res = report["households"], report["ipf"], report["residents"]
     outside = ", ".join(d["outside_1pct"]) or "none"
-    correction, check = report.get("correction"), report.get("check")
+    correction, check, tier = report.get("correction"), report.get("check"), report.get("tier")
     fate = "are redistributed by the correction" if correction else "are unplaced"
     return "\n".join(
         [
@@ -241,10 +241,21 @@ def population_summary(report: dict, census_mean_size: float) -> str:
             f"{hh['mean_size']:.2f} (census {census_mean_size:.2f})",
             f"ipf {fit['districts']} districts, max {fit['max_iterations']} iterations, "
             f"max error {fit['max_rel_error']:.1e}, all converged {fit['all_converged']}",
+            *([] if tier is None else [tier_summary(tier)]),
             f"residents {res['count']:,} from {res['households']:,} households, weight "
             f"{res['weight']:.2f}, {res['adults_represented']:,.0f} adults represented",
             *([] if check is None else check_summary(check)),
         ]
+    )
+
+
+def tier_summary(tier: dict) -> str:
+    low, middle, high = tier["households"]
+    low_cut, high_cut = tier["low_cut_m2_per_person"], tier["high_cut_m2_per_person"]
+    return (
+        f"tier households {low:.1%} low, {middle:.1%} middle, {high:.1%} high (targets "
+        f"{tier['low_share']:.0%} low, {tier['high_share']:.0%} high), cuts {low_cut:.1f} and "
+        f"{high_cut:.1f} m2 per person"
     )
 
 
