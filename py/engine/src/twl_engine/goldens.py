@@ -1,7 +1,8 @@
 """Golden hashes and probes for the engine scenarios (`python -m twl_engine.goldens [--write]`).
 
 Strict hashes are only meaningful on the pinned platform (D-023); `just goldens` sets the
-environment, and CI confirms the values. Tables other than `engine` are kept as they are.
+environment, and CI confirms the values. `--write` refreshes the toy pack's hash first, because
+the golden tapes carry it; its probes and any other table are kept as they are.
 `--write` also checks in the tapes of `TAPE_FIXTURE_RUNS` for the cross-language goldens.
 """
 
@@ -90,12 +91,11 @@ def slow_riders_inputs(seed: int) -> RunInputs:
     return _with_supply(prototype_small_inputs(seed), SLOW_RIDERS)
 
 
-def demo_inputs(seed: int, city: ToyCity | None = None) -> RunInputs:
+def demo_inputs(seed: int, city: ToyCity) -> RunInputs:
     """The prototype launch with stock for about half the stores to last: the dev demo tape.
 
     Paid reach is scaled to the city's residents as in `prototype_small_inputs`.
     """
-    city = build_toy_city(seed=49, residents=PROTOTYPE_RESIDENTS) if city is None else city
     scenario, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
     reach = params.paid_scale * city.residents.x.shape[0] / PROTOTYPE_RESIDENTS
     return RunInputs(
@@ -215,6 +215,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             "use `just goldens`, which sets the pinned environment (D-023)"
         )
     tables = read_goldens()
+    if args.write:
+        city = build_toy_city(seed=49, residents=GOLDEN_RESIDENTS)
+        tables["toy_pack"][TOY_PACK_KEY]["hash"] = pack_hash(city)
+        GOLDEN_PATH.write_text(render_toml(tables))
     tables["engine"], fixture_tapes = compute_engine_goldens()
     text = render_toml(tables)
     if args.write:

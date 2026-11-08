@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from twl_engine import goldens
+from twl_engine.fixtures import build_toy_city, pack_hash
 from twl_tape import tape_hash
 from twl_tape.fixtures import FIXTURE_DIR
 
@@ -35,3 +36,7 @@ def test_only_write_puts_the_golden_tape_in_the_fixture_directory(
 
     assert written == ({"engine_x": tape} if write else {})
     assert (tmp_path / "hashes.toml").exists() is write
+    if write:
+        refreshed = goldens.read_goldens(tmp_path / "hashes.toml")["toy_pack"]
+        city = build_toy_city(seed=49, residents=goldens.GOLDEN_RESIDENTS)
+        assert refreshed[goldens.TOY_PACK_KEY]["hash"] == pack_hash(city)
