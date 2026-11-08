@@ -308,6 +308,7 @@ def build_pack_inputs(
             "y": np.array([r[2] for r in RESIDENTS], np.float32),
             "z": np.array([(r[3] + 0.5) * 3.2 for r in RESIDENTS], np.float32),
             "weight": 1.0 + 0.25 * np.arange(n, dtype=np.float32),
+            "tier": (np.arange(n) % 3).astype(np.uint8),
         },
     )
     write_json(population / "layer.json", {"attribution": ["ATTR-POP", "ATTR-OSM"]})

@@ -1202,6 +1202,7 @@ source = { editable = "py/pack" }
 dependencies = [
     { name = "blake3" },
     { name = "numpy" },
+    { name = "tzdata" },
     { name = "zstandard" },
 ]
 
@@ -1209,6 +1210,7 @@ dependencies = [
 requires-dist = [
     { name = "blake3", specifier = ">=1.0,<2" },
     { name = "numpy", specifier = ">=2.5,<2.6" },
+    { name = "tzdata", specifier = ">=2026.6" },
     { name = "zstandard", specifier = ">=0.25,<0.26" },
 ]
 

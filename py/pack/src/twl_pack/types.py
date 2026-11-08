@@ -1,5 +1,6 @@
 """What a pack is built from, in natural units; arrays may be any numeric dtype."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -40,9 +41,12 @@ class ResidentColumns:
 
 @dataclass(frozen=True, eq=False)
 class ResidentEngineColumns:
+    """`tier` is the household affluence tier (D-035): 0 low, 1 middle, 2 high."""
+
     hex: NDArray[Any]
     persona_ref: NDArray[Any]
     weight: NDArray[Any]
+    tier: NDArray[Any]
 
 
 @dataclass(frozen=True, eq=False)
@@ -81,9 +85,13 @@ class Band:
 
 @dataclass(frozen=True, eq=False)
 class PackContents:
+    """`timezone` is an IANA name and `weekend_days` ISO weekdays, ascending (D-036)."""
+
     kind: str
     name: str
     crs: str
+    timezone: str
+    weekend_days: Sequence[int]
     segments: list[str]
     bands: list[Band]
     attributions: list[str]

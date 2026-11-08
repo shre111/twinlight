@@ -14,6 +14,8 @@ KEYS = {
     "kind",
     "name",
     "crs",
+    "timezone",
+    "weekend_days",
     "bbox",
     "counts",
     "segments",
@@ -61,13 +63,22 @@ def test_fixed_fields(city):
         {"name": "evening", "start_minute": 1080},
     ]
     assert m["name"] == "hand"
+    assert m["timezone"] == "Asia/Dubai"
+    assert m["weekend_days"] == [6, 7]
+
+
+def test_toy_manifest_writes_weekend_days_as_a_list(toy):
+    m = manifest_of(toy)
+    assert m["timezone"] == "Asia/Kolkata"
+    assert m["weekend_days"] == [6, 7]
 
 
 def test_manifest_bytes_are_sorted_compact_and_untimestamped(city):
     raw = encode_pack(city).manifest
     m = json.loads(raw)
     assert raw == json.dumps(m, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-    assert b"time" not in raw.lower() and b"date" not in raw.lower()
+    unzoned = raw.lower().replace(b'"timezone":', b"")
+    assert b"time" not in unzoned and b"date" not in unzoned
 
 
 def test_pack_hash_is_blake3_of_manifest_bytes(city):

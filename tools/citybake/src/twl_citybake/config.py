@@ -12,6 +12,7 @@ from typing import Any
 from twl_citybake.osm.tags import BuildingKind, RoadClass
 from twl_citybake.population.tier import check_shares
 from twl_pack.format import MAX_TILE_LEVEL
+from twl_pack.local_time import check_timezone, check_weekend_days
 
 MINUTES_PER_DAY = 1440
 
@@ -737,6 +738,9 @@ class TierConfig:
 
 @dataclass(frozen=True)
 class CityConfig:
+    """`timezone` (IANA) and `weekend_days` (ISO weekdays) go into the pack manifest (D-036); a city
+    without them cannot be packed."""
+
     slug: str
     name: str
     bbox: BBox
@@ -744,6 +748,8 @@ class CityConfig:
     river: RiverConfig = field(default_factory=RiverConfig)
     districts: DistrictConfig = field(default_factory=DistrictConfig)
     seed: int = 0
+    timezone: str | None = None
+    weekend_days: tuple[int, ...] | None = None
     population_raster: PopulationRaster | None = None
     population_total: PopulationTotal | None = None
     population_correction: PopulationCorrection | None = None
@@ -772,6 +778,8 @@ def load_city(slug: str) -> CityConfig:
         river=RiverConfig(names=tuple(raw.get("river", {}).get("names", ()))),
         districts=_districts(raw.get("districts", {})),
         seed=int(raw.get("seed", 0)),
+        timezone=None if "timezone" not in raw else check_timezone(raw["timezone"]),
+        weekend_days=None if "weekend_days" not in raw else check_weekend_days(raw["weekend_days"]),
         population_raster=_population_raster(raw.get("population_raster")),
         population_total=_population_total(raw.get("population_total")),
         population_correction=_population_correction(raw.get("population_correction")),

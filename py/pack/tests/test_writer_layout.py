@@ -56,7 +56,12 @@ def expected_files() -> dict[str, bytes]:
         + col([4, 0, 1], "<u4")
         + col([0, 1, 1], "u1")
     )
-    engine = col([1, 0, 1], "<u4") + col([5, 0xFFFFFFFF, 7], "<u4") + col([1.0, 0.5, 2.0], "<f4")
+    engine = (
+        col([1, 0, 1], "<u4")
+        + col([5, 0xFFFFFFFF, 7], "<u4")
+        + col([1.0, 0.5, 2.0], "<f4")
+        + col([2, 0, 1], "<u1")
+    )
     stores = (
         col([100.5, 300.0], "<f4")
         + col([200.25, 400.0], "<f4")

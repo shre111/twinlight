@@ -49,6 +49,8 @@ def city() -> PackContents:
         kind="city",
         name="hand",
         crs="EPSG:32643",
+        timezone="Asia/Dubai",
+        weekend_days=[6, 7],
         segments=["young", "old"],
         bands=[Band("morning", 360), Band("evening", 1080)],
         attributions=["OSM", "Census", "OSM"],
@@ -82,6 +84,7 @@ def city() -> PackContents:
             hex=np.array([1, 0, 1]),
             persona_ref=np.array([5, 0xFFFFFFFF, 7]),
             weight=np.array([1.0, 0.5, 2.0]),
+            tier=np.array([2, 0, 1]),
         ),
         stores=StoreColumns(
             x=np.array([100.5, 300.0]),
@@ -118,6 +121,8 @@ def toy() -> PackContents:
         kind="toy",
         name="toy",
         crs="local",
+        timezone="Asia/Kolkata",
+        weekend_days=(6, 7),
         segments=["a0", "a1", "a2", "a3", "a4"],
         bands=[],
         attributions=[],
@@ -151,6 +156,7 @@ def toy() -> PackContents:
             hex=np.zeros(4, dtype=int),
             persona_ref=np.full(4, 0xFFFFFFFF),
             weight=np.ones(4),
+            tier=np.ones(4, dtype=np.uint8),
         ),
         stores=StoreColumns(
             x=np.array([0.0]),

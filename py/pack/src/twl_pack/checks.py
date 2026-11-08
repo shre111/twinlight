@@ -8,6 +8,7 @@ from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 from twl_pack.codecs import as_uint
 from twl_pack.format import MAX_DISTRICTS, MAX_TILE_LEVEL, PackError
+from twl_pack.local_time import check_timezone, check_weekend_days
 from twl_pack.types import (
     Band,
     BuildingColumns,
@@ -26,6 +27,7 @@ _U32_MAX = 0xFFFFFFFF
 _U64_MAX = 0xFFFFFFFFFFFFFFFF
 _MINUTES_PER_DAY = 1440
 _ROAD_CLASS_MAX = 2
+_TIER_MAX = 2
 _TIE_KIND_MAX = 3
 _RIVER_KIND_MAX = 1
 _MIN_RING_POINTS = 3
@@ -41,6 +43,8 @@ def check_contents(contents: PackContents) -> PackContents:
     """
     c = contents
     _check_tile_level(c.tile_level)
+    timezone = check_timezone(c.timezone)
+    weekend_days = check_weekend_days(c.weekend_days)
     district_ids = _check_districts(c.districts)
     _check_bands(c.bands)
     buildings = _buildings("buildings", c.buildings, district_ids)
@@ -62,6 +66,8 @@ def check_contents(contents: PackContents) -> PackContents:
         travel = _uints("travel", c.travel, rows, "<u2", low=1, high=_U16_MAX)
     return replace(
         c,
+        timezone=timezone,
+        weekend_days=weekend_days,
         buildings=buildings,
         detail=detail,
         roads=_roads(c.roads),
@@ -241,6 +247,7 @@ def _residents_engine(
             "residents_engine.persona_ref", r.persona_ref, residents, "<u4", high=_U32_MAX
         ),
         weight=weight,
+        tier=_uints("residents_engine.tier", r.tier, residents, "<u1", high=_TIER_MAX),
     )
 
 

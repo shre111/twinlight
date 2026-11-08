@@ -50,6 +50,8 @@ def small_contents() -> PackContents:
         kind="city",
         name="small",
         crs=_CRS,
+        timezone="Asia/Kolkata",
+        weekend_days=[7],
         segments=list(_SEGMENTS),
         bands=bands,
         attributions=[
@@ -220,6 +222,7 @@ def _residents_engine(rng: np.random.Generator, rows: int) -> ResidentEngineColu
         hex=rng.integers(0, _HEX_COUNT, rows),
         persona_ref=persona_ref,
         weight=rng.integers(1, 40, rows) / 10,
+        tier=np.arange(rows) % 3,
     )
 
 

@@ -2,7 +2,7 @@
 # Change these only for an intended output change, with the reason in the PR body.
 
 [toy_pack.seed49_residents5000]
-hash = "7796adcfc2f2fe98f03b06cf5eaa6e76a3a7438a2100f3a96d9dd9674cac22e0"
+hash = "b2528be2ff3e98ea8c39f9d5ca823759b53de4a61e3059d47ed561cbf35aed5f"
 buildings = 7210
 ties = 22521
 roads = 5839
@@ -13,7 +13,7 @@ resident_x_sum = -2174347.764502242
 resident_y_sum = 210379.91088458896
 
 [engine.empty_seed1]
-hash = "19e9b0e2605bbad73379e0db787d1dfb09e1ee7b087c7eb5fa8d7799dd5e91c3"
+hash = "8ce62c3f0228272e91faf8e028d0865cae1114941ab1404300fcc5d563dc31ca"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
@@ -21,7 +21,7 @@ tape_bytes = 536
 chatter_rows = 0
 
 [engine.empty_seed2]
-hash = "6fcf19301e4136790943917a80fa5404307003941fbf0015708467792277866b"
+hash = "335f2ff71cac20c8bddcd1efe004c6d418dee36a51d8e4ccf028a83d5dc6d645"
 aware_day30 = 0
 adopted_day30 = 0
 orders_total = 0
@@ -29,7 +29,7 @@ tape_bytes = 536
 chatter_rows = 0
 
 [engine.prototype_small_seed1]
-hash = "a5470f5c4056f44baf55d71b997da371cd5aa7a6aff0952dd12e0f0689a75071"
+hash = "c8e22e74b0e8a81a088899edc4d99e9af4602ffcc29625221cf403b877d70260"
 aware_day30 = 3096
 adopted_day30 = 1266
 orders_total = 3303
@@ -37,7 +37,7 @@ tape_bytes = 44400
 chatter_rows = 1992
 
 [engine.prototype_small_seed2]
-hash = "fa817569fba0b3f9f618e9734c196d9b50a7dcd2edc7fde2a4a163136ae854f9"
+hash = "5fb855f5fd7c5f492c691dec064a08c68b9e48961f23a30fb9f3860cec44d767"
 aware_day30 = 3038
 adopted_day30 = 1271
 orders_total = 3275
@@ -45,7 +45,7 @@ tape_bytes = 44280
 chatter_rows = 1992
 
 [engine.supply_small_seed1]
-hash = "676578b058e929d9e68f1773dce99010319c0acd8ecf2f02de6b55eb0301bfcf"
+hash = "ecb7ed79679e2d93949ca4227fe30d03c237b6f8765d03cad55fb3d6e95c956b"
 aware_day30 = 2768
 adopted_day30 = 861
 orders_total = 1965
@@ -57,7 +57,7 @@ stockout_pairs = 130
 lost = 79
 
 [engine.supply_small_seed2]
-hash = "cbe5e76c31027ebac341312423d9a812a744452bebfada3d48c6005125f65a2f"
+hash = "39d29bfcd457c3e023c666b6dd7a65d8c7a5984b8dcec9612c400f07a5a5cede"
 aware_day30 = 2732
 adopted_day30 = 829
 orders_total = 1966
@@ -69,7 +69,7 @@ stockout_pairs = 144
 lost = 90
 
 [engine.low_stock_seed1]
-hash = "8f1832ebe59797d9f6df21acae772c597aa20f762d7450a3a2374eb6c2728535"
+hash = "4315d4cbe649b0468ce41dc06d9150aa6188f5a1f9e664760402f3e4732cc5c2"
 aware_day30 = 2074
 adopted_day30 = 195
 orders_total = 239
@@ -81,7 +81,7 @@ stockout_pairs = 210
 lost = 244
 
 [engine.low_stock_seed2]
-hash = "e67b1dbc254ddbeced161c04a514ac420f26cf0a31c7ac308b76a59ef5a85c22"
+hash = "326d366e0a32b7b08f4adf5e5fd972d6847cc5e0cf61cccfcc176094c11f9c73"
 aware_day30 = 1954
 adopted_day30 = 186
 orders_total = 234
@@ -93,7 +93,7 @@ stockout_pairs = 200
 lost = 240
 
 [engine.slow_riders_seed1]
-hash = "02ec0f5f5d8fd18c43b4b9b4ad82846dc101bf0dc83745aa5f8e647a9202db2d"
+hash = "6f416739b90c3490a56f715e29eab58dbdf9ebd696b89704e6bb0a4344a5176d"
 aware_day30 = 2854
 adopted_day30 = 903
 orders_total = 2020
@@ -105,7 +105,7 @@ stockout_pairs = 164
 lost = 74
 
 [engine.slow_riders_seed2]
-hash = "6e233d9ece15d38c1556e206531fbf1a8cc5d192434bcee6ebabe63864481b8c"
+hash = "147f0c4acc2b59ef6b88a9524b6c019d01ef86ce809acc3c3e872e10a812fd4e"
 aware_day30 = 2664
 adopted_day30 = 815
 orders_total = 1843
