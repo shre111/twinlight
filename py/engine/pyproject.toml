@@ -2,9 +2,10 @@
 name = "twl-engine"
 version = "0.0.0"
 requires-python = ">=3.13"
-dependencies = ["blake3>=1.0,<2", "numba>=0.68,<0.69", "numpy>=2.5,<2.6", "twl-tape"]
+dependencies = ["blake3>=1.0,<2", "numba>=0.68,<0.69", "numpy>=2.5,<2.6", "twl-pack", "twl-tape"]
 
 [tool.uv.sources]
+twl-pack = { workspace = true }
 twl-tape = { workspace = true }
 
 [build-system]

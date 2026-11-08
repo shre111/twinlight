@@ -1159,6 +1159,7 @@ dependencies = [
     { name = "blake3" },
     { name = "numba" },
     { name = "numpy" },
+    { name = "twl-pack" },
     { name = "twl-tape" },
 ]
 
@@ -1167,6 +1168,7 @@ requires-dist = [
     { name = "blake3", specifier = ">=1.0,<2" },
     { name = "numba", specifier = ">=0.68,<0.69" },
     { name = "numpy", specifier = ">=2.5,<2.6" },
+    { name = "twl-pack", editable = "py/pack" },
     { name = "twl-tape", editable = "py/tape" },
 ]
 
