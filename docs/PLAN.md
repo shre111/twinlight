@@ -101,7 +101,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-053 City view** Lane B. Stage + timeline + layers + readouts + legend, wired to real runs.
 - [ ] **P-054 Resident and store cards** Lane B. Stories derived from tape events; store stock sparkline with stockout spans.
 - [ ] **P-055 Plan view** Lane B + A. Fan chart of adopters (P10 to P90), per-store stock plan table, next-city ranking, calibration panel, CSV export. `[tests]`
-  While channel defaults are neutral (D-034), channel-versus-channel comparisons are labelled uncalibrated, not shown as findings.
+  While channel defaults are neutral (D-034), channel-versus-channel comparisons are labelled uncalibrated, not shown as findings; until P-062 the same holds for neighbourhood comparisons (D-037).
 - [ ] **P-056 Compare view** Lane B. Two scenarios as two cities side by side with a shared timeline (e.g. Rs 49 vs Rs 59). `[deep]`
 - [ ] **P-057 Share links** Lane A. Read-only run pages with signed links. `[tests]`
 
@@ -111,6 +111,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
   Progress: D-035; citybake tier stage (#134); pack format with tier, time zone and weekend days (#135). Open: the persona tilt (Lane C, NFHS-5 table 2.24 mapped onto urban quintiles) and the engine side (Lane A: `alpha_tier`, `beta` scale, the D-027 east/west test).
 - [ ] **P-062 Calibration** Lane C. Answer-to-parameter mapping with intent deflator; NumPyro hierarchical model; posterior draws to object storage; diagnostics. `[tests] [deep]`
+  Includes the tier effects with ordered priors (D-037) and the D-027 east/west split test, moved here from P-061b.
 - [ ] **P-063 Backtests and honesty meter** Lane C. CSV upload, fit days 1 to 10, forecast 11 to 30, coverage and MAPE. `[tests] [deep]`
 - [ ] **P-064 Resident life logs** Lane C. Compile a resident's tape events + profile into a retrievable memory. `[tests]`
 - [ ] **P-065 Text interviews** Lane C + B. Grounded replies that cite tape events; uncited claims dropped; interview UI in the resident card. `[tests]`
