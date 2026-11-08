@@ -234,6 +234,26 @@ def test_rows_with_zero_weight_are_never_picked_as_spouses(case: Case) -> None:
     assert is_ten_plus(case.pool)[a.persona_ref[spouse_slots(a)]].all()
 
 
+@pytest.mark.parametrize("positions", [(0, -1), (5, 17), (0, 1)])
+def test_weight_on_two_rows_per_bucket_picks_only_those_rows(
+    case: Case, positions: tuple[int, int]
+) -> None:
+    pool = case.pool
+    chosen = np.zeros(len(pool.uuid), bool)
+    for age in np.unique(pool.age):
+        for sex in (FEMALE, MALE):
+            bucket = np.flatnonzero((pool.age == age) & (pool.sex == sex))
+            chosen[bucket[list(positions)]] = True
+    table = np.where(chosen, 1.0, 0.0)[None, :].repeat(TIERS, axis=0)
+    a, _, _, _ = run(pool, case.adults, case.tier, table)
+    flat_run, _, _, _ = run(pool, case.adults, case.tier, None)
+    slots = spouse_slots(a)
+    picked = a.persona_ref[slots]
+    assert chosen[picked].all()
+    assert 0.4 < np.isin(picked, np.flatnonzero(chosen)[::2]).mean() < 0.6
+    np.testing.assert_array_equal(pool.age[picked], pool.age[flat_run.persona_ref[slots]])
+
+
 def test_a_tier_with_all_zero_weights_falls_back_to_the_uniform_pick(case: Case) -> None:
     table = favour(case.pool, 2, MALE)
     table[0] = 0.0
