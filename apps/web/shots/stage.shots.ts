@@ -10,8 +10,9 @@ const SAMPLE_TIMEOUT_MS = 60_000
 const LOAD_TIMEOUT_MS = 30_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
+// The engine's fixture run over the toy pack, both written by `just fixture`.
 async function openStage(page: Page, query: string) {
-  await openRoute(page, `/dev/stage?${query}`)
+  await openRoute(page, `/dev/stage?fixture=toy&${query}`)
 }
 
 async function openRoute(page: Page, url: string) {
@@ -72,10 +73,11 @@ test('fixture route starts at the launch, plays and fills its figures', async ({
   await expect(ordered).not.toHaveText('0')
 })
 
-// Measures the toy run's labels; real tapes bring other names and times.
+// Measures the toy run's labels, monsoon included (the fixture has no rain); real tapes bring
+// other names and times.
 test('timeline event labels stay apart at every width', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'this test sets its own widths')
-  await openStage(page, 'hud=0&still=1&day=13')
+  await openRoute(page, '/dev/stage?hud=0&still=1&day=13')
   const markers = page.locator('footer div[aria-hidden="true"]').first()
   for (const width of [701, 768, 900, 1024, 1180, 1280, 1366, 1400, 1401, 1440, 1920]) {
     await page.setViewportSize({ width, height: 900 })
@@ -151,7 +153,7 @@ test.describe('when graphics fail at startup', () => {
 })
 
 test('frame report', async ({ page }, testInfo) => {
-  // Three tiers of 60 software GL frames with 20k residents run past the default timeout.
+  // Three tiers of 60 software GL frames over 48k residents run past the default timeout.
   test.slow()
   const report: Partial<Record<TierName, FrameReport>> = {}
   for (const tier of TIERS) {
