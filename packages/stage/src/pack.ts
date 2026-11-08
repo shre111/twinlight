@@ -1,11 +1,10 @@
 import { decompressZstd } from '@twinlight/tape'
 import type { StageCity } from './inputs'
 import { Columns, checkOffsets, decodeStores, polylineSegments } from './pack-columns'
-import { decodePackV1, type PackCountsV1 } from './pack-v1'
 
 type Bbox = [number, number, number, number]
 
-interface PackCountsV2 {
+interface PackCounts {
   buildings: number
   buildingTileLevel: number
   residents: number
@@ -23,7 +22,7 @@ export interface PackManifest {
   version: number
   /** minX, minY, maxX, maxY in local metres. */
   bbox?: Bbox
-  counts: PackCountsV1 | PackCountsV2
+  counts: PackCounts
   compression?: 'zstd'
 }
 
@@ -46,17 +45,10 @@ const zstd: Decompress = async (compressed) => {
 }
 
 export function decodePack(manifest: PackManifest, files: PackFiles): StageCity {
-  if (manifest.format === 'twinlight-pack' && manifest.version === 1) {
-    return { ...decodePackV1(manifest.counts as PackCountsV1, files), ...boundsOf(manifest.bbox) }
-  }
   if (manifest.format === 'twinlight-pack' && manifest.version === 2 && manifest.bbox) {
-    return decodePackV2(manifest.counts as PackCountsV2, manifest.bbox, files)
+    return decodePackV2(manifest.counts, manifest.bbox, files)
   }
   throw new Error(`Unsupported city pack ${manifest.format} v${manifest.version}`)
-}
-
-function boundsOf(bbox: Bbox | undefined): Pick<StageCity, 'bounds'> {
-  return bbox ? { bounds: { minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3] } } : {}
 }
 
 export async function fetchPack(
@@ -85,7 +77,7 @@ export async function fetchPack(
 const QUANTISED_MAX = 65535
 const FLOOR_METRES = 3.2
 
-function decodePackV2(counts: PackCountsV2, bbox: Bbox, files: PackFiles): StageCity {
+function decodePackV2(counts: PackCounts, bbox: Bbox, files: PackFiles): StageCity {
   const quantised = quantisedAxes(bbox)
   return {
     buildings: decodeBuildings(
@@ -103,7 +95,7 @@ function decodePackV2(counts: PackCountsV2, bbox: Bbox, files: PackFiles): Stage
     ),
     residents: decodeResidents(files['residents.bin'], counts.residents, quantised),
     stores: decodeStores(files['stores.bin'], counts.stores),
-    ...boundsOf(bbox),
+    bounds: { minX: bbox[0], minY: bbox[1], maxX: bbox[2], maxY: bbox[3] },
   }
 }
 
