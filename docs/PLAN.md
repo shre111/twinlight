@@ -71,11 +71,12 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 ## M3 Full engine
 - [x] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
   AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
-- [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift. `[tests]`
-  Must replace the shared-rate binomial occasion draw in `twl_engine.orders` with per-resident rates (it is exact only while every aware resident shares one rate).
+- [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift (D-036). `[tests]`
+  AC: occasion rates and hourly weights per segment, for working days and weekends, default to the single prototype profile; the scenario's `start_date` with the city's time zone and weekend days sets each tick's local hour and day type; occasion counts per segment match their rates (statistical test); with neutral defaults, engine outputs are unchanged apart from hashes; the prototype fixture pins its occasion profile.
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
 - [ ] **P-034 Scenario events** Lane A. rain, festival, match night, price change, store closed. `[tests]`
+  Festivals key on actual dates from a per-city, per-year calendar file (D-036).
   AC: event isolation test (MODEL.md section 10).
 - [ ] **P-035 Runner service** Lane A. FastAPI `POST /runs` backed by a process pool, uploads each finished tape to MinIO, progress (day N of 30) to Redis, returns tape URI and hash. `[tests]`
 - [ ] **P-036 Benchmarks** Lane A. pytest-benchmark suite and py-spy profiles; move hot loops into Numba; meet ARCHITECTURE.md section 9 engine budgets on 100k residents.
