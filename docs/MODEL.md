@@ -36,7 +36,7 @@ Each resident holds awareness strength `A_r >= 0`. Per tick:
 A_r <- A_r * 2^(-dt / tau_r)  +  paid_r  +  wom_r  +  seen_r
 aware_at_r = first tick where A_r >= theta_aware   (theta_aware = 1.0)
 ```
-**Paid exposure.** Campaign impressions this tick `I_c = budget_c(t) / CPM_c * 1000`. Impressions are allocated to residents with probability proportional to `target_c(s(r), district(r)) * presence_c(s(r), slot)`, capped at `freq_cap_c` per day, sampled with the campaign's stream. Each impression adds `kappa_r,c * 0.6`.
+**Paid exposure.** Campaign impressions this tick `I_c = budget_c(t) / CPM_c * 1000`. Impressions are allocated to residents with probability proportional to `target_c(s(r), district(r)) * presence_c(s(r), slot)`, capped at `freq_cap_c` per day for each campaign, sampled with the campaign's stream. Each impression adds `kappa_r,c * 0.6`. Channels, their default CPMs and how presence combines are in section 11 (D-034).
 
 **Word of mouth.** A resident who ordered at time `t_o` talks to each tie with hazard
 ```
