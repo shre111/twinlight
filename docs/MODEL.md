@@ -49,12 +49,13 @@ A successful talk adds `talk_gain * w_uv` to `A_v` (`talk_gain = 1.0`, `talk_flo
 ## 4. Purchase decisions
 Occasions arrive per resident as a Poisson process with rate `omega_r(slot) * (1 + 0.12 * evening_rain(t))`. At an occasion, an aware resident who has not ordered decides:
 ```
-U = alpha_s + a_r + gamma * log(1 + A_r) - beta_r * price / ref_price_s + delta * avail_r(t) + eps
+U = alpha_s + alpha_tier(r) + a_r + gamma * log(1 + A_r) - beta_r * beta_tier(r) * price / ref_price_s + delta * avail_r(t) + eps
 P(order) = sigmoid(U)
 ```
 - `avail_r(t)` is 1 if a store within radius has stock and quoted ETA <= promise (10 to 20 minutes), else 0.
 - `eps` is logistic noise from the resident stream.
-- After the first order, repeat occasions use `P = sigmoid(alpha_rep_s + rho_r + satisfaction_r - beta_r * price / ref_price_s)` where `satisfaction_r` drops by 0.8 for every stockout or late delivery they experienced.
+- `tier(r)` is the resident's household affluence tier (D-035); `alpha_tier` and `beta_tier` are neutral (0 and 1) until P-062 calibrates them with ordered priors (D-037).
+- After the first order, repeat occasions use `P = sigmoid(alpha_rep_s + rho_r + satisfaction_r - beta_r * beta_tier(r) * price / ref_price_s)` where `satisfaction_r` drops by 0.8 for every stockout or late delivery they experienced.
 
 **Out of stock.** If the chosen (nearest) store has no stock: with probability `p_spill` the order goes to the next store within radius that has stock (spillover, longer ETA); else with `p_wait` the resident retries at their next occasion after 24 h; else the sale is lost and `satisfaction_r` drops.
 
@@ -146,6 +147,7 @@ Impressions are not like for like across channels: platforms count ads served, c
 | `beta` | 1.0, with `ref_price_s` equal to the launch price unless the scenario says otherwise |
 | `delta` | 1.0 |
 | `alpha_rep_s`, `rho_r` | -2.3; Normal(0, 0.3) |
+| `alpha_tier`, `beta_tier` (low, middle, high) | 0, 0, 0 and 1, 1, 1 until calibrated (D-037); toy residents are all middle |
 | evening rain boost | 0.12 (events arrive with P-034) |
 
 The prototype-parity fixture fits three of these (a paid reach multiplier, `q` and `alpha_0`) and checks them in next to the scenario.
