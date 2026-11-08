@@ -11,6 +11,7 @@ TIE_NEIGHBOUR = 1
 TIE_FRIEND = 2
 
 NO_PERSONA = 0xFFFF_FFFF
+TIER_MIDDLE = 1
 
 DEFAULT_TIMEZONE = "Asia/Kolkata"
 SATURDAY_SUNDAY = (6, 7)
@@ -62,6 +63,7 @@ class Residents:
     segment: NDArray[np.uint16]
     persona_ref: NDArray[np.uint32]
     weight: NDArray[np.float32]
+    tier: NDArray[np.uint8]
 
 
 @dataclass(frozen=True, eq=False)

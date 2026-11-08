@@ -12,7 +12,6 @@ from twl_pack.format import FLOOR_HEIGHT_M
 
 SEGMENTS = ("age_16_24", "age_25_34", "age_35_49", "age_50_64", "age_65_80")
 TILE_LEVEL = 4
-TOY_TIER = 1
 
 
 def write_pack(city: ToyCity, out_dir: Path) -> str:
@@ -65,7 +64,7 @@ def toy_contents(city: ToyCity) -> twl_pack.PackContents:
             hex=r.hex,
             persona_ref=r.persona_ref,
             weight=r.weight,
-            tier=np.full(r.x.size, TOY_TIER, dtype=np.uint8),
+            tier=r.tier,
         ),
         stores=twl_pack.StoreColumns(
             x=s.x, y=s.y, hex=s.hex, radius_m=s.radius_m, district=s.district
