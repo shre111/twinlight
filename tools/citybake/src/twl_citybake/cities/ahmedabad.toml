@@ -238,3 +238,10 @@ name = "evening_peak"
 # 17:00
 start_minute = 1020
 factor = 0.7
+
+[pack]
+# D-031: small footprints with no building nearby go to the detail file, not the first load
+min_footprint_m2 = 30.0
+isolated_m = 3.0
+tile_level = 6
+arterial_classes = ["major", "primary", "secondary"]
