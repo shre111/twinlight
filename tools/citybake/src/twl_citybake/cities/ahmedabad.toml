@@ -177,6 +177,15 @@ occupied = true
 [[personas.segments]]
 name = "other_adult"
 
+[personas.tier_tilt]
+education_10plus = ["Matric/Secondary", "Higher Secondary/Intermediate Pre-University/Senior Secondary", "Graduate & above", "Technical diploma or certificate not equal to degree", "Non-technical diploma or certificate not equal to degree"]
+# NFHS-5 India 2019-21, Table 2.8, urban row: de jure population by national wealth quintile
+quintile_population = [3.2, 7.2, 15.5, 28.6, 45.5]
+# NFHS-5 India 2019-21, Table 2.24: household population age 6+ with 10-11 plus 12+ years of schooling, by quintile
+female_10plus = [7.5, 15.5, 23.9, 34.6, 53.4]
+male_10plus = [12.0, 23.1, 33.7, 45.2, 63.6]
+source = "NFHS-5 (2019-21) India report: Table 2.24 (education of the household population age 6+ by wealth quintile, 10-11 plus 12+ years, female and male) placed on Table 2.8's urban row (urban India's population by national wealth quintile), with the tiers' household shares taken bottom up. Only the odds ratios between tiers are used; each draw group keeps the Ahmadabad pool's own 10+ share so district marginals hold (pool 38.6% of women and 50.4% of men against 39.2% and 49.1% implied by the mapping). Caveats: national, not Gujarat (refit with the NFHS-5 Gujarat wealth annex when it arrives); Table 2.24 covers ages 6+ and Table 2.8 counts people while the tiers are cut by households; the top 20% of urban households all sit in the highest quintile, so the high tier takes its mean."
+
 [graph]
 # mean ties per resident; residents are a cluster sample, so ties are thin in space
 neighbour_degree = 1.6
