@@ -20,12 +20,6 @@ const toyRiverX = (z: number) =>
   520 + 230 * Math.sin(z / 1250 + 0.6) + 110 * Math.sin(z / 470 + 2.1)
 const toyRiverHalfWidth = (z: number) => 88 + 18 * Math.sin(z / 800 + 1.0)
 
-/** The toy run's campaign moments, in sim minutes, as the timeline names them. */
-export const TOY_EVENTS = [
-  { label: 'Instagram ad', short: 'Ad', at: 9 * 60 },
-  { label: 'Creator campaign', short: 'Creators', at: 186 * 60 },
-]
-
 export function synthesizeToyRun(residents: number): { city: StageCity; tape: StageTape } {
   const world = buildWorld(residents)
   return { city: toyCity(world), tape: toyTape(world.sim, world.res.count) }

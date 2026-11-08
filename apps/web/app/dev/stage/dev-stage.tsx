@@ -29,7 +29,7 @@ interface LoadedRun {
 async function runFor(source: RunSource) {
   if ('fixture' in source) {
     const { fetchPack, fetchTape } = await import('@twinlight/stage')
-    const { TOY_EVENTS } = await import('@twinlight/stage/synthetic')
+    const { TOY_EVENTS } = await import('@twinlight/stage/toy-events')
     const [city, tape] = await Promise.all([
       fetchPack(`/dev/packs/${source.fixture}`),
       fetchTape(`/dev/tapes/${source.fixture}`),
@@ -41,7 +41,10 @@ async function runFor(source: RunSource) {
     const city = await fetchPack(`/dev/packs/${source.pack}`)
     return { city, tape: idleTape(city), events: [] }
   }
-  const { synthesizeToyRun, TOY_EVENTS } = await import('@twinlight/stage/synthetic')
+  const [{ synthesizeToyRun }, { TOY_EVENTS }] = await Promise.all([
+    import('@twinlight/stage/synthetic'),
+    import('@twinlight/stage/toy-events'),
+  ])
   return { ...synthesizeToyRun(source.residents), events: TOY_EVENTS }
 }
 
