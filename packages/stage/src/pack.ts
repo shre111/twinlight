@@ -137,6 +137,26 @@ function decodeBuildings(
 ): StageCity['buildings'] {
   const c = new Columns(buffer, 'buildings.bin')
   const tileStart = c.u32(4 ** tileLevel + 1)
+  const buildings = readBuildingRows(c, count, quantised)
+  checkOffsets('buildings.bin', 'tile', tileStart, count)
+  return { ...buildings, tileStart }
+}
+
+/** The optional detail file: the same columns as `buildings.bin`, with no tile table. */
+export function decodeDetailBuildings(
+  buffer: ArrayBuffer,
+  count: number,
+  bbox: Bbox,
+): StageCity['buildings'] {
+  const c = new Columns(buffer, 'buildings_detail.bin')
+  return readBuildingRows(c, count, quantisedAxes(bbox))
+}
+
+function readBuildingRows(
+  c: Columns,
+  count: number,
+  quantised: QuantisedAxes,
+): StageCity['buildings'] {
   const deltas = c.u8(count * 4)
   const width = c.u8(count)
   const depth = c.u8(count)
@@ -144,7 +164,6 @@ function decodeBuildings(
   const rotation = c.u8(count)
   c.u8(count) // district
   c.end()
-  checkOffsets('buildings.bin', 'tile', tileStart, count)
   const x = new Float32Array(count)
   const y = new Float32Array(count)
   let code = 0
