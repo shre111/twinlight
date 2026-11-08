@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { decodePack, fetchPack, PACK_FILES, type PackFiles, type PackManifest } from '../src/pack'
 
@@ -248,6 +249,18 @@ describe('decodePack v2 rejects what does not add up', () => {
     expect(() => decodePack(manifest, files)).toThrow(/use 2 rings but it has 3/)
   })
 
+  it('ring offsets that run backwards', () => {
+    const files = pack()
+    files['river.bin'] = file(
+      Uint32Array.of(0, 9, 8, 11),
+      new Float32Array(11),
+      new Float32Array(11),
+      Uint8Array.of(1, 0),
+      Uint16Array.of(2, 1),
+    )
+    expect(() => decodePack(manifest, files)).toThrow(/backwards at ring 1/)
+  })
+
   it('a file of the wrong size', () => {
     const files = pack()
     files['stores.bin'] = files['stores.bin'].slice(0, 8)
@@ -259,7 +272,8 @@ describe('decodePack v2 rejects what does not add up', () => {
     expect(() => decodePack(noBox, pack())).toThrow(/Unsupported city pack/)
   })
 
-  it('a version it does not know', () => {
+  it('a version it does not know, v1 included', () => {
+    expect(() => decodePack({ ...manifest, version: 1 }, pack())).toThrow(/v1/)
     expect(() => decodePack({ ...manifest, version: 3 }, pack())).toThrow(/v3/)
   })
 })
@@ -291,5 +305,43 @@ describe('fetchPack with compression', () => {
   it('takes a pack with no compression as it is', async () => {
     const city = await fetchPack('/packs/x', served(undefined))
     expect(city.buildings.count).toBe(3)
+  })
+
+  it('fetches the manifest and the columns under one base url', async () => {
+    const requested: string[] = []
+    const load = served(undefined)
+    await fetchPack('/packs/toy/', (async (url: string) => {
+      requested.push(url)
+      return load(url)
+    }) as typeof fetch)
+    expect(requested.sort()).toEqual(
+      ['manifest.json', ...PACK_FILES].map((name) => `/packs/toy/${name}`).sort(),
+    )
+  })
+})
+
+// A generated pack (`just fixture` writes data/cache/packs/toy); skipped unless provided.
+const generated = process.env.TWL_TEST_PACK_DIR
+describe.skipIf(!generated)('a generated toy pack', () => {
+  it('decodes, and every resident stands on its building footprint', async () => {
+    const fromDisk = (async (url: string) =>
+      new Response(readFileSync(`${generated}/${url.split('/').at(-1)}`))) as typeof fetch
+    const city = await fetchPack('/packs/generated', fromDisk)
+    const { buildings: b, residents: r } = city
+    // A metre of placement slack, plus v2's rounding of positions, sizes and turns.
+    const slack = 1.5
+    for (let i = 0; i < r.count; i++) {
+      const k = r.building[i] ?? 0
+      const dx = (r.x[i] ?? 0) - (b.x[k] ?? 0)
+      const dy = (r.y[i] ?? 0) - (b.y[k] ?? 0)
+      const rot = b.rotation[k] ?? 0
+      expect(Math.abs(dx * Math.cos(rot) + dy * Math.sin(rot))).toBeLessThanOrEqual(
+        (b.width[k] ?? 0) / 2 + slack,
+      )
+      expect(Math.abs(-dx * Math.sin(rot) + dy * Math.cos(rot))).toBeLessThanOrEqual(
+        (b.depth[k] ?? 0) / 2 + slack,
+      )
+    }
+    expect(city.roads.kind.length).toBeGreaterThan(0)
   })
 })
