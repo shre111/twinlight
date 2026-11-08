@@ -1,3 +1,4 @@
+import { decompressZstd } from '@twinlight/tape'
 import type { StageCity } from './inputs'
 import { Columns, checkOffsets, decodeStores, polylineSegments } from './pack-columns'
 import { decodePackV1, type PackCountsV1 } from './pack-v1'
@@ -37,6 +38,12 @@ export type PackFiles = Record<(typeof PACK_FILES)[number], ArrayBuffer>
 
 export type Decompress = (compressed: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>
 
+const zstd: Decompress = async (compressed) => {
+  const bytes = await decompressZstd(new Uint8Array(compressed))
+  const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+  return whole ? bytes.buffer : bytes.slice().buffer
+}
+
 export function decodePack(manifest: PackManifest, files: PackFiles): StageCity {
   if (manifest.format === 'twinlight-pack' && manifest.version === 1) {
     return { ...decodePackV1(manifest.counts as PackCountsV1, files), ...boundsOf(manifest.bbox) }
@@ -54,7 +61,7 @@ function boundsOf(bbox: Bbox | undefined): Pick<StageCity, 'bounds'> {
 export async function fetchPack(
   baseUrl: string,
   load: typeof fetch = fetch,
-  decompress?: Decompress,
+  decompress: Decompress = zstd,
 ): Promise<StageCity> {
   const base = baseUrl.replace(/\/$/, '')
   const get = async (file: string) => {
@@ -66,11 +73,8 @@ export async function fetchPack(
     get('manifest.json').then((response) => response.json() as Promise<PackManifest>),
     ...PACK_FILES.map((file) => get(file).then((response) => response.arrayBuffer())),
   ])
-  if (manifest.compression === 'zstd' && !decompress) {
-    throw new Error('This city pack is zstd compressed and no decoder was given')
-  }
   const plain =
-    manifest.compression === 'zstd' && decompress
+    manifest.compression === 'zstd'
       ? await Promise.all(buffers.map((buffer) => decompress(buffer)))
       : buffers
   const files = Object.fromEntries(PACK_FILES.map((file, i) => [file, plain[i]])) as PackFiles
