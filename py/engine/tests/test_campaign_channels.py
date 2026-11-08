@@ -451,3 +451,10 @@ def test_equal_cpm_social_video_and_creators_give_identical_tapes_but_for_the_he
             section_fields(base), section_fields(other), strict=True
         ):
             assert np.array_equal(left, right), name
+
+
+def test_in_app_campaign_in_a_run_without_occasions_is_refused() -> None:
+    city = build_toy_city(seed=49, residents=500)
+    campaign = Campaign("app", 0, 1440, 100.0, 100.0, channel="in_app")
+    with pytest.raises(ValueError, match="in-app campaign 'app' would show nowhere"):
+        build_paid_plan(city, Scenario(days=1, campaigns=(campaign,)), PAID_ONLY, Clock(1440, 15))

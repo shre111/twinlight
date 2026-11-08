@@ -208,6 +208,11 @@ def build_paid_plan(
         presence = np.stack(
             [campaign_presence(campaign, params, segments, weekend=w) for w in (False, True)]
         )
+        if campaign.channel == IN_APP and not presence.any():
+            raise ValueError(
+                f"in-app campaign {campaign.name!r} would show nowhere: in-app ads are seen in "
+                "app sessions, and no segment has occasions in this run"
+            )
         hourly = presence[:, 0]
         if not (presence == presence[:, :1]).all():
             two_stage[c] = True
