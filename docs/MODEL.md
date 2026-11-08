@@ -26,7 +26,7 @@ Everything here is v1. Changing any formula is a decision (`/decide`) plus updat
 
 **Store** `k`: position, delivery radius, initial stock per SKU, reorder policy `(s_k, S_k)`, review period, lead time distribution, picking rate `mu_k` (orders per hour), rider shifts.
 
-**Campaign** `c`: channel, schedule, budget per day, CPM, targeting weights over segments and districts, frequency cap.
+**Campaign** `c`: channel (one of `social`, `video`, `creators`, `in_app`, `outdoor`; D-034), schedule, budget per day, CPM, targeting weights over segments and districts, frequency cap.
 
 **Weather**: rain intensity field `rain(t, hex)` from the scenario's event list.
 
@@ -106,7 +106,7 @@ Every constant below is a field of the run parameters with this default, so test
 - Impressions that land on a resident already at the frequency cap are lost, not re-landed. A paid crossing gets a uniform minute inside its tick.
 - An order's minute is uniform between the latest of (tick start, `aware_at`, the last talk received) and the tick's end, so `aware_at <= first_order_at` and a nudged talk never follows the order it nudged. With `order_on_awareness`, `first_order_at = aware_at`.
 - The nudge window is a fixed 72 hours whatever the talk decay time, and a nudged talk can predate `aware_at` (a talk that came before a paid crossing).
-- `presence` is per campaign (24 hourly weights) in v1; per-segment presence arrives with P-030.
+- Channels (D-034): the gain per impression is `0.6 * kappa_s * channel_kappa[c][s]`, with `channel_kappa` 1 until calibrated. Presence for segment `s` in hour `h` is the campaign's own hourly weight (its dayparting, flat when empty) times the channel's presence `channel_presence[c][s][h]`, which is 1 until calibrated; for `in_app` the channel's presence is the resident's occasion profile, so an in-app ad is seen when people open the app. A day's impressions are spread over its active ticks and its residents in proportion to targeting times presence: each tick gets its share of the day's summed targeting times presence, and within the tick the impressions are split over segments by summed targeting times presence, then land by targeting within the segment. When presence is the same for every segment this reduces to the v1 rule: presence sets each tick's share and targeting alone picks the resident. An `outdoor` campaign must have district weights.
 - A resident who becomes aware during a tick gets that tick's full occasion probability (up to 15 minutes more exposure than strictly due). Occasions are drawn as one binomial count over the aware pool, which is exact only while every aware resident shares one rate; per-segment profiles (P-031) need per-resident rates.
 - `order_on_awareness` is for the reduced Bass configuration, which runs with occasions off; with occasions on, a resident could place a first and a repeat order in one tick.
 - Until P-013: an order is counted at its occasion, `avail = 1`, `satisfaction = 0`, and the DELIVERIES section stays empty.
