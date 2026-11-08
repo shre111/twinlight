@@ -133,6 +133,14 @@ counts = [37094, 97013, 176374, 310595, 229831, 143502, 158773, 18359, 4216]
 # scales the 2011 mean size for 2025 households; 1.0 keeps the census
 size_shrink = 1.0
 
+[tier]
+# D-035: housed buildings ranked by floor area per person, cut so these shares of households are low and high
+low_share = 0.38
+low_share_source = "Census of India 2011, HL-14 (households by number of dwelling rooms), Ahmadabad district urban: no exclusive room 2.7% plus one room 35.3% (https://censusindia.gov.in/nada/index.php/catalog/9772)"
+high_share = 0.20
+high_share_source = "Assumption until a source sets it (D-035)"
+attribution = "Census of India 2011 (HL-14)"
+
 [personas]
 # Nemotron-Personas-India dataset commit; the source spells the district "Ahmadabad"
 revision = "adefeefcc0fc3f85726d20bed0e4ed8d66372a54"
