@@ -66,9 +66,9 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
   Per D-031: first-load download under 6 MB with isolated sub-30 m² footprints moved to an optional detail file; engine-only files under a soft 10 MB; report walled-city floor kept.
   Split: Lane C writes `py/pack` (`twl_pack`: codecs, writer, reader) and the citybake pack stage with the D-031 rules; Lane B the TypeScript reader in a worker and its side of the goldens; Lane A moves the toy fixture onto `twl_pack`, regenerates goldens once (with P-014) and extends the CI formats filter.
+  Progress: every AC holds (first load 5,634,863 bytes; `fetchPack` about 0.2 s and first load about 0.4 s on the M4; walled-city floor kept 99.9%; Python and TS loaders with cross-language goldens, #112 to #128). Waits for Lane B to move pack decoding into a Web Worker (D-032).
 
 ## M3 Full engine
-  Progress: every AC holds (first load 5,634,863 bytes; `fetchPack` about 0.2 s and first load about 0.4 s on the M4; walled-city floor kept 99.9%; Python and TS loaders with cross-language goldens, #112 to #128). Waits for Lane B to move pack decoding into a Web Worker (D-032).
 - [x] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
   AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
 - [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift. `[tests]`
