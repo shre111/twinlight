@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from twl_citybake.osm.tags import BuildingKind, RoadClass
+from twl_pack.format import MAX_TILE_LEVEL
 
 MINUTES_PER_DAY = 1440
 
@@ -692,6 +693,30 @@ class TravelConfig:
 
 
 @dataclass(frozen=True)
+class PackConfig:
+    """Pack-time rules (D-031). A footprint under `min_footprint_m2` with no other building within
+    `isolated_m` goes to the detail file. `arterial_classes` are lowercase RoadClass names."""
+
+    min_footprint_m2: float = 30.0
+    isolated_m: float = 3.0
+    tile_level: int = 6
+    arterial_classes: tuple[str, ...] = ("major", "primary", "secondary")
+
+    def __post_init__(self) -> None:
+        for name in ("min_footprint_m2", "isolated_m"):
+            if not _is_positive(getattr(self, name)):
+                raise ValueError(f"pack.{name} must be positive, got {getattr(self, name)!r}")
+        if type(self.tile_level) is not int or not 0 <= self.tile_level <= MAX_TILE_LEVEL:
+            raise ValueError(
+                f"pack.tile_level must be a whole number in 0..{MAX_TILE_LEVEL}, "
+                f"got {self.tile_level!r}"
+            )
+        known = {road.name.lower() for road in RoadClass}
+        if unknown := [name for name in self.arterial_classes if name not in known]:
+            raise ValueError(f"pack.arterial_classes has unknown road class {unknown[0]!r}")
+
+
+@dataclass(frozen=True)
 class CityConfig:
     slug: str
     name: str
@@ -711,6 +736,7 @@ class CityConfig:
     graph: GraphConfig = field(default_factory=GraphConfig)
     stores: StoresConfig = field(default_factory=StoresConfig)
     travel: TravelConfig = field(default_factory=TravelConfig)
+    pack: PackConfig = field(default_factory=PackConfig)
 
 
 def load_city(slug: str) -> CityConfig:
@@ -737,6 +763,7 @@ def load_city(slug: str) -> CityConfig:
         graph=_graph(raw.get("graph", {})),
         stores=_stores(raw.get("stores", {})),
         travel=_travel(raw.get("travel", {})),
+        pack=_pack(raw.get("pack", {})),
     )
 
 
@@ -912,6 +939,11 @@ def _stores(raw: dict[str, Any]) -> StoresConfig:
     return StoresConfig(**raw)
 
 
+def _pack(raw: dict[str, Any]) -> PackConfig:
+    _known_keys("[pack]", raw, {f.name for f in fields(PackConfig)})
+    return PackConfig(**_tuples(raw))
+
+
 def _travel(raw: dict[str, Any]) -> TravelConfig:
     _known_keys("[travel]", raw, {f.name for f in fields(TravelConfig)})
     if not isinstance(raw.get("speed_kmh", {}), dict):
@@ -945,3 +977,6 @@ class DataDirs:
 
     def stage(self, city: str, stage: str) -> Path:
         return self.root / "cache" / "citybake" / city / stage
+
+    def pack(self, city: str) -> Path:
+        return self.root / "cache" / "packs" / city

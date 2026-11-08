@@ -1135,6 +1135,7 @@ dependencies = [
     { name = "rasterio" },
     { name = "scipy" },
     { name = "shapely" },
+    { name = "twl-pack" },
     { name = "zstandard" },
 ]
 
@@ -1148,6 +1149,7 @@ requires-dist = [
     { name = "rasterio", specifier = ">=1.5,<2" },
     { name = "scipy", specifier = ">=1.18,<2" },
     { name = "shapely", specifier = ">=2.2,<3" },
+    { name = "twl-pack", editable = "py/pack" },
     { name = "zstandard", specifier = ">=0.25,<0.26" },
 ]
 
