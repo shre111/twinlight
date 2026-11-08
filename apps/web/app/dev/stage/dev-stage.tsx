@@ -24,21 +24,27 @@ interface LoadedRun {
   events: TimelineEvent[]
 }
 
-// A generated pack has no tape until P-014, so it shows the city before anyone has heard.
-// The fixture stands in for that tape with the toy sim's launch; P-014 replaces it with a file.
+// The fixture is the engine's run of the prototype's launch (`just fixture`), so it keeps the
+// toy run's campaign moments. Any other pack shows its city before anyone has heard.
 async function runFor(source: RunSource) {
   if ('fixture' in source) {
-    const { fetchPack } = await import('@twinlight/stage')
-    const { synthesizeTapeFor, TOY_EVENTS } = await import('@twinlight/stage/synthetic')
-    const city = await fetchPack(`/dev/packs/${source.fixture}`)
-    return { city, tape: synthesizeTapeFor(city), events: TOY_EVENTS }
+    const { fetchPack, fetchTape } = await import('@twinlight/stage')
+    const { TOY_EVENTS } = await import('@twinlight/stage/toy-events')
+    const [city, tape] = await Promise.all([
+      fetchPack(`/dev/packs/${source.fixture}`),
+      fetchTape(`/dev/tapes/${source.fixture}`),
+    ])
+    return { city, tape, events: TOY_EVENTS }
   }
   if ('pack' in source) {
     const { fetchPack, idleTape } = await import('@twinlight/stage')
     const city = await fetchPack(`/dev/packs/${source.pack}`)
     return { city, tape: idleTape(city), events: [] }
   }
-  const { synthesizeToyRun, TOY_EVENTS } = await import('@twinlight/stage/synthetic')
+  const [{ synthesizeToyRun }, { TOY_EVENTS }] = await Promise.all([
+    import('@twinlight/stage/synthetic'),
+    import('@twinlight/stage/toy-events'),
+  ])
   return { ...synthesizeToyRun(source.residents), events: TOY_EVENTS }
 }
 
@@ -65,7 +71,7 @@ function loadRun(
       console.error(error)
       if (cancelled) return
       window.__twinlightStageError = String(error)
-      onFailed(`${error}. If a pack is missing, run just fixture-pack.`)
+      onFailed(`${error}. If a pack or tape is missing, run just fixture.`)
     })
   return () => {
     cancelled = true

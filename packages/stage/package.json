@@ -8,7 +8,8 @@
     "./pack": "./src/pack.ts",
     "./playback": "./src/playback.ts",
     "./stockouts": "./src/stockouts.ts",
-    "./synthetic": "./src/synthetic.ts"
+    "./synthetic": "./src/synthetic.ts",
+    "./toy-events": "./src/toy-events.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p test",

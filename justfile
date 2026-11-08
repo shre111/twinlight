@@ -52,5 +52,5 @@ fixture:
 fixture-pack:
     uv run python -m twl_engine.fixtures --out data/cache/packs/toy
 
-shots *args: fixture-pack
+shots *args: fixture
     pnpm -F @twinlight/web shots {{ replace(args, "--update", "--update-snapshots=all") }}

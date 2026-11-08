@@ -238,15 +238,12 @@ describe('the v2 golden pack', () => {
     }
   })
 
-  it('loads whole through fetchPack with the real decoder', async () => {
+  it('loads whole through fetchPack and its own decoder', async () => {
     const load = (async (url: string) => {
       const name = url.split('/').at(-1) ?? ''
       return new Response(read(name))
     }) as typeof fetch
-    const fetched = await fetchPack('/packs/small', load, async (compressed) => {
-      const bytes = await decompressZstd(new Uint8Array(compressed))
-      return bytes.slice().buffer
-    })
+    const fetched = await fetchPack('/packs/small', load)
     expect(Array.from(fetched.buildings.x)).toEqual(Array.from(city.buildings.x))
     expect(fetched.bounds).toEqual({ minX, minY, maxX, maxY })
   })

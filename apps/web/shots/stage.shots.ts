@@ -24,7 +24,7 @@ async function openRoute(page: Page, url: string) {
   )
   expect(
     await page.evaluate(() => window.__twinlightStageError),
-    'stage load error (just fixture-pack builds a missing pack)',
+    'stage load error (just fixture builds a missing pack or tape)',
   ).toBeUndefined()
   // The stage is exposed once its tape and time are set; three frames later a still shows them.
   await page.evaluate(

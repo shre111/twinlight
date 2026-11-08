@@ -4,4 +4,5 @@ export { decodePack, fetchPack, PACK_FILES, type PackFiles, type PackManifest } 
 export { type ClockState, SPEEDS, type Speed } from './playback'
 export type { Backend, BackendPreference } from './renderer'
 export { type FrameReport, Stage, type StageOptions } from './stage'
+export { fetchTape, stageTape } from './tape'
 export { TIERS, type Tier, type TierName, type TierOption } from './tiers'
