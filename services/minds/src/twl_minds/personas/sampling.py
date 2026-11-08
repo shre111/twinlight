@@ -57,7 +57,14 @@ def sample_personas(
     entropy: Sequence[int] = (),
 ) -> PersonaSample:
     """A persona enters a stratum through its lowest-priority resident, so a persona that stands
-    for more residents is likelier to be drawn: the sample follows the city, not the pool."""
+    for more residents is likelier to be drawn: the sample follows the city, not the pool.
+
+    That is successive sampling, roughly proportional to resident count while inclusion stays far
+    below 1, so the equal design weight per stratum is an approximate size-proportional estimator
+    whose weights sum exactly to the stratum weight. A persona's residents can span tiers, so with
+    `by_tier` a cell's candidates and its weight disagree slightly. There are no joint inclusion
+    probabilities: intervals need a replicate method such as re-drawing across seeds. `tier` is
+    reported whenever it is given, stratified or not."""
     _check_config(segments, config, tier)
     seg = _integers("segment", segment, segments - 1)
     ref = _integers("persona_ref", persona_ref, NO_PERSONA)
@@ -78,7 +85,7 @@ def sample_personas(
     )
 
     by_tier = config.by_tier and tr is not None
-    cell = seg * TIERS + tr if config.by_tier and tr is not None else seg
+    cell = seg * TIERS + tr if by_tier and tr is not None else seg
     cells = segments * TIERS if by_tier else segments
     residents = np.bincount(cell[eligible], minlength=cells)
     mass = np.bincount(cell[eligible], weights=w[eligible], minlength=cells)
@@ -150,7 +157,8 @@ def _integers(name: str, values: ArrayLike, high: int | None) -> Ints:
     if array.dtype.kind not in "iu":
         raise ValueError(f"{name} must hold integers, got {array.dtype}")
     if int(array.min()) < 0 or (high is not None and int(array.max()) > high):
-        raise ValueError(f"{name} must be in 0..{high if high is not None else 'any'}")
+        bound = f"0..{high}" if high is not None else "non-negative"
+        raise ValueError(f"{name} must be {bound}")
     return array.astype(np.int64)
 
 

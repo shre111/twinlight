@@ -402,3 +402,18 @@ def test_plain_lists_are_accepted_as_inputs() -> None:
     segment: ArrayLike = [0, 0]
     out = sample_personas(segment, [0, 1], [1, 1], None, 1, SampleConfig(size=2, min_per_segment=0))
     assert len(out.resident) == 2
+
+
+class _EqualPriorities:
+    def random(self, n: int) -> NDArray[np.float64]:
+        return np.zeros(n)
+
+
+def test_equal_priorities_fall_to_the_smaller_resident_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(np.random, "default_rng", lambda _seed: _EqualPriorities())
+    ref = [7, 5, 7, 9, 5, 9]
+    out = sample_personas([0] * 6, ref, [1.0] * 6, None, 1, SampleConfig(size=2, min_per_segment=0))
+    assert out.resident.tolist() == [0, 1]
+    assert out.persona_ref.tolist() == [7, 5]
