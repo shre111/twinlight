@@ -22,6 +22,7 @@ def flat(per_resident_per_day: float, days: int, **overrides: object) -> Scenari
         "end_minute": days * 1440,
         "budget_per_day": budget(per_resident_per_day),
         "cpm": CPM,
+        "channel": "social",
     }
     return Scenario(days=days, campaigns=(Campaign(**(fields | overrides)),))  # type: ignore[arg-type]
 
@@ -108,6 +109,7 @@ def test_district_and_segment_weights_decide_who_is_reached() -> None:
         cpm=CPM,
         district_weights=only_district_9,
         segment_weights=(1.0, 1.0, 0.0, 0.0, 0.0),
+        channel="creators",
     )
     tape = run(city, Scenario(days=1, campaigns=(campaign,)), PAID_ONLY)
     aware = tape.residents.aware_at != NEVER
@@ -118,7 +120,7 @@ def test_district_and_segment_weights_decide_who_is_reached() -> None:
 
 def test_weights_shorter_than_the_city_are_rejected() -> None:
     city = build_toy_city(seed=49, residents=500)
-    campaign = Campaign("short", 0, 1440, 10.0, CPM, district_weights=(1.0, 1.0))
+    campaign = Campaign("short", 0, 1440, 10.0, CPM, district_weights=(1.0, 1.0), channel="social")
     with pytest.raises(ValueError, match="district_weights"):
         run(city, Scenario(days=1, campaigns=(campaign,)), PAID_ONLY)
 

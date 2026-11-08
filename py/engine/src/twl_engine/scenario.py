@@ -3,7 +3,7 @@ import json
 import math
 import operator
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -16,52 +16,77 @@ WOM_MIXINGS = ("graph", "uniform")
 _TOD_AM = (0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6)
 _TOD_PM = (0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6)
 PROTOTYPE_TOD = _TOD_AM + _TOD_PM
+CHANNELS = ("social", "video", "creators", "in_app", "outdoor")
+IN_APP = "in_app"
+OUTDOOR = "outdoor"
+CHANNEL_CPM_INR: dict[str, float] = {
+    "social": 130.0,
+    "video": 110.0,
+    "creators": 2500.0,
+    "in_app": 125.0,
+    "outdoor": 40.0,
+}
 
 
 @dataclass(frozen=True)
 class Campaign:
-    """A paid channel (MODEL.md sections 3 and 11), active for ticks starting in [start, end).
+    """A paid campaign on one channel (MODEL.md sections 3 and 11, D-034), active for ticks
+    starting in [start, end).
 
-    Each active day buys `budget_per_day / cpm * 1000` impressions, spread over that day's active
-    ticks by `presence` (24 hourly weights; empty is flat). `segment_weights` and
-    `district_weights` are indexed by segment and district id; empty means 1 for every one.
+    Each active day buys `budget_per_day / cpm * 1000` impressions, with `cpm` in rupees falling
+    back to the channel's default. `presence` is the campaign's own 24 hourly weights (empty is
+    flat). `segment_weights` and `district_weights` are indexed by segment and district id;
+    empty means 1 for every one. An outdoor campaign must pick districts.
     """
 
     name: str
     start_minute: int
     end_minute: int
     budget_per_day: float
-    cpm: float
+    cpm: float | None = None
     segment_weights: tuple[float, ...] = ()
     district_weights: tuple[float, ...] = ()
     frequency_cap: int | None = 3
     presence: tuple[float, ...] = ()
+    channel: str = field(kw_only=True)
 
     def __post_init__(self) -> None:
         _coerce(
             self,
-            floats=("budget_per_day", "cpm"),
+            floats=("budget_per_day",),
             vectors=("segment_weights", "district_weights", "presence"),
+            optional_floats=("cpm",),
         )
         _require_ints(self, ("start_minute", "end_minute"))
+        if self.channel not in CHANNELS:
+            raise ValueError(f"campaign {self.name!r} channel must be one of {CHANNELS}")
         if not 0 <= self.start_minute < self.end_minute:
             raise ValueError(f"campaign {self.name!r} needs 0 <= start_minute < end_minute")
         if self.budget_per_day < 0 or not math.isfinite(self.budget_per_day):
             raise ValueError(f"campaign {self.name!r} budget_per_day must be finite and >= 0")
-        if self.cpm <= 0 or not math.isfinite(self.cpm):
+        if self.cpm is not None and (self.cpm <= 0 or not math.isfinite(self.cpm)):
             raise ValueError(f"campaign {self.name!r} cpm must be finite and positive")
+        if self.channel == OUTDOOR and len(set(self.district_weights)) < 2:
+            raise ValueError(
+                f"outdoor campaign {self.name!r} needs district_weights that pick districts: "
+                "hoardings stand in places, so an outdoor campaign is never city-wide"
+            )
         if self.frequency_cap is not None:
             _require_ints(self, ("frequency_cap",))
             if self.frequency_cap < 1:
                 raise ValueError(f"campaign {self.name!r} frequency_cap must be at least 1")
         if self.presence and len(self.presence) != HOURS_PER_DAY:
             raise ValueError(f"campaign {self.name!r} presence needs 24 hourly weights")
-        for field in ("segment_weights", "district_weights", "presence"):
-            _require_weights(f"campaign {self.name!r} {field}", getattr(self, field))
+        for name in ("segment_weights", "district_weights", "presence"):
+            _require_weights(f"campaign {self.name!r} {name}", getattr(self, name))
+
+    @property
+    def cost_per_mille(self) -> float:
+        return CHANNEL_CPM_INR[self.channel] if self.cpm is None else self.cpm
 
     @property
     def impressions_per_day(self) -> float:
-        return self.budget_per_day / self.cpm * 1000.0
+        return self.budget_per_day / self.cost_per_mille * 1000.0
 
 
 @dataclass(frozen=True)
@@ -193,6 +218,8 @@ class Params:
     p_spill: float = 0.42
     p_wait: float = 0.38
     satisfaction_drop: float = 0.8
+    channel_kappa: tuple[tuple[float, ...], ...] = ()
+    channel_presence: tuple[tuple[tuple[float, ...], ...], ...] = ()
 
     def __post_init__(self) -> None:
         _coerce(
@@ -259,6 +286,31 @@ class Params:
             raise ValueError("occasion_profile must have a positive sum")
         if self.wom_mixing not in WOM_MIXINGS:
             raise ValueError(f"wom_mixing must be one of {WOM_MIXINGS}")
+        self._check_channel_tables()
+
+    def _check_channel_tables(self) -> None:
+        """Each table is empty (neutral) or one row per channel; a row is empty (neutral) or one
+        entry per segment. In-app presence is the occasion profile, so its row stays empty."""
+        kappa = tuple(tuple(float(v) for v in row) for row in self.channel_kappa)
+        presence = tuple(
+            tuple(tuple(float(v) for v in hours) for hours in row) for row in self.channel_presence
+        )
+        object.__setattr__(self, "channel_kappa", kappa)
+        object.__setattr__(self, "channel_presence", presence)
+        for name, table in (("channel_kappa", kappa), ("channel_presence", presence)):
+            if table and len(table) != len(CHANNELS):
+                raise ValueError(f"{name} needs a row per channel {CHANNELS}, or none")
+        for row in kappa:
+            _require_weights("channel_kappa", row)
+        for channel, row in zip(CHANNELS, presence, strict=False):
+            if channel == IN_APP and row:
+                raise ValueError(
+                    "channel_presence for in_app is the occasion profile; leave it empty"
+                )
+            for hours in row:
+                if len(hours) != HOURS_PER_DAY:
+                    raise ValueError(f"channel_presence for {channel} needs 24 hourly weights")
+                _require_weights(f"channel_presence for {channel}", hours)
 
     def canonical_json(self) -> bytes:
         return _canonical(dataclasses.asdict(self))

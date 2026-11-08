@@ -379,7 +379,7 @@ def test_satisfaction_enters_the_repeat_utility() -> None:
 
 
 def stocked_run(supply: Supply, seed: int = 3, city: ToyCity | None = None) -> RunInputs:
-    launch = Campaign("launch", 0, 2880, budget_per_day=300.0, cpm=100.0)
+    launch = Campaign("launch", 0, 2880, budget_per_day=300.0, cpm=100.0, channel="social")
     scenario = Scenario(days=6, campaigns=(launch,), supply=supply)
     params = Params(alpha_0=-1.0, alpha_rep=-0.5, q=0.05)
     return RunInputs(city or town(), bytes(32), scenario, params, seed)

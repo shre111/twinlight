@@ -292,7 +292,7 @@ def test_the_delivery_log_grows_and_keeps_its_rows() -> None:
 def town_run(
     supply: Supply, params: Params | None = None, seed: int = 3, days: int = 6
 ) -> RunInputs:
-    launch = Campaign("launch", 0, 2880, budget_per_day=300.0, cpm=100.0)
+    launch = Campaign("launch", 0, 2880, budget_per_day=300.0, cpm=100.0, channel="social")
     scenario = Scenario(days=days, campaigns=(launch,), supply=supply)
     params = params or Params(alpha_0=-1.0, alpha_rep=-0.5, q=0.05)
     return RunInputs(town(), bytes(32), scenario, params, seed)

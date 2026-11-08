@@ -54,6 +54,7 @@ def adoption_curve(p_per_day: float, q_per_day: float) -> NDArray[np.float64]:
         budget_per_day=p_per_day * N,
         cpm=1000.0,
         frequency_cap=None,
+        channel="social",
     )
     scenario = Scenario(days=DAYS, campaigns=(campaign,))
     params = reduced_params(q_per_day)

@@ -24,6 +24,7 @@ def burst(
         end_minute=1440,
         budget_per_day=per_resident * residents * 100.0 / 1000.0,
         cpm=100.0,
+        channel="social",
     )
     return Scenario(days=days, price=price, campaigns=(campaign,))
 

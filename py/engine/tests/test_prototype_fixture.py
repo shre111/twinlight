@@ -31,6 +31,7 @@ price = 59
 
 [[scenario.campaigns]]
 name = "burst"
+channel = "social"
 start_minute = 0
 end_minute = 1440
 budget_per_day = 100
@@ -51,7 +52,7 @@ def write(tmp_path: Path, text: str) -> Path:
 def test_loader_builds_the_scenario_and_params_it_reads(tmp_path: Path) -> None:
     scenario, params = load_scenario(write(tmp_path, MINIMAL))
     assert scenario == Scenario(
-        days=2, price=59.0, campaigns=(Campaign("burst", 0, 1440, 100.0, 50.0),)
+        days=2, price=59.0, campaigns=(Campaign("burst", 0, 1440, 100.0, 50.0, channel="social"),)
     )
     assert params == Params(q=0.5, kappa=(1.0,) * 5)
     assert scenario.hash() == Scenario(days=2, price=59.0, campaigns=scenario.campaigns).hash()

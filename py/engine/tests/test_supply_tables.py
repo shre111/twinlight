@@ -103,7 +103,8 @@ def test_load_scenario_reads_an_optional_supply_table(tmp_path: Path) -> None:
     stocked = tmp_path / "stocked.toml"
     stocked.write_text(
         "[scenario]\ndays = 2\n\n[scenario.supply]\ninitial_stock = 0.004\nlead_minutes = 2880\n"
-        "\n[[scenario.campaigns]]\nname = 'launch'\nstart_minute = 0\nend_minute = 1440\n"
+        "\n[[scenario.campaigns]]\nname = 'launch'\nchannel = 'social'\nstart_minute = 0\n"
+        "end_minute = 1440\n"
         "budget_per_day = 10.0\ncpm = 100.0\n\n[params]\np_wait = 0.5\n"
     )
     scenario, params = load_scenario(stocked)
@@ -171,7 +172,7 @@ def test_store_levels_are_the_rounded_rate_times_the_catchment() -> None:
 
 
 def test_without_supply_every_order_is_a_served_attempt() -> None:
-    launch = Campaign("launch", 0, 1440, budget_per_day=120.0, cpm=100.0)
+    launch = Campaign("launch", 0, 1440, budget_per_day=120.0, cpm=100.0, channel="social")
     scenario = Scenario(days=3, campaigns=(launch,))
     tape, stats = run_seed_with_stats(RunInputs(toy(), bytes(32), scenario, Params(), seed=5))
     orders = int(tape.aggregates.orders.sum())

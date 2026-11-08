@@ -19,6 +19,7 @@ def campaign(**overrides: object) -> Campaign:
         "end_minute": 1440,
         "budget_per_day": 4800.0,
         "cpm": 100.0,
+        "channel": "social",
     }
     return Campaign(**(fields | overrides))  # type: ignore[arg-type]
 
