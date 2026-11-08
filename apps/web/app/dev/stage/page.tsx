@@ -21,10 +21,13 @@ function residentCount(value: unknown): number {
 
 const PACK_NAME = /^[a-z0-9-]+$/
 
-function runSource(query: { pack?: unknown; residents?: unknown }): RunSource {
-  return typeof query.pack === 'string' && PACK_NAME.test(query.pack)
-    ? { pack: query.pack }
-    : { residents: residentCount(query.residents) }
+const named = (value: unknown): value is string =>
+  typeof value === 'string' && PACK_NAME.test(value)
+
+function runSource(query: { fixture?: unknown; pack?: unknown; residents?: unknown }): RunSource {
+  if (named(query.fixture)) return { fixture: query.fixture }
+  if (named(query.pack)) return { pack: query.pack }
+  return { residents: residentCount(query.residents) }
 }
 
 function startMinutes(query: { t?: unknown; day?: unknown }): number {
