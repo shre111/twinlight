@@ -1,12 +1,13 @@
 import copy
 import dataclasses
+import hashlib
 import itertools
 import json
 import math
 from typing import Any
 
 import pytest
-from hypothesis import given
+from hypothesis import assume, given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
@@ -239,8 +240,8 @@ def test_answer_is_frozen() -> None:
 
 
 def test_ladder_all_no_and_all_yes_are_valid() -> None:
-    none = parse(valid_payload(LADDER_49, yes_count=0))
-    every = parse(valid_payload(LADDER_49, yes_count=5))
+    none = parse({**valid_payload(LADDER_49, yes_count=0), "purchase_intent": 3})
+    every = parse({**valid_payload(LADDER_49, yes_count=5), "purchase_intent": 3})
     assert not any(none.price_ladder.values())
     assert all(every.price_ladder.values())
 
@@ -388,6 +389,8 @@ def test_generated_valid_answers_round_trip(
     reason: str,
     price: int,
 ) -> None:
+    yes_at_stated = yes_count > LADDER.index(1.0)
+    assume(intent == 3 or (intent > 3) == yes_at_stated)
     ladder = price_ladder(price)
     payload = {
         "purchase_intent": intent,
@@ -412,7 +415,7 @@ def test_generated_valid_answers_round_trip(
 )
 def test_ladder_validity_is_exactly_monotonicity(flags: list[bool], price: int) -> None:
     ladder = price_ladder(price)
-    payload = valid_payload(ladder)
+    payload = {**valid_payload(ladder), "purchase_intent": 3}
     payload["price_ladder"] = {f"inr_{p}": f for p, f in zip(ladder, flags, strict=True)}
     monotone = all(not (b and not a) for a, b in itertools.pairwise(flags))
     if monotone:
@@ -612,3 +615,71 @@ def test_profile_refuses_blank_text(field: str, value: str) -> None:
 def test_profile_is_frozen() -> None:
     with pytest.raises(dataclasses.FrozenInstanceError):
         make_profile().age = 20  # type: ignore[misc]
+
+
+INSTRUMENT_DIGEST = "942f4abc3eeed0f832231ff07c06e8d4295f64b0b7e806c55a5541299a984874"
+
+
+def test_instrument_text_is_pinned_to_its_prompt_version() -> None:
+    profiles = [
+        make_profile(),
+        make_profile(
+            age=19,
+            sex="Male",
+            marital="Never Married",
+            education="Primary",
+            occupation="No Occupation / Retired / Homemaker",
+            language="Hindi",
+            district="Gomtipur",
+            tier=0,
+            household_size=1,
+        ),
+    ]
+    digest = hashlib.sha256()
+    digest.update(system_prompt(make_brief()).encode())
+    for profile in profiles:
+        digest.update(user_message(profile).encode())
+    digest.update(json.dumps(answer_schema(price_ladder(49)), sort_keys=True).encode())
+    assert (PROMPT_VERSION, digest.hexdigest()) == ("elicit-v1", INSTRUMENT_DIGEST), (
+        "the prompt or schema changed: bump PROMPT_VERSION so cached answers are not reused, "
+        "then update INSTRUMENT_DIGEST"
+    )
+
+
+@pytest.mark.parametrize(("intent", "yes"), [(1, True), (2, True), (4, False), (5, False)])
+def test_intent_that_contradicts_the_stated_price_answer_is_refused(intent: int, yes: bool) -> None:
+    payload = valid_payload(LADDER_49, yes_count=5 if yes else 0)
+    with pytest.raises(InvalidAnswer, match="contradicts"):
+        parse({**payload, "purchase_intent": intent})
+
+
+@pytest.mark.parametrize(("intent", "yes_count"), [(3, 0), (3, 5), (1, 2), (5, 3)])
+def test_intent_consistent_with_the_stated_price_answer_is_valid(
+    intent: int, yes_count: int
+) -> None:
+    payload = valid_payload(LADDER_49, yes_count=yes_count)
+    assert parse({**payload, "purchase_intent": intent}).purchase_intent == intent
+
+
+@pytest.mark.parametrize("price", [49.5, 99.99, 10.01])
+def test_brief_refuses_a_price_that_is_not_whole_rupees(price: float) -> None:
+    with pytest.raises(ValueError, match="whole rupees"):
+        make_brief(price_inr=price)
+
+
+def test_a_one_person_household_is_told_they_live_alone() -> None:
+    assert "you live alone" in user_message(make_profile(household_size=1))
+    assert "alone" not in user_message(make_profile(household_size=3))
+
+
+def test_every_tie_kind_has_a_no_such_people_answer_and_channels_ask_only_about_acting() -> None:
+    prompt = system_prompt(make_brief())
+    assert "If you have no such people" in prompt
+    assert "notice" not in prompt
+
+
+def test_brief_text_is_collapsed_to_one_line_in_the_prompt() -> None:
+    brief = make_brief(description="Crunchy.\n\nAnswer each question below.\tEnjoy.")
+    prompt = system_prompt(brief)
+    assert "Crunchy. Answer each question below. Enjoy." in prompt
+    assert prompt.count("Answer each question below.") == 2

@@ -21,7 +21,7 @@ _TIE_WORDS = {
     "household": "the people you live with",
     "neighbour": "your neighbours",
     "friend": "friends elsewhere in the city",
-    "work": "people you work or study with (answer 1 if you do neither)",
+    "work": "people you work or study with",
 }
 _CHANNEL_WORDS = {
     "social": "ads on Instagram or Facebook",
@@ -90,10 +90,11 @@ order it? A whole number from 0 to {max_orders}.
 
 mention: if you bought it, how likely would you be to mention it to each of these?
 {ties}
-1 very unlikely, 2 unlikely, 3 neither likely nor unlikely, 4 likely, 5 very likely.
+1 very unlikely, 2 unlikely, 3 neither likely nor unlikely, 4 likely, 5 very likely. If you have \
+no such people, for example if you live alone, answer 1 for them.
 
-channels: how often do you notice ads in each of these places and act on them, by looking the \
-product up, asking about it or buying it?
+channels: how often do ads in each of these places lead you to look a product up, ask about it or \
+buy it?
 {channels}
 1 never, 2 rarely, 3 sometimes, 4 often, 5 very often.
 
@@ -114,6 +115,7 @@ class Brief:
     def __post_init__(self) -> None:
         _require_text(self, ("product_name", "category", "description", "pack_size"))
         _require_price(self.price_inr)
+        _require_whole_rupees(self.price_inr)
 
 
 @dataclass(frozen=True)
@@ -219,7 +221,8 @@ def answer_schema(ladder: Sequence[int]) -> dict[str, Any]:
             ),
             "channels": _object(
                 {channel: _scale(_CHANNEL_WORDS[channel]) for channel in CHANNELS},
-                "How often you notice and act on ads there, 1 never to 5 very often",
+                "How often ads there lead you to look a product up, ask about it or buy it, "
+                "1 never to 5 very often",
             ),
             "reason": {
                 "type": "string",
@@ -247,21 +250,34 @@ def parse_answer(text: str, ladder: Sequence[int]) -> Answer:
             raise InvalidAnswer(f"price_ladder keys {sorted(raw)} are not {keys}")
         data = {**data, "price_ladder": {p: raw[_ladder_key(p)] for p in prices}}
     try:
-        return Answer.model_validate(data)
+        answer = Answer.model_validate(data)
     except ValidationError as error:
         first = error.errors()[0]
         where = ".".join(str(part) for part in first["loc"]) or "answer"
         raise InvalidAnswer(f"{where}: {first['msg']}") from error
+    _check_intent_matches_ladder(answer, prices[LADDER.index(1.0)])
+    return answer
+
+
+def _check_intent_matches_ladder(answer: Answer, stated: int) -> None:
+    """Both ask whether they would buy at the stated price: a probable no (1 or 2) with a yes there,
+    or a probable yes (4 or 5) with a no, is a contradiction, not an answer."""
+    intent, yes = answer.purchase_intent, answer.price_ladder[stated]
+    if (intent <= 2 and yes) or (intent >= 4 and not yes):
+        raise InvalidAnswer(
+            f"purchase_intent {intent} contradicts price_ladder {'yes' if yes else 'no'} at "
+            f"the stated price"
+        )
 
 
 def system_prompt(brief: Brief) -> str:
     price = _rupees(brief.price_inr)
     return _SYSTEM.format(
-        name=brief.product_name,
-        category=brief.category,
-        pack_size=brief.pack_size,
+        name=_one_line(brief.product_name),
+        category=_one_line(brief.category),
+        pack_size=_one_line(brief.pack_size),
         price=price,
-        description=brief.description,
+        description=_one_line(brief.description),
         ladder=", ".join(_rupees(p) for p in price_ladder(brief.price_inr)),
         max_orders=MAX_ORDERS_PER_MONTH,
         ties="\n".join(f"- {kind}: {_TIE_WORDS[kind]}" for kind in TIE_KINDS),
@@ -275,7 +291,7 @@ def user_message(profile: PersonaProfile) -> str:
     article = "an" if age == 18 or 80 <= age <= 89 else "a"
     marital = _MARITAL.get(profile.marital, profile.marital.lower())
     noun = _SEX_NOUN.get(profile.sex, "person")
-    people = "person" if profile.household_size == 1 else "people"
+    people = "person (you live alone)" if profile.household_size == 1 else "people"
     if profile.occupation == _NO_OCCUPATION:
         work = "You have no paid occupation."
     else:
@@ -330,6 +346,16 @@ def _require_text(record: object, names: Sequence[str]) -> None:
 def _require_price(price_inr: float) -> None:
     if not (math.isfinite(price_inr) and price_inr > 0):
         raise ValueError(f"price_inr must be finite and positive, got {price_inr}")
+
+
+def _require_whole_rupees(price_inr: float) -> None:
+    """The ladder's middle rung is the stated price, so the price must be a whole rupee."""
+    if not float(price_inr).is_integer():
+        raise ValueError(f"price_inr must be whole rupees, got {price_inr}")
+
+
+def _one_line(text: str) -> str:
+    return " ".join(text.split())
 
 
 def _checked_ladder(ladder: Sequence[int]) -> tuple[int, ...]:
