@@ -4,11 +4,12 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M1 done (P-019 merged 2026-11-09). Lane A on M3, Lane B on M4 groundwork, Lane C on M2 and M6.
-- Point: P-030 done. Next Lane A: P-031 occasions and time-of-day (per-segment occasion profiles; replaces the shared-rate binomial in `orders`; in-app presence follows it automatically). Then P-061b's engine side once Lane C's tier rule is measured and D-035 is recorded. Lane B: stills to /dev/fixture, drop `pack-v1.ts`, pack decode into a Web Worker (closes P-025), then P-045. Lane C: P-061b tier (owner answers relayed 2026-11-09), then P-060.
+- Point: P-031 done. Next Lane A: P-061b engine side (`alpha_tier` and a per-tier `beta` scale; defaults and priors need the owner, since neutral values leave the D-027 east/west test failing), then P-032. Lane B: P-045 bloom. Lane C: P-061b persona tilt, then P-060 step 2 (read a pack and serve the deep sample).
 - Branch: none
-- Next: `/start-point P-031`. For P-061b, wait for Lane C's re-measured shares and the Bodakdev-versus-Gota check, then record D-035 and the `u8 tier` column in ARCHITECTURE section 5 before `twl_pack` changes.
+- Next: put the `alpha_tier` and `beta` defaults question to the owner, then `/start-point P-061b` for the engine side.
 
 ## Recent changes
+- 2026-11-09 P-031 done (#139, D-036 in #133): per-segment occasion profiles with weekend factors and profiles (neutral), `start_date`, the city's time zone (pinned `tzdata`) and weekend days, a per-tick local calendar; in-app presence follows the occasion rate and an in-app campaign in a run without occasions is refused. P-025 done (Lane B #140 pack decode in a worker, #137 v2 only, #136 stills from the fixture run). Pack format gains tier, time zone and weekend days (#135, D-035) with goldens in hashes only; Lane C's tier stage (#134) and P-060 sampler (#138).
 - 2026-11-09 P-030 done (#129, D-034 in #124): five channels with sourced default CPMs (MODEL section 11), outdoor needs district targeting, in-app presence follows the occasion profile, neutral `channel_kappa` and `channel_presence`; goldens changed in hashes only. P-019 done (Lane B #121, #130): `/dev/fixture` plays the real tape over the v2 toy pack; capture in the demo log. M1 complete. Lane C finished its part of P-025 (#123, #125 to #128): Ahmedabad first load 5,634,863 bytes, engine files 2,941,939, detail 133,504, `pack_hash` 594a22f8.
 - 2026-11-08 The toy fixture writes through `twl_pack` (#122): v2, zstd, tile level 4, floor at or below the toy height; goldens changed in hashes only, and the strict toy pack hash matched Linux CI.
 - 2026-11-06 P-014 done: D-033 no tape streaming and the v2 pack spec corrections (#109), fixture tapes and probes (#110), engine tape fixture tied to its golden (#111), `@twinlight/tape` with zstd and crc32 (#114), `decodeTape` with cross-language goldens (#117), `just fixture` and the demo tape (#119). A 48k tape (557 KB) decodes in 11 ms in Node, 3 ms without the hash check. Demo stock 0.08 and reorder 0.03: 7 of 14 stores stock out, at most 4 at once, 152 lost of about 25,000 orders. Lane C merged `twl_pack` (#112, #113, #115, #116, #118).
@@ -16,7 +17,6 @@ Working memory for coding sessions. Read at the start of every session; update a
 - 2026-11-06 D-031 recorded (pack budget); P-048 building LOD and culling added for Lane B. Lane B merged the river layer (#94) and two timeline fixes (#95, #96).
 - 2026-11-06 D-030 done (Lane C, #86 to #91): population corrected by a built-form fit at w = 0.75 (range 0.68 to 0.84) with non-residential areas excluded; all ward checks pass; rebake gives 24 stores at 92.5% coverage, 11 on the west bank (Bodakdev, Thaltej, Memnagar 100%, Vastrapur 95%, Gota 98%, Sola 34.5%). P-020 to P-024 hold on the rebake.
 - 2026-11-06 P-012 done: chatter kind (#80), scenario and params (#81), paid exposure (#82), word of mouth (#83), occasions and orders (#84), fitted fixture, D-029 model, goldens and anchors (#85). Parity mean of 8 seeds: 23.2/4.0, 41.6/11.1, 50.0/16.5, 60.7/24.0 on days 6, 13, 20, 30 (prototype 23.0/4.5, 41.7/10.8, 51.9/16.1, 63.1/23.0). P-015 passes on Firefox (WebGL2 fallback). P-024 done, provisional (Lane C #72 to #76: 15 stores, 92.3% coverage, travel table 48.6 KB zstd).
-- 2026-11-05 D-029: talk gain 1.0 and a 35% talk floor for adopters, after the parity test's day-30 heard share missed (54.3 against 63.1); day 20 is now the held-out assertion. P-018 done (Lane B: #58, #59, #65, #66). P-023 done (Lane C: #67 to #71; mean degree 5.95, clustering 0.22, cross-river 0.14, largest component 0.999). P-024 code merged, results provisional (see open questions).
 
 ## Gotchas
 - Node 24 is pinned in `.nvmrc`, but this machine's nvm default is 22: run `nvm use` (or prefix commands with it) before pnpm or just.
@@ -58,6 +58,8 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Open questions
 - Lane C asked for a `pack` commit scope; PR titles for `py/pack` are unscoped until the owner decides.
+- Packs have no version bump for D-035 and D-036: packs written before #135 lack `tier`, `timezone` and `weekend_days`, and the reader refuses them, so rebake (`just bake <city>`, `just fixture`).
+- Campaign windows and event times stay in sim minutes, so in zones with daylight saving they drift an hour from the wall clock after a change; hours, day types, local days and the frequency-cap day follow local time (MODEL section 11).
 - Channel CPM defaults (D-034) are low confidence except social; replace them when a brand brief or calibration gives better numbers. A day whose presence is zero in every active hour buys nothing, silently.
 - License: the repo is public with no license (owner accepted public; licence still to pick).
 - Population assumptions (Lane C, P-021; confirm or calibrate later): `shopper_share = 0.27` of adults (matches DESIGN's 100k agents for about 16 people each, but has no data yet); adults per household from Census 2011 C-14 (69% adults, r = 0.47); 2011 household sizes applied to a 2025 raster (`size_shrink` is in the config, default 1.0); raster cells straddling the bbox count whole.

@@ -62,16 +62,16 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-024 Store placement and travel times** Lane C. Greedy max-coverage placement within 2.5 km radii; travel times store -> H3 cell per time band by Dijkstra on the baked road graph (D-022). `[tests]`
   AC: coverage of residents >= 90%; travel table complete.
   Rebaked on the D-030 population: 24 stores, 92.5% coverage. The owner's hand check of 30 travel pairs (D-022) is pending.
-- [ ] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with delta-coded building and road columns (D-032); Python and TS loaders. `[tests]`
+- [x] **P-025 City pack v1** Lane C + A. Full format from ARCHITECTURE.md section 5 with delta-coded building and road columns (D-032); Python and TS loaders. `[tests]`
   AC: Ahmedabad pack under 6 MB compressed; loads in under 1.5 s on the reference laptop.
   Per D-031: first-load download under 6 MB with isolated sub-30 m² footprints moved to an optional detail file; engine-only files under a soft 10 MB; report walled-city floor kept.
   Split: Lane C writes `py/pack` (`twl_pack`: codecs, writer, reader) and the citybake pack stage with the D-031 rules; Lane B the TypeScript reader in a worker and its side of the goldens; Lane A moves the toy fixture onto `twl_pack`, regenerates goldens once (with P-014) and extends the CI formats filter.
-  Progress: every AC holds (first load 5,634,863 bytes; `fetchPack` about 0.2 s and first load about 0.4 s on the M4; walled-city floor kept 99.9%; Python and TS loaders with cross-language goldens, #112 to #128). Waits for Lane B to move pack decoding into a Web Worker (D-032).
+  Done: first load 5,634,863 bytes; pack decode in a Web Worker on the M4 leaves a widest main-thread stall of 145 to 161 ms (#140); walled-city floor kept 99.9%; Python and TS loaders with cross-language goldens.
 
 ## M3 Full engine
 - [x] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
   AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
-- [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift (D-036). `[tests]`
+- [x] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift (D-036). `[tests]`
   AC: occasion rates and hourly weights per segment, for working days and weekends, default to the single prototype profile; the scenario's `start_date` with the city's time zone and weekend days sets each tick's local hour and day type; occasion counts per segment match their rates (statistical test); with neutral defaults, engine outputs are unchanged apart from hashes; the prototype fixture pins its occasion profile.
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
@@ -109,6 +109,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-060 Deep persona sampling** Lane C. Stratified sample of ~300 per city run from the persona pool. `[tests]`
 - [ ] **P-061 Elicitation** Lane C. Instrument, JSON schemas, Batches API client, cache, cost guard. `[tests]`
 - [ ] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
+  Progress: D-035; citybake tier stage (#134); pack format with tier, time zone and weekend days (#135). Open: the persona tilt (Lane C, NFHS-5 table 2.24 mapped onto urban quintiles) and the engine side (Lane A: `alpha_tier`, `beta` scale, the D-027 east/west test).
 - [ ] **P-062 Calibration** Lane C. Answer-to-parameter mapping with intent deflator; NumPyro hierarchical model; posterior draws to object storage; diagnostics. `[tests] [deep]`
 - [ ] **P-063 Backtests and honesty meter** Lane C. CSV upload, fit days 1 to 10, forecast 11 to 30, coverage and MAPE. `[tests] [deep]`
 - [ ] **P-064 Resident life logs** Lane C. Compile a resident's tape events + profile into a retrievable memory. `[tests]`
