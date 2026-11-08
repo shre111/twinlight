@@ -284,7 +284,7 @@ describe('fetchPack with compression', () => {
     expect(city.buildings.count).toBe(3)
   })
 
-  it('decodes a zstd pack with the real decoder when given none', async () => {
+  it('uses the tape package decoder by default and rejects a bad frame', async () => {
     await expect(fetchPack('/packs/x', served('zstd'))).rejects.toThrow(/not a zstd frame/)
   })
 

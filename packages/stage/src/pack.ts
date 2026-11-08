@@ -40,6 +40,7 @@ export type Decompress = (compressed: ArrayBuffer) => ArrayBuffer | Promise<Arra
 
 const zstd: Decompress = async (compressed) => {
   const bytes = await decompressZstd(new Uint8Array(compressed))
+  // zstddec hands back a fresh buffer today; a view into a larger one would decode wrong columns.
   const whole = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
   return whole ? bytes.buffer : bytes.slice().buffer
 }
