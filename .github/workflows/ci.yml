@@ -48,6 +48,7 @@ jobs:
               - *node
               - 'apps/**'
               - 'packages/**'
+              - 'fixtures/scenarios/**'
               - 'design/tokens.json'
             engine:
               - *uv
