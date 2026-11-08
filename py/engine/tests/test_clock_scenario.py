@@ -26,6 +26,7 @@ def test_empty_scenario_canonical_form_is_stable() -> None:
         "days": 30,
         "price": 49.0,
         "ref_price": 49.0,
+        "start_date": None,
         "supply": None,
         "tick_minutes": 15,
     }

@@ -8,35 +8,30 @@ from numpy.typing import NDArray
 
 from twl_engine.events import EventQueue, Events
 from twl_engine.state import ChatterLog, ResidentState, Sim
+from twl_engine.world import ChoiceModel
 from twl_tape import CHATTER_NUDGED, NEVER, SOURCE_WOM
 
 Streams = dict[str, np.random.Generator]
 
 NUDGE_WINDOW_MINUTES = 72 * 60
 MAX_ORDER_COUNT = np.iinfo(np.uint16).max
+NOBODY = np.zeros(0, dtype=np.int64)
 
 
 def occasions_and_orders(
     sim: Sim, streams: Streams, queue: EventQueue, start: int, end: int, events: Events
 ) -> None:
-    """One decision for every aware resident with an occasion in the tick.
-
-    Aware residents share one occasion rate, so those with an occasion are a binomial count drawn
-    without replacement; that is the same law as an independent draw per resident.
-    """
+    """One decision for every aware resident with an occasion in the tick."""
     choice, residents = sim.world.choice, sim.residents
     tick = start // (end - start)
     if sim.world.params.order_on_awareness:
         order_on_awareness(sim, start, end, tick)
-    chance = choice.occasion_probability[tick]
-    pool = np.flatnonzero(residents.aware_at != NEVER)
-    if chance <= 0.0 or pool.size == 0:
-        return
     rng = streams["occasions"]
-    count = int(rng.binomial(pool.size, chance))
+    pool = np.flatnonzero(residents.aware_at != NEVER)
+    deciding = residents_with_occasions(choice, pool, tick, rng)
+    count = deciding.size
     if count == 0:
         return
-    deciding = np.sort(pool[rng.choice(pool.size, size=count, replace=False, shuffle=False)])
     draws = rng.random((count, 2))
     adopted = residents.first_order_at[deciding] != NEVER
     first_logit = choice.first_logit[deciding] + choice.gamma * np.log1p(
@@ -48,6 +43,35 @@ def occasions_and_orders(
     earliest = earliest_order_minute(residents, who, start)
     minutes = np.minimum(earliest + (draws[orders, 1] * (end - earliest)).astype(np.int64), end - 1)
     place_orders(sim, who, minutes, tick)
+
+
+def residents_with_occasions(
+    choice: ChoiceModel, pool: NDArray[np.int64], tick: int, rng: np.random.Generator
+) -> NDArray[np.int64]:
+    """The residents of `pool` (ascending) with an occasion in the tick, ascending.
+
+    Residents who share an occasion probability have their occasions as a binomial count drawn
+    without replacement, the same law as an independent draw each: one count over the whole pool
+    when every segment shares the tick's probability, otherwise one per segment in segment order
+    (MODEL.md section 11, D-036).
+    """
+    chances = choice.occasion_probability[tick]
+    if choice.occasion_shared[tick]:
+        return np.sort(_draw_occasions(pool, chances[0], rng))
+    segment = choice.segment[pool]
+    groups = [_draw_occasions(pool[segment == s], chances[s], rng) for s in range(chances.size)]
+    return np.sort(np.concatenate(groups))
+
+
+def _draw_occasions(
+    group: NDArray[np.int64], chance: float, rng: np.random.Generator
+) -> NDArray[np.int64]:
+    if chance <= 0.0 or group.size == 0:
+        return NOBODY
+    count = int(rng.binomial(group.size, chance))
+    if count == 0:
+        return NOBODY
+    return group[rng.choice(group.size, size=count, replace=False, shuffle=False)]
 
 
 def order_on_awareness(sim: Sim, start: int, end: int, tick: int) -> None:

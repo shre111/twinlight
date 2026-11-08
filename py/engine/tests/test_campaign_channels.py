@@ -342,7 +342,7 @@ def test_in_app_spreads_a_day_over_ticks_by_the_occasion_profile(city: ToyCity) 
     assert plan.per_tick[0][:96].sum() == pytest.approx(per_day)
 
 
-def test_in_app_own_presence_multiplies_the_occasion_profile(city: ToyCity) -> None:
+def test_in_app_own_presence_multiplies_the_occasion_rate(city: ToyCity) -> None:
     profile = tuple(float(1 + (h % 5) ** 2) for h in range(24))
     own = tuple(0.0 if h < 12 else float(h - 10) for h in range(24))
     params = Params(occasion_profile=profile)
@@ -353,7 +353,11 @@ def test_in_app_own_presence_multiplies_the_occasion_profile(city: ToyCity) -> N
     per_day = item.impressions_per_day * agents_per_impression(city, params)
     assert np.allclose(plan.per_tick[0], per_day * expected, rtol=1e-12, atol=0)
     assert plan.per_tick[0][:48].sum() == 0.0
-    assert np.allclose(campaign_presence(item, params, SEGMENTS), weight[None, :] * np.ones((5, 1)))
+    rate = 3.0 / 24.0 * np.asarray(profile) / np.mean(profile)
+    presence = np.asarray(own) * rate
+    assert np.allclose(
+        campaign_presence(item, params, SEGMENTS), presence[None, :] * np.ones((5, 1))
+    )
 
 
 def test_in_app_ignores_other_channels_presence_tables(city: ToyCity) -> None:
@@ -392,7 +396,8 @@ def test_daily_frequency_cap_holds_per_campaign(
         for i in range(2)
     )
     scenario = Scenario(days=1, campaigns=items)
-    params = dataclasses.replace(PAID_ONLY, theta_aware=1e9)
+    in_app_seen = dataclasses.replace(PAID_ONLY, occasions_per_day=3.0)
+    params = dataclasses.replace(in_app_seen, theta_aware=1e9)
     sim, _ = drive(small, scenario, params, seed=seed % 1000)
     seen = sim.residents.impressions_today
     for i in range(2):

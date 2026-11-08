@@ -4,7 +4,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from twl_engine.events import EventQueue, Events
-from twl_engine.scenario import MINUTES_PER_DAY
 from twl_engine.state import Sim
 from twl_engine.world import NO_CAP, PaidPlan
 from twl_tape import NEVER, SOURCE_PAID
@@ -24,14 +23,13 @@ def paid_exposure(
 ) -> None:
     """Poisson impressions per campaign, landed by targeting weight up to the daily cap.
 
-    Impressions on a resident already at the cap are lost. A resident taken over `theta_aware`
-    becomes aware at a minute drawn inside the tick.
+    Impressions on a resident already at the cap are lost; the cap restarts each local day. A
+    resident taken over `theta_aware` becomes aware at a minute drawn inside the tick.
     """
-    plan, residents = sim.world.paid, sim.residents
-    tick_minutes = end - start
-    if start // MINUTES_PER_DAY != (start - tick_minutes) // MINUTES_PER_DAY:
+    plan, residents, calendar = sim.world.paid, sim.residents, sim.world.calendar
+    tick = start // (end - start)
+    if calendar.is_new_day(tick):
         residents.impressions_today[:] = 0
-    tick = start // tick_minutes
     rng = streams["campaign"]
     for c in range(plan.per_tick.shape[0]):
         expected = plan.per_tick[c, tick]
@@ -41,10 +39,8 @@ def paid_exposure(
         if count == 0:
             continue
         if plan.two_stage[c]:
-            hour = start % MINUTES_PER_DAY // 60
-            landing = _land_by_segment(
-                plan, c, rng.multinomial(count, plan.segment_share[c, hour]), rng
-            )
+            share = plan.segment_share[c, calendar.day_type_at(tick), calendar.hour[tick]]
+            landing = _land_by_segment(plan, c, rng.multinomial(count, share), rng)
         else:
             cum = plan.cum_target[c]
             landing = np.minimum(
