@@ -1163,6 +1163,7 @@ dependencies = [
     { name = "numpy" },
     { name = "twl-pack" },
     { name = "twl-tape" },
+    { name = "tzdata" },
 ]
 
 [package.metadata]
@@ -1172,6 +1173,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.5,<2.6" },
     { name = "twl-pack", editable = "py/pack" },
     { name = "twl-tape", editable = "py/tape" },
+    { name = "tzdata", specifier = ">=2026.6,<2027" },
 ]
 
 [[package]]
@@ -1180,12 +1182,16 @@ version = "0.0.0"
 source = { editable = "services/minds" }
 dependencies = [
     { name = "fastapi" },
+    { name = "numpy" },
+    { name = "twl-pack" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.162,<0.163" },
+    { name = "numpy", specifier = ">=2.5,<3" },
+    { name = "twl-pack", editable = "py/pack" },
     { name = "uvicorn", specifier = ">=0.54,<0.55" },
 ]
 

@@ -5,6 +5,14 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
+from twl_engine.calendar import (
+    DAY_TYPES,
+    WEEKEND,
+    WORKING_DAY,
+    Calendar,
+    build_calendar,
+    plain_calendar,
+)
 from twl_engine.clock import Clock
 from twl_engine.fixtures import ToyCity
 from twl_engine.scenario import (
@@ -27,9 +35,10 @@ class PaidPlan:
     """Per campaign: expected impressions per tick in agent units, who they can land on and
     what each impression adds.
 
-    A campaign whose presence differs by segment lands in two stages: `segment_share[c, hour]`
-    splits a tick's impressions over segments, then `segment_cum` (residents in `by_segment`
-    order, cumulative targeting restarting at each `segment_start`) picks within a segment.
+    A campaign whose presence differs by segment lands in two stages: `segment_share[c, day type,
+    hour]` splits a tick's impressions over segments, then `segment_cum` (residents in
+    `by_segment` order, cumulative targeting restarting at each `segment_start`) picks within a
+    segment.
     """
 
     per_tick: NDArray[np.float64]
@@ -71,10 +80,13 @@ class ChoiceModel:
 
     `first_logit` is U without the awareness term, `repeat_logit` the whole repeat utility, both
     at `avail = 1` and `satisfaction = 0`; with supply on the tick takes `delta` off where
-    `avail = 0` and adds `satisfaction_r` (section 12). `occasion_probability` is per tick.
+    `avail = 0` and adds `satisfaction_r` (section 12). `occasion_probability` is [tick, segment]
+    and `occasion_shared[tick]` says every segment has the same one; `segment` is per resident.
     """
 
     occasion_probability: NDArray[np.float64]
+    occasion_shared: NDArray[np.bool_]
+    segment: NDArray[np.int64]
     first_logit: NDArray[np.float64]
     repeat_logit: NDArray[np.float64]
     gamma: float
@@ -111,6 +123,7 @@ class World:
     scenario: Scenario
     params: Params
     clock: Clock
+    calendar: Calendar
     residents: int
     paid: PaidPlan
     talk: TalkGraph
@@ -127,21 +140,27 @@ def build_world(
     """Derive the run's static tables; `rng` is the `params` stream (a_r, then rho_r)."""
     n = city.residents.x.shape[0]
     _require_segment_tables(params, int(city.residents.segment.max()))
+    calendar = city_calendar(city, scenario, clock)
     affinity = rng.standard_normal(n) * params.affinity_sd
     repeat_taste = rng.standard_normal(n) * params.rho_sd
     return World(
         scenario=scenario,
         params=params,
         clock=clock,
+        calendar=calendar,
         residents=n,
-        paid=build_paid_plan(city, scenario, params, clock),
+        paid=build_paid_plan(city, scenario, params, clock, calendar),
         talk=build_talk_graph(city, params, clock),
-        choice=build_choice_model(city, scenario, params, clock, affinity, repeat_taste),
+        choice=build_choice_model(city, scenario, params, clock, calendar, affinity, repeat_taste),
         supply=None if scenario.supply is None else build_supply_plan(city, scenario.supply),
         decay_per_tick=awareness_decay_per_tick(params, clock),
         affinity=affinity,
         repeat_taste=repeat_taste,
     )
+
+
+def city_calendar(city: ToyCity, scenario: Scenario, clock: Clock) -> Calendar:
+    return build_calendar(clock, scenario.start_date, city.timezone, city.weekend_days)
 
 
 def awareness_decay_per_tick(params: Params, clock: Clock) -> float:
@@ -151,7 +170,15 @@ def awareness_decay_per_tick(params: Params, clock: Clock) -> float:
     return 2.0 ** (-clock.tick_minutes / MINUTES_PER_DAY / params.awareness_half_life_days)
 
 
-def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Clock) -> PaidPlan:
+def build_paid_plan(
+    city: ToyCity,
+    scenario: Scenario,
+    params: Params,
+    clock: Clock,
+    calendar: Calendar | None = None,
+) -> PaidPlan:
+    """Campaign tables; `calendar` defaults to the city's calendar for the scenario."""
+    calendar = city_calendar(city, scenario, clock) if calendar is None else calendar
     campaigns = scenario.campaigns
     n, count = city.residents.x.shape[0], len(campaigns)
     segments = len(params.kappa)
@@ -166,7 +193,7 @@ def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Cl
     last_target = np.zeros(count, dtype=np.int64)
     gain = np.zeros((count, n))
     two_stage = np.zeros(count, dtype=np.bool_)
-    segment_share = np.zeros((count, HOURS_PER_DAY, segments))
+    segment_share = np.zeros((count, DAY_TYPES, HOURS_PER_DAY, segments))
     segment_cum = np.zeros((count, n))
     segment_last = np.zeros((count, segments), dtype=np.int64)
     for c, campaign in enumerate(campaigns):
@@ -178,22 +205,27 @@ def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Cl
             continue
         cum_target[c] = np.cumsum(target)
         last_target[c] = np.flatnonzero(target)[-1]
-        presence = campaign_presence(campaign, params, segments)
-        hourly = presence[0]
-        if not (presence == presence[0]).all():
-            two_stage[c] = True
-            audience = np.bincount(segment, weights=target, minlength=segments)[:, None] * presence
-            hourly = audience.sum(axis=0)
-            segment_share[c] = np.divide(
-                audience.T,
-                hourly[:, None],
-                out=np.zeros_like(audience.T),
-                where=hourly[:, None] > 0,
+        presence = np.stack(
+            [campaign_presence(campaign, params, segments, weekend=w) for w in (False, True)]
+        )
+        if campaign.channel == IN_APP and not presence.any():
+            raise ValueError(
+                f"in-app campaign {campaign.name!r} would show nowhere: in-app ads are seen in "
+                "app sessions, and no segment has occasions in this run"
             )
+        hourly = presence[:, 0]
+        if not (presence == presence[:, :1]).all():
+            two_stage[c] = True
+            audience = np.bincount(segment, weights=target, minlength=segments)
+            hourly = np.empty((DAY_TYPES, HOURS_PER_DAY))
+            for day_type in (WORKING_DAY, WEEKEND):
+                hourly[day_type], segment_share[c, day_type] = _split_by_segment(
+                    audience, presence[day_type]
+                )
             segment_cum[c], segment_last[c] = _cumulative_by_segment(
                 target[by_segment], segment_start
             )
-        per_tick[c] = tick_shares(campaign, clock, hourly) * (
+        per_tick[c] = tick_shares(campaign, clock, hourly, calendar) * (
             campaign.impressions_per_day * agents_per_impression
         )
     return PaidPlan(
@@ -224,14 +256,17 @@ def channel_kappa(campaign: Campaign, params: Params, segments: int) -> NDArray[
     return np.asarray(row)
 
 
-def campaign_presence(campaign: Campaign, params: Params, segments: int) -> NDArray[np.float64]:
+def campaign_presence(
+    campaign: Campaign, params: Params, segments: int, weekend: bool = False
+) -> NDArray[np.float64]:
     """Hourly presence per segment: the campaign's own weights times the channel's (D-034).
 
-    The channel's presence is 1 until calibrated, and for in-app ads it is the occasion profile.
+    The channel's presence is 1 until calibrated, and for in-app ads it is the segment's
+    occasion rate per hour for the day type, so in-app ads are seen when people order (D-036).
     """
     own = np.asarray(campaign.presence) if campaign.presence else np.ones(HOURS_PER_DAY)
     if campaign.channel == IN_APP:
-        channel = np.broadcast_to(np.asarray(params.occasion_profile), (segments, HOURS_PER_DAY))
+        channel = occasions_per_hour(params, segments)[WEEKEND if weekend else WORKING_DAY]
     else:
         c = CHANNELS.index(campaign.channel)
         row = params.channel_presence[c] if params.channel_presence else ()
@@ -243,6 +278,18 @@ def campaign_presence(campaign: Campaign, params: Params, segments: int) -> NDAr
             )
         channel = np.asarray(row)
     return own[None, :] * channel
+
+
+def _split_by_segment(
+    audience: NDArray[np.float64], presence: NDArray[np.float64]
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Per hour: the summed targeting times presence, and each segment's share of it."""
+    reach = audience[:, None] * presence
+    hourly = reach.sum(axis=0)
+    share = np.divide(
+        reach.T, hourly[:, None], out=np.zeros_like(reach.T), where=hourly[:, None] > 0
+    )
+    return hourly, share
 
 
 def _cumulative_by_segment(
@@ -260,17 +307,25 @@ def _cumulative_by_segment(
 
 
 def tick_shares(
-    campaign: Campaign, clock: Clock, hourly: NDArray[np.float64] | None = None
+    campaign: Campaign,
+    clock: Clock,
+    hourly: NDArray[np.float64] | None = None,
+    calendar: Calendar | None = None,
 ) -> NDArray[np.float64]:
-    """Share of an active day's impressions in each tick: the hourly weights over that day's
-    active ticks (the campaign's own presence when none are given)."""
+    """Share of an active day's impressions in each tick: the hourly weights over that local
+    day's active ticks.
+
+    `hourly` is 24 weights, or 24 per day type; the campaign's own presence when none are given.
+    Without a calendar days start at midnight of sim minute 0 and are all working days.
+    """
+    calendar = plain_calendar(clock) if calendar is None else calendar
     starts = np.arange(clock.ticks, dtype=np.int64) * clock.tick_minutes
     active = (starts >= campaign.start_minute) & (starts < campaign.end_minute)
-    hour = (starts % MINUTES_PER_DAY) // 60
     if hourly is None:
         hourly = np.asarray(campaign.presence) if campaign.presence else np.ones(HOURS_PER_DAY)
-    weight = np.where(active, hourly[hour], 0.0)
-    day = starts // MINUTES_PER_DAY
+    by_day_type = np.broadcast_to(hourly, (DAY_TYPES, HOURS_PER_DAY))
+    weight = np.where(active, by_day_type[calendar.day_type, calendar.hour], 0.0)
+    day = calendar.day
     day_total = np.bincount(day, weights=weight)[day]
     return np.divide(weight, day_total, out=np.zeros(clock.ticks), where=day_total > 0)
 
@@ -303,14 +358,18 @@ def build_choice_model(
     scenario: Scenario,
     params: Params,
     clock: Clock,
+    calendar: Calendar,
     affinity: NDArray[np.float64],
     repeat_taste: NDArray[np.float64],
 ) -> ChoiceModel:
     price_term = params.beta * scenario.price / scenario.ref_price
     segment = city.residents.segment.astype(np.int64)
     alpha = params.alpha_0 + np.asarray(params.alpha_segment)[segment]
+    probability = occasion_probability_per_tick(params, clock, calendar)
     return ChoiceModel(
-        occasion_probability=occasion_probability_per_tick(params, clock),
+        occasion_probability=probability,
+        occasion_shared=(probability == probability[:, :1]).all(axis=1),
+        segment=segment,
         first_logit=alpha + affinity - price_term + params.delta,
         repeat_logit=params.alpha_rep + repeat_taste - price_term,
         gamma=params.gamma,
@@ -363,15 +422,52 @@ def stock_level(rate: float, catchment: NDArray[np.int64]) -> NDArray[np.int64]:
     return np.rint(rate * catchment).astype(np.int64)
 
 
-def occasion_probability_per_tick(params: Params, clock: Clock) -> NDArray[np.float64]:
-    """1 - exp(-omega(slot) dt), with omega averaging `occasions_per_day` over the day."""
-    if params.occasions_per_day <= 0.0:
-        return np.zeros(clock.ticks)
-    profile = np.asarray(params.occasion_profile)
-    per_hour = params.occasions_per_day / HOURS_PER_DAY * profile / profile.mean()
-    starts = np.arange(clock.ticks, dtype=np.int64) * clock.tick_minutes
-    hour = (starts % MINUTES_PER_DAY) // 60
-    return -np.expm1(-per_hour[hour] * clock.tick_minutes / 60.0)
+def occasion_tables(
+    params: Params, segments: int
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Per day type and segment: the daily occasion rate and the 24 hourly weights (D-036)."""
+    _require_occasion_tables(params, segments)
+    working = params.segment_occasion_profile or ((),) * segments
+    weekend = params.weekend_occasion_profile or ((),) * segments
+    rates = np.empty((DAY_TYPES, segments))
+    rates[WORKING_DAY] = params.segment_occasions_per_day or params.occasions_per_day
+    rates[WEEKEND] = rates[WORKING_DAY] * np.asarray(params.weekend_occasion_factor or 1.0)
+    profiles = np.empty((DAY_TYPES, segments, HOURS_PER_DAY))
+    for s in range(segments):
+        profiles[WORKING_DAY, s] = working[s] or params.occasion_profile
+        profiles[WEEKEND, s] = weekend[s] or profiles[WORKING_DAY, s]
+    silent = (profiles.sum(axis=2) <= 0.0) & (rates > 0.0)
+    if silent.any():
+        day_type, s = np.argwhere(silent)[0]
+        day = "weekend" if day_type == WEEKEND else "working-day"
+        raise ValueError(f"segment {s} has occasions but its {day} profile sums to zero")
+    return rates, profiles
+
+
+def occasions_per_hour(params: Params, segments: int) -> NDArray[np.float64]:
+    """[day type, segment, hour]: omega_s, the day type's daily rate spread over the hours by the
+    profile, `daily / 24 * profile[h] / mean(profile)` (MODEL.md section 4, D-036)."""
+    rates, profiles = occasion_tables(params, segments)
+    per_hour = np.zeros((DAY_TYPES, segments, HOURS_PER_DAY))
+    for day_type in (WORKING_DAY, WEEKEND):
+        for s in range(segments):
+            if rates[day_type, s] > 0.0:
+                profile = profiles[day_type, s]
+                per_hour[day_type, s] = (
+                    rates[day_type, s] / HOURS_PER_DAY * profile / profile.mean()
+                )
+    return per_hour
+
+
+def occasion_probability_per_tick(
+    params: Params, clock: Clock, calendar: Calendar | None = None
+) -> NDArray[np.float64]:
+    """[tick, segment]: 1 - exp(-omega_s(day type, hour) dt)."""
+    calendar = plain_calendar(clock) if calendar is None else calendar
+    segments = len(params.kappa)
+    per_hour = occasions_per_hour(params, segments)
+    by_tick = per_hour[calendar.day_type[:, None], np.arange(segments), calendar.hour[:, None]]
+    return -np.expm1(-by_tick * clock.tick_minutes / 60.0)
 
 
 def _lookup(campaign: Campaign, field: str, ids: NDArray[np.int64]) -> NDArray[np.float64]:
@@ -390,3 +486,18 @@ def _require_segment_tables(params: Params, top_segment: int) -> None:
     for name in ("kappa", "alpha_segment"):
         if top_segment >= len(getattr(params, name)):
             raise ValueError(f"params.{name} has no value for segment {top_segment}")
+
+
+def _require_occasion_tables(params: Params, segments: int) -> None:
+    for name in (
+        "segment_occasions_per_day",
+        "segment_occasion_profile",
+        "weekend_occasion_factor",
+        "weekend_occasion_profile",
+    ):
+        table = getattr(params, name)
+        if table and len(table) != segments:
+            raise ValueError(
+                f"params.{name} has {len(table)} entries; it needs one per segment "
+                f"({segments}, the length of kappa) or none"
+            )

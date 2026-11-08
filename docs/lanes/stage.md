@@ -8,8 +8,14 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - What it shows: Day 5 1,215 ordered and 21% heard; Day 9 2,204 and 29%; Day 13 4,177 and 40%, with 3 of 14 stores out and their beacons red. The first stockout is on Day 10 at 3:30 pm.
 - Frames on the M4 in Chrome, WebGPU, tier high, 16x on the real tape with the readouts card and timeline visible: p50 16.7, p95 17.6 ms, 60 fps, 12 draw calls, and the same while recording. On battery at 65% with Low Power Mode off.
 - The fixture route also passes in Firefox and Playwright WebKit (`SHOTS_ENGINES=1`, `-g fixture`).
-- Next: move the stills to `/dev/fixture` (one rebaseline) and drop `pack-v1.ts`, since nothing writes v1 now.
+- The `just shots` stills and frame report now use the fixture run (`/dev/stage?fixture=toy`), rebaselined once. The frame report measures 48k residents instead of 20k, so software GL timings start from a new reference (desktop high p50 583 ms against 350). The timeline label test stays on the toy run, since only it has a monsoon.
+- The stage reads v2 packs only; `pack-v1.ts` and its tests are gone. The opt-in generated pack test (`TWL_TEST_PACK_DIR`) now fetches through `fetchPack`, so it reads zstd packs, and allows 1.5 m past a footprint for v2's rounding.
 - Timeline event labels use short names below 1400 px, a breakpoint tuned to the toy run's two campaigns and monsoon. When real events feed the timeline, labels need collision handling from their measured widths, and every event needs a `short` name.
+
+## P-025
+- Lane B's part is done: `loadPack(url)` fetches, decompresses and decodes a pack in a module Web Worker and transfers each column buffer once (`cityTransfers`); it falls back to `fetchPack` where there is no `Worker`. The dev routes use it. Ready to tick once this PR merges.
+- Ahmedabad on the M4 in headed Chrome, widest main-thread stall during load (a MessageChannel heartbeat; the long task API missed tasks once the heartbeat ran): 333 to 381 ms before, 145 to 161 ms after. What remains is `loadCity` building the stage's buffers (130 to 148 ms), which the worker does not touch. Pack time is unchanged at 0.2 to 0.3 s.
+- Stills match the baseline unchanged, and the fixture route loads through the worker in Chrome, Firefox and Playwright WebKit (`SHOTS_ENGINES=1`).
 
 ## River layer
 - The stage reads `river.bin` and draws any water ring: a dark ribbon whose slow sheen fades out toward the banks. Reduced motion holds the sheen. Rain sheen waits for P-042.

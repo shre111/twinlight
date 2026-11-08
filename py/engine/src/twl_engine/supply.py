@@ -24,7 +24,13 @@ from twl_engine.events import (
 from twl_engine.events import KIND as EVENT_KIND
 from twl_engine.events import A as EVENT_A
 from twl_engine.events import B as EVENT_B
-from twl_engine.orders import MAX_ORDER_COUNT, earliest_order_minute, log_nudges, sigmoid
+from twl_engine.orders import (
+    MAX_ORDER_COUNT,
+    earliest_order_minute,
+    log_nudges,
+    residents_with_occasions,
+    sigmoid,
+)
 from twl_engine.scenario import Supply
 from twl_engine.state import (
     ATTEMPTS,
@@ -244,14 +250,11 @@ def attempts_from_occasions(
     """
     choice, residents, supply = sim.world.choice, sim.residents, sim.world.scenario.supply
     assert supply is not None
-    chance = choice.occasion_probability[start // (end - start)]
     pool = np.flatnonzero((residents.aware_at != NEVER) & plan.serviceable)
-    if chance <= 0.0 or pool.size == 0:
-        return NOBODY, NOBODY
-    count = int(rng.binomial(pool.size, chance))
+    deciding = residents_with_occasions(choice, pool, start // (end - start), rng)
+    count = deciding.size
     if count == 0:
         return NOBODY, NOBODY
-    deciding = np.sort(pool[rng.choice(pool.size, size=count, replace=False, shuffle=False)])
     draws = rng.random((count, 2))
     adopted = residents.first_order_at[deciding] != NEVER
     own = plan.own_store[deciding]

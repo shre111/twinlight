@@ -44,8 +44,11 @@ district_weights = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 10.0, 10.0, 1.0, 10.0, 1.0, 1.
 frequency_cap = 3
 presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6]
 
-# Fitted by `python -m twl_engine.fit_prototype` on days 6 and 13 only; never edit by hand.
 [params]
+# The prototype's occasion profile, pinned so later defaults cannot move the parity test (D-036).
+occasions_per_day = 3.0
+occasion_profile = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6]
+# Fitted by `python -m twl_engine.fit_prototype` on days 6 and 13 only; never edit by hand.
 paid_scale = 1.161
 q = 0.00658
 alpha_0 = -6.092

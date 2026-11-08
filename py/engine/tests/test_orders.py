@@ -49,7 +49,9 @@ def test_sigmoid_is_stable_at_the_extremes() -> None:
 
 
 def test_occasion_rate_integrates_to_occasions_per_day() -> None:
-    chance = occasion_probability_per_tick(Params(), DAY)
+    by_segment = occasion_probability_per_tick(Params(), DAY)
+    assert by_segment.shape == (96, 5) and (by_segment == by_segment[:, :1]).all()
+    chance = by_segment[:, 0]
     assert -np.log1p(-chance).sum() == pytest.approx(3.0)
     assert chance.argmax() // 4 == 20
     flat = occasion_probability_per_tick(Params(occasion_profile=(1.0,) * 24), DAY)
