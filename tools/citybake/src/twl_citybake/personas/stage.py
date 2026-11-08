@@ -79,6 +79,7 @@ def run_personas(population: Path, pool_path: Path, city: CityConfig) -> Persona
         stream(city.seed, Stream.PERSONAS),
         slot_tier=None if tilt is None else tilt.slot_tier,
         free_weights=None if tilt is None else tilt.weights,
+        spouse_weights=None if tilt is None else tilt.weights,
     )
     names = [rule.name for rule in config.segments]
     married = pool.marital == married_code
@@ -238,6 +239,9 @@ def _tilt_report(
         },
         "free_draws_10plus": {
             name: _by_tier(ten_plus, tier, ~spouse_slot & (sex == code)) for name, code in SEXES
+        },
+        "spouses_10plus": {
+            name: _by_tier(ten_plus, tier, spouse_slot & (sex == code)) for name, code in SEXES
         },
         "residents_10plus": {name: _by_tier(ten_plus, tier, sex == code) for name, code in SEXES},
         "segments_by_tier": {

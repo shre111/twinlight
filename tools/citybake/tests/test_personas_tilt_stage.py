@@ -184,10 +184,17 @@ def test_the_report_carries_the_documented_keys(tilt_report: dict) -> None:
         "odds_ratios",
         "pool_10plus",
         "free_draws_10plus",
+        "spouses_10plus",
         "residents_10plus",
         "segments_by_tier",
     }
-    for key in ("mapped", "odds_ratios", "free_draws_10plus", "residents_10plus"):
+    for key in (
+        "mapped",
+        "odds_ratios",
+        "free_draws_10plus",
+        "spouses_10plus",
+        "residents_10plus",
+    ):
         assert set(tilt_report[key]) == {"female", "male"}
         assert all(len(v) == 3 for v in tilt_report[key].values())
     assert set(tilt_report["pool_10plus"]) == {"female", "male"}
