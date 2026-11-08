@@ -69,7 +69,8 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   Split: Lane C writes `py/pack` (`twl_pack`: codecs, writer, reader) and the citybake pack stage with the D-031 rules; Lane B the TypeScript reader in a worker and its side of the goldens; Lane A moves the toy fixture onto `twl_pack`, regenerates goldens once (with P-014) and extends the CI formats filter.
 
 ## M3 Full engine
-- [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels. `[tests]`
+- [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
+  AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
 - [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift. `[tests]`
   Must replace the shared-rate binomial occasion draw in `twl_engine.orders` with per-resident rates (it is exact only while every aware resident shares one rate).
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
@@ -99,6 +100,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-053 City view** Lane B. Stage + timeline + layers + readouts + legend, wired to real runs.
 - [ ] **P-054 Resident and store cards** Lane B. Stories derived from tape events; store stock sparkline with stockout spans.
 - [ ] **P-055 Plan view** Lane B + A. Fan chart of adopters (P10 to P90), per-store stock plan table, next-city ranking, calibration panel, CSV export. `[tests]`
+  While channel defaults are neutral (D-034), channel-versus-channel comparisons are labelled uncalibrated, not shown as findings.
 - [ ] **P-056 Compare view** Lane B. Two scenarios as two cities side by side with a shared timeline (e.g. Rs 49 vs Rs 59). `[deep]`
 - [ ] **P-057 Share links** Lane A. Read-only run pages with signed links. `[tests]`
 
