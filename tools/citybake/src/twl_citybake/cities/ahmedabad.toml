@@ -4,6 +4,9 @@ name = "Ahmedabad"
 bbox = [72.45, 22.92, 72.72, 23.14]
 # root of every citybake random stream
 seed = 20260101
+# D-036: the engine's local hour and day type; Saturday and Sunday until calibration says otherwise
+timezone = "Asia/Kolkata"
+weekend_days = [6, 7]
 
 [osm]
 url = "https://download.geofabrik.de/asia/india/western-zone-260101.osm.pbf"

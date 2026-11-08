@@ -89,6 +89,8 @@ def run_pack(
 ) -> PackStage:
     """The folders are stage outputs. `wards` is the ward file behind the report's ward groups;
     ward data goes in `report.json` only. Nothing here draws randomness."""
+    if city.timezone is None or city.weekend_days is None:
+        raise PackStageError(f"{city.slug} needs timezone and weekend_days in its city config")
     digests = _input_digests(buildings_layers, osm_layers, population, personas, graph, stores)
     _check_current("personas", personas, digests, ("population_residents_sha256",))
     _check_current(
@@ -110,6 +112,8 @@ def run_pack(
     )
 
     residents = read_table(population / "residents")
+    if "tier" not in residents:
+        raise StaleInputError(f"{population} has no tier column; rerun `citybake population`")
     assignment = read_table(personas / "assignment")
     resident_hex = read_table(stores / "resident_hex")
     _check_row_counts(residents, assignment, resident_hex)
@@ -133,6 +137,8 @@ def run_pack(
             kind="city",
             name=city.slug,
             crs=LocalProjection.for_bbox(city.bbox).proj4,
+            timezone=city.timezone,
+            weekend_days=city.weekend_days,
             segments=list(persona_meta["segments"]),
             bands=_bands(stores),
             attributions=credits,
@@ -145,6 +151,7 @@ def run_pack(
                 hex=resident_hex["hex"],
                 persona_ref=assignment["persona_ref"],
                 weight=residents["weight"],
+                tier=residents["tier"],
             ),
             stores=_store_columns(read_table(stores / "stores")),
             river=river_columns(water),
