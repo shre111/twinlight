@@ -5,6 +5,7 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.162,<0.163",
     "numpy>=2.5,<3",
+    "pydantic>=2,<3",
     "twl-pack",
     "uvicorn>=0.54,<0.55",
 ]
