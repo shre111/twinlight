@@ -172,7 +172,7 @@ def _encode_residents(r: ResidentColumns, bbox: Bbox, building_order: NDArray[np
 
 
 def _encode_residents_engine(r: ResidentEngineColumns) -> bytes:
-    return _join(r.hex.tobytes(), r.persona_ref.tobytes(), r.weight.tobytes())
+    return _join(r.hex.tobytes(), r.persona_ref.tobytes(), r.weight.tobytes(), r.tier.tobytes())
 
 
 def _encode_stores(s: StoreColumns) -> bytes:
@@ -220,7 +220,9 @@ def _manifest(
         "name": c.name,
         "segments": list(c.segments),
         "sizes": _sizes(objects),
+        "timezone": c.timezone,
         "version": PACK_VERSION,
+        "weekend_days": [int(day) for day in c.weekend_days],
     }
     if c.seed is not None:
         manifest["seed"] = int(c.seed)

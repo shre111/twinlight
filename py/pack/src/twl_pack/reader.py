@@ -31,6 +31,7 @@ from twl_pack.format import (
     PACK_VERSION,
     PackError,
 )
+from twl_pack.local_time import check_timezone, check_weekend_days
 
 _U32_MAX = 0xFFFFFFFF
 _MANIFEST_KEYS = (
@@ -46,7 +47,9 @@ _MANIFEST_KEYS = (
     "name",
     "segments",
     "sizes",
+    "timezone",
     "version",
+    "weekend_days",
 )
 _COUNT_KEYS = (
     "bands",
@@ -125,6 +128,7 @@ class PackResidentsEngine:
     hex: NDArray[np.uint32]
     persona_ref: NDArray[np.uint32]
     weight: NDArray[np.float32]
+    tier: NDArray[np.uint8]
 
 
 @dataclass(frozen=True, eq=False)
@@ -209,6 +213,7 @@ def _layout(name: str, counts: dict[str, int]) -> list[_Column] | None:
                 _Column("hex", "<u4", residents),
                 _Column("persona_ref", "<u4", residents),
                 _Column("weight", "<f4", residents),
+                _Column("tier", "<u1", residents),
             ]
         case "stores.bin":
             return [
@@ -395,6 +400,8 @@ def _parse_manifest(data: bytes) -> dict[str, Any]:
         raise PackError(f"kind must be toy or city, got {kind!r}")
     if kind == "toy" and "seed" not in manifest:
         raise PackError("manifest.json is missing seed")
+    check_timezone(manifest["timezone"])
+    check_weekend_days(manifest["weekend_days"])
     _check_counts(manifest["counts"])
     if not isinstance(manifest["files"], dict):
         raise PackError("manifest.json files is not an object")
