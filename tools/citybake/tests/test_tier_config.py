@@ -10,6 +10,7 @@ from twl_citybake.config import CityConfig, TierConfig, load_city
 
 AHMEDABAD = (files("twl_citybake.cities") / "ahmedabad.toml").read_text(encoding="utf-8")
 TIER_SECTION = re.compile(r"(?ms)^\[tier\]\n.*?(?=^\[|\Z)")
+TILT_SECTION = re.compile(r"(?ms)^\[personas\.tier_tilt\]\n.*?(?=^\[|\Z)")
 
 VALID = {
     "low_share": "0.3",
@@ -35,7 +36,7 @@ class FakeResource:
 
 
 def load_with(monkeypatch: pytest.MonkeyPatch, tier: dict[str, str] | None) -> CityConfig:
-    text = TIER_SECTION.sub("", AHMEDABAD)
+    text = TILT_SECTION.sub("", TIER_SECTION.sub("", AHMEDABAD))
     if tier is not None:
         body = "".join(f"{k} = {v}\n" for k, v in tier.items())
         text = text.rstrip("\n") + "\n\n[tier]\n" + body

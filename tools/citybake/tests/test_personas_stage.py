@@ -42,7 +42,9 @@ class Built:
 
 
 def city_config(seed: int = 20260101) -> CityConfig:
-    return replace(load_city("ahmedabad"), seed=seed)
+    city = load_city("ahmedabad")
+    assert city.personas is not None
+    return replace(city, seed=seed, personas=replace(city.personas, tier_tilt=None))
 
 
 def snapshot(root: Path) -> dict[str, bytes]:

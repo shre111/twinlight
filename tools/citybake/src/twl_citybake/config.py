@@ -506,9 +506,58 @@ class SegmentRule:
         )
 
 
+QUINTILES = 5
+
+
+@dataclass(frozen=True)
+class TierTiltConfig:
+    """D-035: percent of people with 10 or more years of schooling in each national wealth
+    quintile, lowest first, and the reference population's percent in each quintile. Only the odds
+    ratios between tiers are used; `education_10plus` names the pool's 10+ education levels."""
+
+    education_10plus: tuple[str, ...]
+    quintile_population: tuple[float, ...]
+    female_10plus: tuple[float, ...]
+    male_10plus: tuple[float, ...]
+    source: str
+
+    def __post_init__(self) -> None:
+        if not _is_name_list(self.education_10plus):
+            raise ValueError("personas.tier_tilt.education_10plus must be a list of names")
+        names = list(self.education_10plus)
+        if repeats := [name for i, name in enumerate(names) if name in names[:i]]:
+            raise ValueError(f"personas.tier_tilt.education_10plus repeats {repeats[0]!r}")
+        population = self.quintile_population
+        if not _is_quintiles(population) or any(value < 0 for value in population):
+            raise ValueError(
+                f"personas.tier_tilt.quintile_population needs {QUINTILES} non-negative percents"
+            )
+        if abs(sum(population) - 100) > 0.5:
+            raise ValueError(
+                f"personas.tier_tilt.quintile_population must sum to 100, got {sum(population)}"
+            )
+        for name in ("female_10plus", "male_10plus"):
+            values = getattr(self, name)
+            if not _is_quintiles(values) or not all(0 < value < 100 for value in values):
+                raise ValueError(
+                    f"personas.tier_tilt.{name} needs {QUINTILES} percents strictly inside (0, 100)"
+                )
+        if not _is_text(self.source):
+            raise ValueError("personas.tier_tilt.source must not be blank")
+
+
+def _is_quintiles(values: object) -> bool:
+    return (
+        isinstance(values, tuple | list)
+        and len(values) == QUINTILES
+        and all(_is_number(value) for value in values)
+    )
+
+
 @dataclass(frozen=True)
 class PersonasConfig:
-    """The pinned Nemotron slice and the ordered first-match segment table (D-026)."""
+    """The pinned Nemotron slice and the ordered first-match segment table (D-026), and the
+    optional tilt of free draws by household tier (D-035)."""
 
     revision: str
     state: str
@@ -517,6 +566,7 @@ class PersonasConfig:
     married: str
     segments_version: int
     segments: tuple[SegmentRule, ...]
+    tier_tilt: TierTiltConfig | None = None
 
     def __post_init__(self) -> None:
         if len(self.segments) < 2:
@@ -770,7 +820,7 @@ def load_city(slug: str) -> CityConfig:
     if not re.fullmatch(r"[a-z0-9-]+", slug) or not resource.is_file():
         raise ValueError(f"unknown city {slug!r}")
     raw = tomllib.loads(resource.read_text())
-    return CityConfig(
+    city = CityConfig(
         slug=raw["slug"],
         name=raw["name"],
         bbox=BBox(*raw["bbox"]),
@@ -794,6 +844,9 @@ def load_city(slug: str) -> CityConfig:
         travel=_travel(raw.get("travel", {})),
         pack=_pack(raw.get("pack", {})),
     )
+    if city.personas is not None and city.personas.tier_tilt is not None and city.tier is None:
+        raise ValueError(f"{slug} has [personas.tier_tilt] but no [tier] to tilt by")
+    return city
 
 
 def _districts(raw: dict[str, Any]) -> DistrictConfig:
@@ -933,10 +986,28 @@ def _personas(raw: dict[str, Any] | None) -> PersonasConfig | None:
         "segments_version",
         "segments",
     }
-    _known_keys("[personas]", raw, required)
+    _known_keys("[personas]", raw, required | {"tier_tilt"})
     if missing := sorted(required - set(raw)):
         raise ValueError(f"[personas] needs {missing[0]!r}")
-    return PersonasConfig(**{**raw, "segments": tuple(_segment_rule(r) for r in raw["segments"])})
+    return PersonasConfig(
+        **{
+            **raw,
+            "segments": tuple(_segment_rule(r) for r in raw["segments"]),
+            "tier_tilt": _tier_tilt(raw.get("tier_tilt")),
+        }
+    )
+
+
+def _tier_tilt(raw: Any) -> TierTiltConfig | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("[personas.tier_tilt] must be a table")
+    required = {f.name for f in fields(TierTiltConfig)}
+    _known_keys("[personas.tier_tilt]", raw, required)
+    if missing := sorted(required - set(raw)):
+        raise ValueError(f"[personas.tier_tilt] needs {missing[0]!r}")
+    return TierTiltConfig(**_tuples(raw))
 
 
 def _segment_rule(raw: dict[str, Any]) -> SegmentRule:

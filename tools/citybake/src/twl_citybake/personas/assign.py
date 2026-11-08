@@ -71,10 +71,52 @@ def free_draw_weights(
 
 
 def draw_free_rows(
-    weights: NDArray[np.float64], count: int, rng: np.random.Generator
+    weights: NDArray[np.float64],
+    slot_tier: NDArray[np.integer] | None,
+    rng: np.random.Generator,
+    count: int | None = None,
 ) -> NDArray[np.int64]:
-    """The sampler: P-061b replaces it to condition free draws on household affluence."""
-    return rng.choice(len(weights), size=count, p=weights)
+    """One uniform per slot, mapped through the inverse CDF of its tier's row of `weights`, (rows,)
+    or (tiers, rows). This is how `rng.choice(rows, size=count, p=weights)` samples, so 1-D
+    weights give exactly its draws and leave the generator in the same state. `count` is the
+    number of slots when `slot_tier` is None."""
+    table = np.asarray(weights, np.float64)
+    tiers = None if slot_tier is None else np.asarray(slot_tier)
+    if tiers is not None:
+        slots = len(tiers)
+        if count is not None and count != slots:
+            raise ValueError(f"count {count} differs from {slots} slot tiers")
+    elif count is not None:
+        slots = count
+    else:
+        raise ValueError("draw_free_rows needs slot_tier or count")
+    _check_weights(table, tiers)
+    uniform = rng.random(slots)
+    if table.ndim == 1 or tiers is None:
+        return _inverse_cdf(table, uniform)
+    rows = np.empty(slots, np.int64)
+    for tier, tier_weights in enumerate(table):
+        at = tiers == tier
+        rows[at] = _inverse_cdf(tier_weights, uniform[at])
+    return rows
+
+
+def _check_weights(table: NDArray[np.float64], tiers: NDArray[np.integer] | None) -> None:
+    if table.ndim not in (1, 2) or table.shape[-1] == 0:
+        raise ValueError(f"free-draw weights must be (rows,) or (tiers, rows), got {table.shape}")
+    if not (np.isfinite(table).all() and (table >= 0).all() and (table.sum(axis=-1) > 0).all()):
+        raise ValueError("free-draw weights must be finite, non-negative and not all 0")
+    if table.ndim == 2:
+        if tiers is None:
+            raise ValueError("weights per tier need slot_tier")
+        if len(tiers) and not 0 <= int(tiers.min()) <= int(tiers.max()) < len(table):
+            raise ValueError(f"slot_tier must be in 0..{len(table) - 1}")
+
+
+def _inverse_cdf(weights: NDArray[np.float64], uniform: NDArray[np.float64]) -> NDArray[np.int64]:
+    cdf = weights.cumsum()
+    cdf /= cdf[-1]
+    return cdf.searchsorted(uniform, side="right").astype(np.int64, copy=False)
 
 
 def assign_personas(
@@ -83,19 +125,35 @@ def assign_personas(
     segments: NDArray[np.uint16],
     married_code: int,
     rng: np.random.Generator,
+    slot_tier: NDArray[np.integer] | None = None,
+    free_weights: NDArray[np.float64] | None = None,
 ) -> Assignment:
     """Walk each household's slots in order: a free slot draws from the pool, and a married draw
     with a next slot takes it as a spouse, married and of the other sex. The walk continues after
     the spouse, so a household of 4 can hold two couples. `segments` labels the pool rows; it does
     not steer the draws yet.
 
+    `free_weights` replaces `free_draw_weights`: one row, or one per tier with `slot_tier` giving
+    each slot's tier (D-035). Spouses are still drawn by age alone, so a tilt reaches free draws,
+    not spouses.
+
     Draws, in order and one per slot whether used or not: the free row, the spouse's uniform, the
     age gap."""
     if len(segments) != len(pool.uuid):
         raise ValueError(f"{len(segments)} segments for {len(pool.uuid)} pool rows")
     slots = len(household)
-    weights = free_draw_weights(adults_per_household(household), pool, married_code)
-    free = draw_free_rows(weights, slots, rng)
+    weights = (
+        free_draw_weights(adults_per_household(household), pool, married_code)
+        if free_weights is None
+        else np.asarray(free_weights, np.float64)
+    )
+    if weights.shape[-1] != len(pool.uuid):
+        raise ValueError(f"free_weights cover {weights.shape[-1]} rows, the pool {len(pool.uuid)}")
+    if weights.ndim == 2 and slot_tier is None:
+        raise ValueError("free_weights per tier need slot_tier")
+    if slot_tier is not None and len(slot_tier) != slots:
+        raise ValueError(f"{len(slot_tier)} slot tiers for {slots} slots")
+    free = draw_free_rows(weights, slot_tier, rng, slots)
     uniform = rng.random(slots)
     gap = rng.choice(AGE_GAPS, size=slots, p=AGE_GAP_WEIGHTS / AGE_GAP_WEIGHTS.sum())
     mate = _spouse_candidates(free, gap, uniform, pool, married_code)
