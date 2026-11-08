@@ -4,6 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from twl_citybake.personas.pool import FEMALE, MALE, PersonaPool
+from twl_citybake.personas.tilt import TIERS
 
 # The spouse column holds resident rows, so `household` must be the whole residents column in order
 NO_SPOUSE = 0xFFFFFFFF
@@ -127,6 +128,7 @@ def assign_personas(
     rng: np.random.Generator,
     slot_tier: NDArray[np.integer] | None = None,
     free_weights: NDArray[np.float64] | None = None,
+    spouse_weights: NDArray[np.float64] | None = None,
 ) -> Assignment:
     """Walk each household's slots in order: a free slot draws from the pool, and a married draw
     with a next slot takes it as a spouse, married and of the other sex. The walk continues after
@@ -134,8 +136,9 @@ def assign_personas(
     not steer the draws yet.
 
     `free_weights` replaces `free_draw_weights`: one row, or one per tier with `slot_tier` giving
-    each slot's tier (D-035). Spouses are still drawn by age alone, so a tilt reaches free draws,
-    not spouses.
+    each slot's tier (D-035). `spouse_weights`, (tiers, rows), tilts spouses with the same per-tier
+    weights within their age bucket: the spouse is still taken at the nearest available age, then
+    in proportion to the opening slot's tier row of weights. Without it, age alone decides.
 
     Draws, in order and one per slot whether used or not: the free row, the spouse's uniform, the
     age gap."""
@@ -153,10 +156,13 @@ def assign_personas(
         raise ValueError("free_weights per tier need slot_tier")
     if slot_tier is not None and len(slot_tier) != slots:
         raise ValueError(f"{len(slot_tier)} slot tiers for {slots} slots")
+    spouse_tilt = (
+        None if spouse_weights is None else _spouse_tilt(spouse_weights, slot_tier, len(pool.uuid))
+    )
     free = draw_free_rows(weights, slot_tier, rng, slots)
     uniform = rng.random(slots)
     gap = rng.choice(AGE_GAPS, size=slots, p=AGE_GAP_WEIGHTS / AGE_GAP_WEIGHTS.sum())
-    mate = _spouse_candidates(free, gap, uniform, pool, married_code)
+    mate = _spouse_candidates(free, gap, uniform, pool, married_code, spouse_tilt)
     first = _couple_openers(household, mate >= 0)
     persona_ref = free.astype(np.uint32)
     persona_ref[first + 1] = mate[first]
@@ -209,6 +215,24 @@ class _AgeLookup:
         age = np.clip(target, 0, _MAX_AGE)
         return self.rows[self.start[age] + (uniform * self.count[age]).astype(np.intp)]
 
+    def pick_weighted(
+        self, target: NDArray[np.int64], uniform: NDArray[np.float64], weights: NDArray[np.float64]
+    ) -> NDArray[np.intp]:
+        """`pick` within the same bucket, each row in proportion to `weights` (one per pool row):
+        the inverse CDF over the bucket in `rows` order, side="right". A bucket of zero weight
+        falls back to `pick`."""
+        age = np.clip(target, 0, _MAX_AGE)
+        start = self.start[age]
+        end = start + self.count[age]
+        ordered = weights[self.rows]
+        cumulative = np.concatenate(([0.0], ordered.cumsum()))
+        low, high = cumulative[start], cumulative[end]
+        at = cumulative.searchsorted(low + uniform * (high - low), side="right") - 1
+        positions = np.arange(len(ordered))
+        last_weighted = np.maximum.accumulate(np.where(ordered > 0, positions, -1))[end - 1]
+        weighted = np.clip(at, start, np.maximum(last_weighted, start))
+        return np.where(last_weighted >= start, self.rows[weighted], self.pick(target, uniform))
+
 
 def _age_lookup(rows: NDArray[np.intp], age: NDArray[np.int64]) -> _AgeLookup:
     by_age = rows[np.argsort(age[rows], kind="stable")]
@@ -220,16 +244,40 @@ def _age_lookup(rows: NDArray[np.intp], age: NDArray[np.int64]) -> _AgeLookup:
     return _AgeLookup(rows=by_age, start=first[nearest], count=count[nearest])
 
 
+@dataclass(frozen=True)
+class _SpouseTilt:
+    slot_tier: NDArray[np.integer]
+    weights: NDArray[np.float64]
+
+
+def _spouse_tilt(
+    spouse_weights: NDArray[np.float64], slot_tier: NDArray[np.integer] | None, rows: int
+) -> _SpouseTilt:
+    if slot_tier is None:
+        raise ValueError("spouse_weights need slot_tier")
+    table = np.asarray(spouse_weights, np.float64)
+    if table.shape != (TIERS, rows):
+        raise ValueError(f"spouse_weights must be ({TIERS}, {rows}), got {table.shape}")
+    if not (np.isfinite(table).all() and (table >= 0).all()):
+        raise ValueError("spouse_weights must be finite and non-negative")
+    tiers = np.asarray(slot_tier)
+    if len(tiers) and not 0 <= int(tiers.min()) <= int(tiers.max()) < TIERS:
+        raise ValueError(f"slot_tier must be in 0..{TIERS - 1}")
+    return _SpouseTilt(slot_tier=tiers, weights=table)
+
+
 def _spouse_candidates(
     free: NDArray[np.int64],
     gap: NDArray[np.int64],
     uniform: NDArray[np.float64],
     pool: PersonaPool,
     married_code: int,
+    tilt: _SpouseTilt | None = None,
 ) -> NDArray[np.int64]:
     """The spouse each slot's free draw would take, -1 when it is not married or no married
     persona of the other sex exists. The gap is husband minus wife, so a wife's husband targets
-    age + gap and a husband's wife targets age - gap."""
+    age + gap and a husband's wife targets age - gap. With a tilt the pick within the age bucket
+    follows the slot's tier row of weights."""
     age = pool.age.astype(np.int64)
     married = pool.marital == married_code
     mate = np.full(len(free), -1, np.int64)
@@ -239,7 +287,14 @@ def _spouse_candidates(
             continue
         slots = np.flatnonzero(married[free] & (pool.sex[free] == sex))
         target = age[free[slots]] + sign * gap[slots]
-        mate[slots] = _age_lookup(candidates, age).pick(target, uniform[slots])
+        lookup = _age_lookup(candidates, age)
+        if tilt is None:
+            mate[slots] = lookup.pick(target, uniform[slots])
+            continue
+        tiers = tilt.slot_tier[slots]
+        for tier, weights in enumerate(tilt.weights):
+            at = tiers == tier
+            mate[slots[at]] = lookup.pick_weighted(target[at], uniform[slots[at]], weights)
     return mate
 
 
