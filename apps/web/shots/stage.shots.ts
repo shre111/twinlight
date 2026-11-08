@@ -11,7 +11,7 @@ const LOAD_TIMEOUT_MS = 30_000
 const HIDE_DEV_INDICATOR = '[data-nextjs-dev-overlay] { display: none !important; }'
 
 // The engine's fixture run over the toy pack, both written by `just fixture`.
-async function openStage(page: Page, query: string) {
+async function openFixtureStage(page: Page, query: string) {
   await openRoute(page, `/dev/stage?fixture=toy&${query}`)
 }
 
@@ -47,14 +47,14 @@ async function captureStill(page: Page, testInfo: TestInfo, name: string) {
 // Day 10 has stores out of stock; `still=1` holds their flicker so two screenshots match.
 for (const day of [1, 6, 10, 13]) {
   test(`city day ${day}`, async ({ page }, testInfo) => {
-    await openStage(page, `hud=0&still=1&day=${day}`)
+    await openFixtureStage(page, `hud=0&still=1&day=${day}`)
     await captureStill(page, testInfo, `city-day${day}`)
   })
 }
 
 test('city day 10 with reduced motion', async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await openStage(page, 'hud=0&day=10')
+  await openFixtureStage(page, 'hud=0&day=10')
   const reduced = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
   expect(reduced, 'reduced motion emulated').toBe(true)
   await captureStill(page, testInfo, 'city-day10-reduced-motion')
@@ -73,8 +73,7 @@ test('fixture route starts at the launch, plays and fills its figures', async ({
   await expect(ordered).not.toHaveText('0')
 })
 
-// Measures the toy run's labels, monsoon included (the fixture has no rain); real tapes bring
-// other names and times.
+// Measures the toy run's labels, since only it has a monsoon. Real tapes bring other names.
 test('timeline event labels stay apart at every width', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop', 'this test sets its own widths')
   await openRoute(page, '/dev/stage?hud=0&still=1&day=13')
@@ -112,7 +111,7 @@ test.describe('when graphics fail at startup', () => {
         return realGetContext.apply(this, args)
       }
     })
-    await openStage(page, 'hud=0&still=1&day=6')
+    await openFixtureStage(page, 'hud=0&still=1&day=6')
     await expect(alert(page)).toHaveCount(0)
     await expect(page.getByRole('img', { name: 'Live city view' })).toHaveCount(1)
   })
@@ -153,11 +152,11 @@ test.describe('when graphics fail at startup', () => {
 })
 
 test('frame report', async ({ page }, testInfo) => {
-  // Three tiers of 60 software GL frames over 48k residents run past the default timeout.
-  test.slow()
+  // Three tiers of 60 software GL frames over 48k residents took two minutes at load 10.
+  test.setTimeout(240_000)
   const report: Partial<Record<TierName, FrameReport>> = {}
   for (const tier of TIERS) {
-    await openStage(page, `hud=0&tier=${tier}`)
+    await openFixtureStage(page, `hud=0&tier=${tier}`)
     await page.waitForFunction(
       (frames) => (window.__twinlightStage?.perf().frames ?? 0) >= frames,
       SAMPLE_FRAMES,
