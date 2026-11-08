@@ -313,7 +313,33 @@ Lane B asked for square-root height if it cost next to nothing. It costs 32 KB a
 What this means for the pack writer, with no layout change:
 
 - 10 of the 43 residents moved out of water would stand above their new roof, by up to 2.52 m. They take the highest floor that fits the new home.
-- Rounded heights put 227 of the other 99,896 residents above their roof, by at most 0.24 m. At full precision none are. I've asked Lane B whether its points rely on depth; if so, heights round up instead of to nearest.
-- The writer refuses a city with over 255 districts, since the column is `u8` (Ahmedabad has 105), and reports any size clipped at 451.6 m (none here).
+- Rounded heights put 227 of the other 99,896 residents above their roof, by at most 0.24 m. At full precision none are. Lane B's points do not rely on depth to hide inside boxes, so heights round to nearest.
+- The writer refuses a city with over 255 districts, since the column is `u8` (Ahmedabad has 104), and reports any size clipped at 451.6 m (none here).
 
 Stage order is not pack order: Lane B sorts by size inside each tile and merges the detail file in the worker. `residents.bin` `building` holds the pack index, so the stage keeps a map from pack index to its own order.
+
+## P-025 city pack v2: Lane C's part is done
+
+`py/pack` (`twl_pack`: codecs, writer, reader, golden fixture) is in #112, #113, #115, #116 and #118. The citybake `pack` stage is in #123, #125, #126 and #127. `citybake pack <city>` writes `data/cache/packs/<city>`, and `just bake <city>` runs every stage.
+
+Ahmedabad, from the current bake:
+
+| | Bytes | Budget |
+|---|---|---|
+| First load | 5,634,863 | 6,000,000 |
+| Engine | 2,941,939 | 10,000,000 (soft) |
+| Detail | 133,504 | none |
+
+- Buildings: 1,054,627 baked, 1,025,875 first load, 28,421 detail, 331 in water (270 would have been first load, 61 detail). Nothing clipped.
+- Floor area kept (D-031): walled city 99.9% (57,026 of 57,447 buildings), north-west five 99.7%, all 99.7%.
+- Residents: 100,001. 43 moved out of water, 10 of them to a lower floor; 99 repointed, p50 46 m, max 255.8 m.
+- Roads: 9,458 arterial, 454 bridge, 102,461 street. River: 63 polygons, 64 rings, 2,429 points.
+- `pack_hash` `594a22f89e285b96764ccbba890b40c683f1057db5d5d478f8825f9ac79b5a66`. Two bakes are byte-identical, and `PackReader.verify()` passes.
+
+Load time, measured by Lane B on the M4: zstd decode 14 to 15 ms warm (38 ms cold), column decode 174 to 207 ms, and `fetchPack` 190 to 203 ms end to end. In Chrome from the dev server all six first-load files arrive within 163 ms, so first load before GPU upload is about 0.4 s against the 1.5 s target. The column decode still runs on the main thread; moving it to a worker (D-032) is Lane B's. Lane B finds the arterial cut reads well at distance.
+
+How it was checked:
+
+- Implementation and tests were written independently from one spec, and each was reviewed.
+- Mutation runs: `twl_pack` caught 77 of 79 (the other 2 are equivalent); the stage caught 32 of 32.
+- The pack fixture regenerates byte-identically on Linux x86_64 CI, and so did the lead's 5k toy pack.
