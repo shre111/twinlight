@@ -165,6 +165,20 @@ describe('decodePack v2', () => {
     expect(Array.from(city.roads.kind)).toEqual([0, 2])
   })
 
+  it('draws nothing for roads with one point or none', () => {
+    const files = pack()
+    files['roads.bin'] = file(
+      Uint16Array.of(0, 1, 2),
+      Uint8Array.of(0, 0, 2),
+      roadPlanes([5, 0, 10]),
+      roadPlanes([5, 0, 0]),
+    )
+    const counts = { ...manifest.counts, roads: 3, roadPoints: 3 }
+    const { roads } = decodePack({ ...manifest, counts }, files)
+    expect(Array.from(roads.segments)).toEqual([metresX(0), metresY(0), metresX(10), metresY(0)])
+    expect(Array.from(roads.kind)).toEqual([2])
+  })
+
   it('reads residents from quantised positions and floors', () => {
     expect(city.residents.count).toBe(2)
     expect(Array.from(city.residents.x)).toEqual([metresX(10), metresX(65535)])
