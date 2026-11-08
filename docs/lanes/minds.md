@@ -397,3 +397,54 @@ Shares of people (8.08M across 340,285 housed buildings) in each tier, low / mid
 2. **HL-04:** should I fetch Census 2011 HL-04 for Ahmedabad urban to set the low share?
 3. **Persona tilt:** which source sets the education odds per tier, or do I start from stated assumptions?
 4. **Ward literacy:** keep it out of the tier (recommended)?
+
+Answered by the owner and recorded as D-035. What was built is below.
+
+## P-061b affluence tier and P-060 persona sampler: Lane C's parts are in
+
+The P-025 layout notes above predate the tier: `residents_engine.bin` is now `u32 hex`, `u32 persona_ref`, `f32 weight`, `u8 tier` (ARCHITECTURE section 5).
+
+### Tier (#134, #135)
+
+- **Rule:** the population stage ranks housed buildings by floor area per person and cuts them by households at `[tier]`: 38 / 42 / 20 for Ahmedabad, with the low share from Census 2011 HL-14.
+  - Households and residents carry a `u8 tier`.
+  - `report.json` has the cuts and shares.
+  - On the current bake the cuts are 16.3 and 34.7 m² per person.
+- **Shares by households:** low / middle / high.
+
+| Group | Low | Middle | High |
+|---|---|---|---|
+| West bank | 28.2% | 43.7% | 28.2% |
+| East bank | 45.1% | 40.8% | 14.1% |
+| Residents | 39.3% | 41.4% | 19.3% |
+
+- **Pack:** `residents_engine.bin` carries the tier. The manifest carries `timezone` and `weekend_days` from the city config (Ahmedabad `Asia/Kolkata`, `[6, 7]`), checked against tzdata's zone list.
+- **Size:** first load 5,634,938 bytes; engine 3,014,819 bytes.
+- **Rebake:** `PACK_VERSION` stayed 2, so a pack baked before this has to be rebaked. The current one is `pack_hash` e341f0da….
+
+### Persona tilt (#141)
+
+- **Source (owner's choice):** NFHS-5 India, Table 2.24 (household population age 6+ with 10+ years of schooling, by national wealth quintile), placed on Table 2.8's urban row.
+  - The Gujarat state report has no wealth breakdowns. It promises a separate state wealth-quintile document, which I could not find; rchiips.org fails TLS verification and was not bypassed.
+  - The owner will drop the Gujarat annex in; the numbers in `[personas.tier_tilt]` then get swapped.
+- **Mapped 10+ shares by tier** (low / middle / high): women 24.3 / 46.0 / 53.4%, men 33.5 / 56.4 / 63.6%.
+- **Pool totals kept:** only the odds ratios are used. Each D-026 draw group (married or not, by sex) keeps the pool's own 10+ share, so district marginals hold. The pool is 38.7% of women and 50.4% of men; residents come out at 38.2% and 50.3%.
+- **Free draws by tier** (low / middle / high): women 23.6 / 43.4 / 52.1%, men 35.0 / 58.4 / 65.3%.
+- **working_graduate by tier:** 8.1 / 12.2 / 12.6% of residents.
+- **No tilt, no change:** a city without a tilt draws bit-identical personas. The new draw equals `rng.choice` on numpy 2.5.4, so a numpy upgrade that changes `choice` would need a recheck.
+
+### Deep persona sampler (#138, #143)
+
+- `twl_minds.personas.sampling`: about 300 distinct personas, a floor of 30 per segment, and the rest by population weight. Tier is an optional second stratum.
+- `twl_minds.personas.city.sample_city(pack_dir)` reads a v2 pack and seeds the draw with the pack hash.
+- **Ahmedabad:** 6,604 distinct personas behind 100,001 residents.
+  - Sampled: 43 / 47 / 64 / 43 / 69 / 34 by segment, and the design weights sum to the city.
+  - With tier on, the high-tier cells hold 6 to 13 personas each.
+- **Weights:** the design weights are approximately size-proportional (successive sampling). There are no joint inclusion probabilities, so P-062 intervals need a replicate method such as re-drawing across seeds.
+- **For P-061's hand-off:** `sample_rows` gives district ids, not names, and `stratum` decodes only with the sample's `by_tier`. Pass the `CitySample` (config, strata, pack hash) along with the rows.
+
+### Open questions
+
+1. **Spouses are not tilted.** About 32% of residents are spouses drawn by age only, which roughly halves the tier gradient across all residents (women 30.5 / 41.8 / 46.2%). Should they be tilted by the same odds, or by a real assortative-matching source, or left until P-062 shows whether it matters?
+2. **The high share (20%) is an assumption.** Official land values (Jantri rates) are the planned affluence input (D-035).
+3. **The 30-per-segment floor is my choice.** It gives other_adult 34 personas instead of about 9 by weight. It is a candidate for a decision once P-062 shows how much partial pooling needs.
