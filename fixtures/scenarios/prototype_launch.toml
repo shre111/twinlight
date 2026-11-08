@@ -4,7 +4,8 @@
 #
 # Budgets are base impressions per resident x 48,000 residents x cpm / 1000, in the prototype's
 # reach ratio: launch 1.0, drip 0.0214 a day, creator 0.75 split over its two active days.
-# `paid_scale` in [params] multiplies all three.
+# `paid_scale` in [params] multiplies all three. The burst and drip are social ads and the creator
+# burst is the creators channel (D-034); channels are neutral until calibrated.
 
 [scenario]
 days = 30
@@ -14,6 +15,7 @@ ref_price = 49.0
 
 [[scenario.campaigns]]
 name = "launch"
+channel = "social"
 start_minute = 540
 end_minute = 1440
 budget_per_day = 4800.0
@@ -23,6 +25,7 @@ presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 
 
 [[scenario.campaigns]]
 name = "drip"
+channel = "social"
 start_minute = 1440
 end_minute = 43200
 budget_per_day = 102.72
@@ -32,6 +35,7 @@ presence = [0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6, 
 
 [[scenario.campaigns]]
 name = "creator"
+channel = "creators"
 start_minute = 11160
 end_minute = 12960
 budget_per_day = 1800.0

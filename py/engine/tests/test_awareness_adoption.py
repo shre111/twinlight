@@ -58,6 +58,7 @@ def campaign(**changes: object) -> Campaign:
         "end_minute": 30 * DAY,
         "budget_per_day": 2_000.0,
         "cpm": 1_000.0,
+        "channel": "social",
     }
     fields.update(changes)
     return Campaign(**fields)  # type: ignore[arg-type]

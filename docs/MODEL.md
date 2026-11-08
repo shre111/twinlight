@@ -111,6 +111,17 @@ Every constant below is a field of the run parameters with this default, so test
 - `order_on_awareness` is for the reduced Bass configuration, which runs with occasions off; with occasions on, a resident could place a first and a repeat order in one tick.
 - Until P-013: an order is counted at its occasion, `avail = 1`, `satisfaction = 0`, and the DELIVERIES section stays empty.
 
+**Default CPMs** (D-034; rupees per 1,000 impressions before GST, used when a campaign gives no `cpm`; researched November 2026 at Rs 95.25 per USD, the RBI reference rate of 30 October 2026)
+| Channel | Default | Range | Confidence | Source |
+| --- | --- | --- | --- | --- |
+| `social` | 130 | 25 to 290 | medium | India Meta CPM of USD 1.36 (Lebesgue, 2026 ecommerce benchmarks, lebesgue.io/facebook-ads/facebook-cpm-by-country) and USD 1.35 median over July 2025 to July 2026 (SuperAds, superads.ai/facebook-ads-costs/cpm-cost-per-mille/india); the government's lowest-bid rate of Rs 15 to 25 (CBC, February 2024) is the floor |
+| `video` | 110 | 70 to 480 | low | YouTube skippable at Rs 0.11 per impression (The Media Ant listing, 2026, themediaant.com/digital/youtube-advertising); range from the CBC OTT lowest-bid rate (Rs 70, May 2026) to JioStar's IPL premium video (Rs 480, 2025) |
+| `creators` | 2,500 per 1,000 Reel views | 300 to 5,000 | low | Micro-creator fee of Rs 8,000 to 80,000 per Reel (Grynow, August 2026, grynow.in/blog/influencer-marketing-cost-in-india.html) over median views of 1,200 to 26,800 (HypeAuditor views calculator, global): geometric-mean fee Rs 25,300 over about 10,000 views |
+| `in_app` | 125 | 40 to 250 | low | Instamart banner at Rs 0.127 per impression and Zepto masthead at Rs 0.10 (The Media Ant listings, 2026); no app publishes CPMs, and sponsored listings are sold per click |
+| `outdoor` | 40 | 10 to 100 | low | Ahmedabad (Bopal) hoarding at Rs 2,200 a day for an estimated 1.7 million impressions a month (The Media Ant, themediaant.com/outdoor/hoarding-ahmedabad-80330), plus printing and mounting |
+
+Impressions are not like for like across channels: platforms count ads served, creators count Reel views, outdoor counts estimated chances to see. Until calibration sets `channel_kappa`, an impression on any channel adds the same awareness, so channel comparisons are uncalibrated (D-034).
+
 **Defaults**
 | Parameter | Default |
 | --- | --- |

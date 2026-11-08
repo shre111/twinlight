@@ -35,6 +35,7 @@ campaigns = st.builds(
     budget_per_day=st.floats(0.0, 3.0).map(lambda per_resident: per_resident * RESIDENTS * 0.1),
     cpm=st.just(100.0),
     frequency_cap=st.sampled_from([None, 1, 3]),
+    channel=st.sampled_from(["social", "video", "creators", "in_app"]),
 )
 scenarios = st.builds(
     Scenario,
@@ -107,7 +108,7 @@ def test_every_run_keeps_the_tape_invariants(scenario: Scenario, params: Params,
 @settings(derandomize=True, max_examples=15, deadline=None)
 @given(seed=st.integers(0, 2**32), days=st.integers(1, 3))
 def test_a_shorter_run_is_a_prefix_of_a_longer_one(seed: int, days: int) -> None:
-    campaign = Campaign("burst", 0, 2880, RESIDENTS * 0.1, 100.0)
+    campaign = Campaign("burst", 0, 2880, RESIDENTS * 0.1, 100.0, channel="social")
     lively = Params(q=0.1, alpha_0=-2.0)
     short = run_seed(
         RunInputs(city(), bytes(32), Scenario(days=days, campaigns=(campaign,)), lively, seed)
