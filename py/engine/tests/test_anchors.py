@@ -127,7 +127,9 @@ def test_prototype_launch_shares_are_within_three_points(
     assert abs(ordered - want_ordered) <= PARITY_TOLERANCE, f"ordered off on day {day}\n{table}"
 
 
-@pytest.mark.xfail(strict=False, reason="district-level affinity arrives with P-061b")
+@pytest.mark.xfail(
+    strict=False, reason="tier effects are neutral until P-062 calibrates them (D-037)"
+)
 def test_prototype_launch_orders_split_west_and_east(prototype_tapes: list[Tape]) -> None:
     city = prototype_inputs(1).city
     east_ids = {d.id for d in city.districts if d.east}

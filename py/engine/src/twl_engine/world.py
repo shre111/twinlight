@@ -362,9 +362,15 @@ def build_choice_model(
     affinity: NDArray[np.float64],
     repeat_taste: NDArray[np.float64],
 ) -> ChoiceModel:
-    price_term = params.beta * scenario.price / scenario.ref_price
+    tier = city.residents.tier.astype(np.int64)
+    beta = params.beta * np.asarray(params.beta_tier)[tier]
+    price_term = beta * scenario.price / scenario.ref_price
     segment = city.residents.segment.astype(np.int64)
-    alpha = params.alpha_0 + np.asarray(params.alpha_segment)[segment]
+    alpha = (
+        params.alpha_0
+        + np.asarray(params.alpha_segment)[segment]
+        + np.asarray(params.alpha_tier)[tier]
+    )
     probability = occasion_probability_per_tick(params, clock, calendar)
     return ChoiceModel(
         occasion_probability=probability,

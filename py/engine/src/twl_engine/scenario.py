@@ -13,6 +13,7 @@ from blake3 import blake3
 MINUTES_PER_DAY = 1440
 HOURS_PER_DAY = 24
 TIE_KINDS = 4
+TIERS = 3
 WOM_MIXINGS = ("graph", "uniform")
 _TOD_AM = (0.25, 0.12, 0.06, 0.04, 0.04, 0.06, 0.15, 0.3, 0.4, 0.45, 0.5, 0.6)
 _TOD_PM = (0.75, 0.8, 0.65, 0.6, 0.7, 0.85, 1.0, 1.35, 1.55, 1.45, 1.1, 0.6)
@@ -232,6 +233,8 @@ class Params:
     p_spill: float = 0.42
     p_wait: float = 0.38
     satisfaction_drop: float = 0.8
+    alpha_tier: tuple[float, ...] = (0.0, 0.0, 0.0)
+    beta_tier: tuple[float, ...] = (1.0, 1.0, 1.0)
     channel_kappa: tuple[tuple[float, ...], ...] = ()
     channel_presence: tuple[tuple[tuple[float, ...], ...], ...] = ()
 
@@ -262,6 +265,8 @@ class Params:
                 "kappa",
                 "talk_kind",
                 "occasion_profile",
+                "alpha_tier",
+                "beta_tier",
                 "segment_occasions_per_day",
                 "weekend_occasion_factor",
                 "alpha_segment",
@@ -297,6 +302,11 @@ class Params:
                 raise ValueError(f"{name} must be positive, or None to switch it off")
         if not self.kappa or not self.alpha_segment:
             raise ValueError("kappa and alpha_segment need a value per segment")
+        if len(self.alpha_tier) != TIERS or len(self.beta_tier) != TIERS:
+            raise ValueError(f"alpha_tier and beta_tier need {TIERS} values: low, middle, high")
+        if not all(math.isfinite(v) for v in self.alpha_tier):
+            raise ValueError("alpha_tier must be finite")
+        _require_weights("beta_tier", self.beta_tier)
         if len(self.talk_kind) != TIE_KINDS:
             raise ValueError(f"talk_kind needs {TIE_KINDS} values, one per tie kind")
         if len(self.occasion_profile) != HOURS_PER_DAY:
