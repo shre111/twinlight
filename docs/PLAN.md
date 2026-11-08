@@ -47,9 +47,8 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-017 Stores layer** Lane B. Beams, radius rings, red flicker during stockout intervals from the tape.
 - [x] **P-018 Timeline and readouts** Lane B. Docked timeline with play/pause, speeds, scrubber with day ticks, event markers and adoption sparkline; readouts card.
   AC: keyboard accessible; works at 390 px wide.
-- [ ] **P-019 Fixture route** Lane B. `/dev/fixture` loads the toy city pack and fixture tape from MinIO (or local files) without auth.
+- [x] **P-019 Fixture route** Lane B. `/dev/fixture` loads the toy city pack and fixture tape from MinIO (or local files) without auth.
   AC: the M1 demo: open the route, press play, watch the city warm. Record a 20-second capture for MEMORY.md.
-  Progress: route and pack loading merged on a synthetic tape; waits for the P-014 decoder and a tape with orders before the capture.
 
 ## M2 Real city
 - [x] **P-020 OSM bake** Lane C. Geofabrik extract clipped to the Ahmedabad bbox -> buildings with heights, road graph, river polygon, districts. `[tests]`
@@ -69,7 +68,8 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   Split: Lane C writes `py/pack` (`twl_pack`: codecs, writer, reader) and the citybake pack stage with the D-031 rules; Lane B the TypeScript reader in a worker and its side of the goldens; Lane A moves the toy fixture onto `twl_pack`, regenerates goldens once (with P-014) and extends the CI formats filter.
 
 ## M3 Full engine
-- [ ] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
+  Progress: every AC holds (first load 5,634,863 bytes; `fetchPack` about 0.2 s and first load about 0.4 s on the M4; walled-city floor kept 99.9%; Python and TS loaders with cross-language goldens, #112 to #128). Waits for Lane B to move pack decoding into a Web Worker (D-032).
+- [x] **P-030 Campaign model** Lane A. Budgets, CPM, targeting, frequency caps, multiple channels (D-034). `[tests]`
   AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
 - [ ] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift. `[tests]`
   Must replace the shared-rate binomial occasion draw in `twl_engine.orders` with per-resident rates (it is exact only while every aware resident shares one rate).
