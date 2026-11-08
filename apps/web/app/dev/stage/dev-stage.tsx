@@ -28,17 +28,17 @@ interface LoadedRun {
 // toy run's campaign moments. Any other pack shows its city before anyone has heard.
 async function runFor(source: RunSource) {
   if ('fixture' in source) {
-    const { fetchPack, fetchTape } = await import('@twinlight/stage')
+    const { fetchTape, loadPack } = await import('@twinlight/stage')
     const { TOY_EVENTS } = await import('@twinlight/stage/toy-events')
     const [city, tape] = await Promise.all([
-      fetchPack(`/dev/packs/${source.fixture}`),
+      loadPack(`/dev/packs/${source.fixture}`),
       fetchTape(`/dev/tapes/${source.fixture}`),
     ])
     return { city, tape, events: TOY_EVENTS }
   }
   if ('pack' in source) {
-    const { fetchPack, idleTape } = await import('@twinlight/stage')
-    const city = await fetchPack(`/dev/packs/${source.pack}`)
+    const { idleTape, loadPack } = await import('@twinlight/stage')
+    const city = await loadPack(`/dev/packs/${source.pack}`)
     return { city, tape: idleTape(city), events: [] }
   }
   const [{ synthesizeToyRun }, { TOY_EVENTS }] = await Promise.all([

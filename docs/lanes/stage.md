@@ -12,6 +12,11 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 - The stage reads v2 packs only; `pack-v1.ts` and its tests are gone. The opt-in generated pack test (`TWL_TEST_PACK_DIR`) now fetches through `fetchPack`, so it reads zstd packs, and allows 1.5 m past a footprint for v2's rounding.
 - Timeline event labels use short names below 1400 px, a breakpoint tuned to the toy run's two campaigns and monsoon. When real events feed the timeline, labels need collision handling from their measured widths, and every event needs a `short` name.
 
+## P-025
+- Lane B's part is done: `loadPack(url)` fetches, decompresses and decodes a pack in a module Web Worker and transfers each column buffer once (`cityTransfers`); it falls back to `fetchPack` where there is no `Worker`. The dev routes use it. Ready to tick once this PR merges.
+- Ahmedabad on the M4 in headed Chrome, widest main-thread stall during load (a MessageChannel heartbeat; the long task API missed tasks once the heartbeat ran): 333 to 381 ms before, 145 to 161 ms after. What remains is `loadCity` building the stage's buffers (130 to 148 ms), which the worker does not touch. Pack time is unchanged at 0.2 to 0.3 s.
+- Stills match the baseline unchanged, and the fixture route loads through the worker in Chrome, Firefox and Playwright WebKit (`SHOTS_ENGINES=1`).
+
 ## River layer
 - The stage reads `river.bin` and draws any water ring: a dark ribbon whose slow sheen fades out toward the banks. Reduced motion holds the sheen. Rain sheen waits for P-042.
 - `/dev/fixture` also passes in Firefox (WebGL2, p50 16.7 ms) and Playwright WebKit (WebGPU, 17.0 ms). The Safari app itself has not been opened.
