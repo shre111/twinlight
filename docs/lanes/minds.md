@@ -343,3 +343,57 @@ How it was checked:
 - Implementation and tests were written independently from one spec, and each was reviewed.
 - Mutation runs: `twl_pack` caught 77 of 79 (the other 2 are equivalent); the stage caught 32 of 32.
 - The pack fixture regenerates byte-identically on Linux x86_64 CI, and so did the lead's 5k toy pack.
+
+## P-061b household affluence tier: proposal (measured, no code)
+
+For the owner's decision. Without a tier, persona marginals are district-wide, so the west and east of Ahmedabad behave alike (D-026). The tier is a building label, low (0), middle (1) or high (2), that every household in the building takes.
+
+### Candidate rules, measured on the current bake
+
+Shares of people (8.08M across 340,285 housed buildings) in each tier, low / middle / high:
+
+| Group | R1 living space | R3 building type, then living space |
+|---|---|---|
+| All | 30.0 / 50.0 / 20.0 | 29.0 / 43.3 / 27.6 |
+| West bank | 21.0 / 50.7 / 28.3 | 20.2 / 41.9 / 38.0 |
+| East bank | 36.5 / 49.5 / 14.0 | 35.5 / 44.4 / 20.2 |
+| Named affluent districts | 13.7 / 52.8 / 33.6 | 13.1 / 42.9 / 44.0 |
+| Named low-income districts | 45.5 / 42.9 / 11.7 | 44.1 / 38.8 / 17.1 |
+| Walled city wards | 37.4 / 52.6 / 9.9 | 36.4 / 48.1 / 15.5 |
+| North-west five wards | 9.3 / 46.5 / 44.2 | 9.3 / 37.1 / 53.6 |
+
+- **R1, living space:** floor area per person in the building (footprint times floors over the people P-021 placed), cut at the people-weighted 30th and 80th percentiles, which are 14.5 and 34.1 m² here. The citywide median is 19.2 m²: 22.8 on the west bank, 17.2 on the east.
+- **R3:** high-rise buildings (7 floors or more) and large low-rise buildings in sparse fabric are high, then R1 sorts the rest.
+- **R2, building type alone:** dropped. Its low rule (small footprints in dense fabric) catches 0.1% of people, because few people live in such buildings once D-030 has placed them.
+- **District groups:** "named affluent" is Bodakdev, Vastrapur, Prahladnagar, Thaltej, Navrangpura, Ambawadi, Paldi, Jodhpur, Memnagar, Shilaj, South Bopal and Makarba. "Named low-income" is Behrampura, Danilimda, Rajpur Gomtipur, Sarangpur, Jamalpur, Dariyapur, Shah E Alam Roza, Narol, Vatva, Amraiwadi, Sahijpur boga and Khadia. These lists are my reading of how the areas are commonly described, used only as a sanity check, not as data.
+- **R1 extremes:** the lowest mean tiers are Bhavna colony, Pratapnagar, Shah E Alam Roza, Sahijpur boga, Dariyapur and Behrampura. The highest are Gota, Tragad, Bodakdev, Vastrapur, Bhagvat and Ramdev nagar.
+
+### Recommendation: R1, with the shares in the city config
+
+- One measure, no thresholds to tune per building type, and the tier shares (30 / 50 / 20) are the only city input. Another city cuts at its own percentiles.
+- R3 adds two arbitrary type thresholds and pushes the high tier to 28%.
+- **Weakness, circularity:** floor area per person comes from our own population model. Where the raster thins the fringe, people look rich: Gota and Tragad rank above Bodakdev. D-030 already lifted the north-west from the raster's 0.32 to 1.37 of 2011, but the fringe still reads as spacious.
+- **Weakness, the shares are my choice.** The evidence I would anchor them to is Census 2011 table HL-04, households by number of dwelling rooms, for Ahmedabad urban: low = no exclusive room or one room. I have not fetched it. For urban India as a whole, the Census Atlas gives one room 32.1%, two rooms 30.6% and three rooms 18.4%, so a 30% low share is plausible, but that is national.
+
+### Personas (Lane C)
+
+- The tier tilts which personas a household draws, within its district, so district marginals still hold. One odds multiplier per tier on education: for example, high-tier households draw graduates at twice the odds and low-tier at half. Occupation follows the education it comes with.
+- The strength needs a source. The likely one is NFHS-5 education by wealth quintile, urban Gujarat. Until the owner picks one, the multipliers are assumptions and say so in config.
+- Couples keep the existing D-026 rules.
+
+### Engine and format (Lane A, as agreed with the lead)
+
+- **Engine:** additive `alpha_tier` (low, 0, high) and a per-tier scale on `beta`, with priors for P-062 to calibrate. The lead writes the MODEL.md change and the engine side, and turns the D-027 east/west `xfail` into a real test. On R1, the west bank is 21 / 51 / 28 and the east bank 36.5 / 49.5 / 14, which is what any `alpha_tier` has to work through to produce an east/west gap.
+- **Format:** `u8 tier[n]` in `residents_engine.bin`. That is a pack format change, recorded by the lead first, then `twl_pack`, the small fixture and Lane B's goldens follow.
+
+### Ward literacy
+
+- Not part of the rule. D-030 keeps ward data validation-only, and using it here would spend the only independent check on west/east density.
+- If the owner wants it, it is its own decision. I could not fetch AMC ward tables earlier because their TLS certificate failed verification.
+
+### Questions for the owner
+
+1. **Tier rule:** R1 at 30 / 50 / 20, as recommended?
+2. **HL-04:** should I fetch Census 2011 HL-04 for Ahmedabad urban to set the low share?
+3. **Persona tilt:** which source sets the education odds per tier, or do I start from stated assumptions?
+4. **Ward literacy:** keep it out of the tier (recommended)?
