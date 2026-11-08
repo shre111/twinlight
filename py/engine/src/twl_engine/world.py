@@ -8,7 +8,9 @@ from numpy.typing import NDArray
 from twl_engine.clock import Clock
 from twl_engine.fixtures import ToyCity
 from twl_engine.scenario import (
+    CHANNELS,
     HOURS_PER_DAY,
+    IN_APP,
     MINUTES_PER_DAY,
     Campaign,
     Params,
@@ -22,13 +24,25 @@ NO_STORE = -1
 
 @dataclass(frozen=True, eq=False)
 class PaidPlan:
-    """Per campaign: expected impressions per tick in agent units and who they can land on."""
+    """Per campaign: expected impressions per tick in agent units, who they can land on and
+    what each impression adds.
+
+    A campaign whose presence differs by segment lands in two stages: `segment_share[c, hour]`
+    splits a tick's impressions over segments, then `segment_cum` (residents in `by_segment`
+    order, cumulative targeting restarting at each `segment_start`) picks within a segment.
+    """
 
     per_tick: NDArray[np.float64]
     cum_target: NDArray[np.float64]
     last_target: NDArray[np.int64]
     cap: NDArray[np.int64]
     gain: NDArray[np.float64]
+    two_stage: NDArray[np.bool_]
+    segment_share: NDArray[np.float64]
+    by_segment: NDArray[np.int64]
+    segment_start: NDArray[np.int64]
+    segment_cum: NDArray[np.float64]
+    segment_last: NDArray[np.int64]
 
 
 @dataclass(frozen=True, eq=False)
@@ -139,14 +153,24 @@ def awareness_decay_per_tick(params: Params, clock: Clock) -> float:
 
 def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Clock) -> PaidPlan:
     campaigns = scenario.campaigns
-    n = city.residents.x.shape[0]
+    n, count = city.residents.x.shape[0], len(campaigns)
+    segments = len(params.kappa)
     segment = city.residents.segment.astype(np.int64)
     district = city.buildings.district[city.residents.building].astype(np.int64)
     agents_per_impression = params.paid_scale / float(city.residents.weight.mean())
-    per_tick = np.zeros((len(campaigns), clock.ticks))
-    cum_target = np.zeros((len(campaigns), n))
-    last_target = np.zeros(len(campaigns), dtype=np.int64)
+    by_segment = np.argsort(segment, kind="stable")
+    segment_start = np.searchsorted(segment[by_segment], np.arange(segments + 1))
+    base_gain = params.impression_gain * np.asarray(params.kappa)[segment]
+    per_tick = np.zeros((count, clock.ticks))
+    cum_target = np.zeros((count, n))
+    last_target = np.zeros(count, dtype=np.int64)
+    gain = np.zeros((count, n))
+    two_stage = np.zeros(count, dtype=np.bool_)
+    segment_share = np.zeros((count, HOURS_PER_DAY, segments))
+    segment_cum = np.zeros((count, n))
+    segment_last = np.zeros((count, segments), dtype=np.int64)
     for c, campaign in enumerate(campaigns):
+        gain[c] = base_gain * channel_kappa(campaign, params, segments)[segment]
         target = _lookup(campaign, "segment_weights", segment) * _lookup(
             campaign, "district_weights", district
         )
@@ -154,7 +178,22 @@ def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Cl
             continue
         cum_target[c] = np.cumsum(target)
         last_target[c] = np.flatnonzero(target)[-1]
-        per_tick[c] = tick_shares(campaign, clock) * (
+        presence = campaign_presence(campaign, params, segments)
+        hourly = presence[0]
+        if not (presence == presence[0]).all():
+            two_stage[c] = True
+            audience = np.bincount(segment, weights=target, minlength=segments)[:, None] * presence
+            hourly = audience.sum(axis=0)
+            segment_share[c] = np.divide(
+                audience.T,
+                hourly[:, None],
+                out=np.zeros_like(audience.T),
+                where=hourly[:, None] > 0,
+            )
+            segment_cum[c], segment_last[c] = _cumulative_by_segment(
+                target[by_segment], segment_start
+            )
+        per_tick[c] = tick_shares(campaign, clock, hourly) * (
             campaign.impressions_per_day * agents_per_impression
         )
     return PaidPlan(
@@ -165,17 +204,72 @@ def build_paid_plan(city: ToyCity, scenario: Scenario, params: Params, clock: Cl
             [NO_CAP if c.frequency_cap is None else c.frequency_cap for c in campaigns],
             dtype=np.int64,
         ),
-        gain=params.impression_gain * np.asarray(params.kappa)[segment],
+        gain=gain,
+        two_stage=two_stage,
+        segment_share=segment_share,
+        by_segment=by_segment,
+        segment_start=segment_start,
+        segment_cum=segment_cum,
+        segment_last=segment_last,
     )
 
 
-def tick_shares(campaign: Campaign, clock: Clock) -> NDArray[np.float64]:
-    """Share of an active day's impressions in each tick: presence over that day's active ticks."""
+def channel_kappa(campaign: Campaign, params: Params, segments: int) -> NDArray[np.float64]:
+    """The channel's responsiveness multiplier per segment; 1 until calibrated (D-034)."""
+    row = params.channel_kappa[CHANNELS.index(campaign.channel)] if params.channel_kappa else ()
+    if not row:
+        return np.ones(segments)
+    if len(row) != segments:
+        raise ValueError(f"params.channel_kappa for {campaign.channel} needs {segments} values")
+    return np.asarray(row)
+
+
+def campaign_presence(campaign: Campaign, params: Params, segments: int) -> NDArray[np.float64]:
+    """Hourly presence per segment: the campaign's own weights times the channel's (D-034).
+
+    The channel's presence is 1 until calibrated, and for in-app ads it is the occasion profile.
+    """
+    own = np.asarray(campaign.presence) if campaign.presence else np.ones(HOURS_PER_DAY)
+    if campaign.channel == IN_APP:
+        channel = np.broadcast_to(np.asarray(params.occasion_profile), (segments, HOURS_PER_DAY))
+    else:
+        c = CHANNELS.index(campaign.channel)
+        row = params.channel_presence[c] if params.channel_presence else ()
+        if not row:
+            return np.broadcast_to(own, (segments, HOURS_PER_DAY))
+        if len(row) != segments:
+            raise ValueError(
+                f"params.channel_presence for {campaign.channel} needs {segments} rows"
+            )
+        channel = np.asarray(row)
+    return own[None, :] * channel
+
+
+def _cumulative_by_segment(
+    target: NDArray[np.float64], segment_start: NDArray[np.int64]
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+    """Cumulative targeting restarting at each segment, and each segment's last targeted slot."""
+    cum = np.zeros_like(target)
+    last = np.zeros(segment_start.size - 1, dtype=np.int64)
+    for s in range(segment_start.size - 1):
+        lo, hi = int(segment_start[s]), int(segment_start[s + 1])
+        cum[lo:hi] = np.cumsum(target[lo:hi])
+        targeted = np.flatnonzero(target[lo:hi])
+        last[s] = lo + (int(targeted[-1]) if targeted.size else 0)
+    return cum, last
+
+
+def tick_shares(
+    campaign: Campaign, clock: Clock, hourly: NDArray[np.float64] | None = None
+) -> NDArray[np.float64]:
+    """Share of an active day's impressions in each tick: the hourly weights over that day's
+    active ticks (the campaign's own presence when none are given)."""
     starts = np.arange(clock.ticks, dtype=np.int64) * clock.tick_minutes
     active = (starts >= campaign.start_minute) & (starts < campaign.end_minute)
     hour = (starts % MINUTES_PER_DAY) // 60
-    presence = np.asarray(campaign.presence) if campaign.presence else np.ones(HOURS_PER_DAY)
-    weight = np.where(active, presence[hour], 0.0)
+    if hourly is None:
+        hourly = np.asarray(campaign.presence) if campaign.presence else np.ones(HOURS_PER_DAY)
+    weight = np.where(active, hourly[hour], 0.0)
     day = starts // MINUTES_PER_DAY
     day_total = np.bincount(day, weights=weight)[day]
     return np.divide(weight, day_total, out=np.zeros(clock.ticks), where=day_total > 0)
