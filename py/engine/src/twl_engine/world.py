@@ -20,6 +20,7 @@ from twl_engine.scenario import (
     HOURS_PER_DAY,
     IN_APP,
     MINUTES_PER_DAY,
+    TIERS,
     Campaign,
     Params,
     Scenario,
@@ -363,6 +364,8 @@ def build_choice_model(
     repeat_taste: NDArray[np.float64],
 ) -> ChoiceModel:
     tier = city.residents.tier.astype(np.int64)
+    if tier.size and int(tier.max()) >= TIERS:
+        raise ValueError(f"resident tiers run 0 to {TIERS - 1}; got {int(tier.max())}")
     beta = params.beta * np.asarray(params.beta_tier)[tier]
     price_term = beta * scenario.price / scenario.ref_price
     segment = city.residents.segment.astype(np.int64)

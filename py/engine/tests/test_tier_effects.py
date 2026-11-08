@@ -73,3 +73,10 @@ def test_with_neutral_effects_tiers_change_nothing(city: ToyCity) -> None:
                 getattr(getattr(tiered, section), field.name),
                 err_msg=f"{section}.{field.name}",
             )
+
+
+def test_a_tier_outside_low_middle_high_is_refused(city: ToyCity) -> None:
+    tier = np.full(city.residents.x.size, 3, dtype=np.uint8)
+    bad = dataclasses.replace(city, residents=dataclasses.replace(city.residents, tier=tier))
+    with pytest.raises(ValueError, match="resident tiers run 0 to 2"):
+        world(bad, Params())
