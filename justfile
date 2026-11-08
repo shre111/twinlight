@@ -31,6 +31,16 @@ test:
 test-engine:
     uv run pytest -q py
 
+bake city:
+    uv run citybake fetch {{ city }}
+    uv run citybake osm {{ city }}
+    uv run citybake footprints {{ city }}
+    uv run citybake population {{ city }}
+    uv run citybake personas {{ city }}
+    uv run citybake graph {{ city }}
+    uv run citybake stores {{ city }}
+    uv run citybake pack {{ city }}
+
 goldens:
     TWL_GOLDEN_STRICT=1 NPY_ENABLE_CPU_FEATURES=X86_V3 NUMBA_CPU_NAME=generic NUMBA_DISABLE_INTEL_SVML=1 OPENBLAS_CORETYPE=Haswell OPENBLAS_NUM_THREADS=1 uv run python -m twl_engine.goldens --write
     uv run python -m twl_tape.fixtures

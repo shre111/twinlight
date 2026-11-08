@@ -19,12 +19,15 @@ from twl_citybake.footprints.vida import fetch_vida
 from twl_citybake.graph.stage import StalePersonasError, run_graph, write_graph_layers
 from twl_citybake.osm.clip import clip_extract
 from twl_citybake.osm.extract import extract_osm, write_osm_layers
+from twl_citybake.pack.rules import PackStageError
+from twl_citybake.pack.stage import PackBudgetError, run_pack, write_pack_stage
 from twl_citybake.personas.pool import fetch_pool
 from twl_citybake.personas.stage import run_personas, write_persona_layers
 from twl_citybake.population.stage import run_population, write_population_layers
 from twl_citybake.sources import extract_member, fetch
-from twl_citybake.store import META, table_digest
+from twl_citybake.store import META, table_digest, write_json
 from twl_citybake.stores.stage import StoresError, run_stores, write_store_layers
+from twl_pack import PackError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,6 +69,10 @@ def build_parser() -> argparse.ArgumentParser:
         "stores", help="place synthetic dark stores and compute travel minutes to every hex"
     )
     stores_cmd.add_argument("city")
+    pack_cmd = commands.add_parser(
+        "pack", help="apply the pack-time rules and write the city pack from the baked stages"
+    )
+    pack_cmd.add_argument("city")
     return parser
 
 
@@ -453,6 +460,92 @@ def stores_summary(report: dict) -> str:
     )
 
 
+def run_pack_command(city: str, dirs: DataDirs) -> None:
+    config = load_city(city)
+    population = dirs.stage(city, "population")
+    refuse_failed_population(population, city)
+    _require_stage(population, f"population {city}", ("residents",), ("layer.json",))
+    osm_layers = dirs.stage(city, "osm") / "layers"
+    _require_stage(
+        osm_layers,
+        f"osm {city}",
+        ("road_geom", "road_edges", "road_nodes", "water"),
+        ("layer.json",),
+    )
+    layers = building_layers(city, dirs)
+    rerun = "footprints" if layers.parent.name == "buildings" else "osm"
+    _require_stage(
+        layers,
+        f"{rerun} {city}",
+        ("buildings", "building_rings"),
+        ("districts.json", "layer.json"),
+    )
+    personas = dirs.stage(city, "personas")
+    _require_stage(personas, f"personas {city}", ("assignment",), ("layer.json",))
+    graph = dirs.stage(city, "graph")
+    _require_stage(graph, f"graph {city}", ("graph",), ("layer.json",))
+    stores = dirs.stage(city, "stores")
+    _require_stage(
+        stores,
+        f"stores {city}",
+        ("stores", "hexes", "resident_hex", "travel"),
+        ("bands.json", "layer.json"),
+    )
+    wards = None
+    if config.population_check is not None:
+        wards = ward_file_path(city, config.population_check, dirs)
+        if not wards.exists():
+            raise SystemExit(f"{wards} is missing; run `citybake fetch {city}` first")
+    out = dirs.stage(city, "pack")
+    try:
+        stage = run_pack(layers, osm_layers, population, personas, graph, stores, config, wards)
+    except PackBudgetError as failure:
+        write_json(out / "report.json", failure.report)
+        raise SystemExit(f"{failure}; see {out / 'report.json'}") from failure
+    except (PackStageError, PackError) as failure:
+        raise SystemExit(str(failure)) from failure
+    pack_dir = dirs.pack(city)
+    write_pack_stage(stage, pack_dir, out)
+    print(pack_summary(stage.report))
+    print(pack_dir)
+
+
+def _require_stage(folder: Path, command: str, tables: Sequence[str], files: Sequence[str]) -> None:
+    complete = all(_has_table(folder / name) for name in tables) and all(
+        (folder / name).exists() for name in files
+    )
+    if not complete:
+        raise SystemExit(f"{folder} is incomplete; run `citybake {command}` first")
+
+
+def pack_summary(report: dict) -> str:
+    first_load, engine = report["sizes"]["first_load"], report["sizes"]["engine"]
+    b, residents = report["buildings"], report["residents"]
+    distance = residents["repoint_distance_m"]
+    clipped = [f"{name} {count:,}" for name, count in report["clipped"].items() if count]
+    return "\n".join(
+        [
+            f"first load {first_load['bytes']:,} bytes of the {first_load['budget']:,} budget",
+            f"engine {engine['bytes']:,} bytes of the {engine['budget']:,} soft budget",
+            f"buildings {b['baked']:,} baked: {b['first_load']:,} first load, {b['detail']:,} "
+            f"detail, {b['in_water']:,} in water ({b['in_water_would_be_first_load']:,} would be "
+            f"first load, {b['in_water_would_be_detail']:,} detail)",
+            f"floor kept {report['floor_kept']:.1%} of baked floor area",
+            *(
+                f"{name} floor kept {group['floor_kept']:.1%}, {group['buildings_kept']:,} of "
+                f"{group['buildings']:,} buildings"
+                for name, group in report["ward_groups"].items()
+            ),
+            f"residents {residents['count']:,}: {residents['moved_out_of_water']:,} moved out of "
+            f"water, {residents['floors_lowered']:,} on a lower floor, "
+            f"{residents['repointed']:,} repointed (p50 {distance['p50']:g} m, "
+            f"max {distance['max']:g} m)",
+            *([f"clipped {', '.join(clipped)}"] if clipped else []),
+            f"pack_hash {report['pack_hash']}",
+        ]
+    )
+
+
 def summary(report: dict) -> str:
     b, r, w, d = report["buildings"], report["roads"], report["water"], report["districts"]
     sources = ", ".join(f"{k.lower()} {v}" for k, v in b["by_height_source"].items())
@@ -492,4 +585,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         run_graph_command(args.city, dirs)
     elif args.command == "stores":
         run_stores_command(args.city, dirs)
+    elif args.command == "pack":
+        run_pack_command(args.city, dirs)
     return 0
