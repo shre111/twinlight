@@ -3,13 +3,13 @@
 Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 
 ## P-019
-- `/dev/fixture` is in: `just fixture-pack` writes the toy pack to `data/cache/packs/toy`, the default for `TWL_PACK_DIR`, and `just shots` runs it first. No auth, dev only. Shows a message if the pack is missing.
-- Not ticked. There is no TS tape decoder yet, so the tape is `synthesizeTapeFor(city)`: the toy sim's campaign over the pack's residents and stores, with traits drawn as the prototype draws them. Day 14 reads 43% heard, 11.5% ordered; day 30 reads 63%, 23%.
-- To finish after P-014: swap `synthesizeTapeFor` in `apps/web/app/dev/stage/dev-stage.tsx` for the decoded fixture tape, move the shots stills to this route, then record the 20-second capture. Hold the capture until the tape has orders, so "Orders today" is not 0. MinIO can come later.
+- Ready to tick. `/dev/fixture` plays the engine's fixture tape over the v2 toy pack, both written by `just fixture` (`data/cache/packs/toy`, `data/cache/tapes/toy.twlt`). `TWL_PACK_DIR` and `TWL_TAPE_DIR` default to those folders and `just shots` runs `just fixture` first. No auth, dev only; MinIO can come later. The stage reads the tape through `fetchTape` (`decodeTape` from `@twinlight/tape`, hash checked), and `fetchPack` decodes zstd packs by default.
+- Capture: `artifacts/captures/p019-fixture-route.mp4` in the stage worktree, not committed (7.5 MB). 20 s, 1440x900, H.264 at 30 fps, from headed Chrome on WebGPU through a CDP screencast: open the route, press 16x and Play, Day 1 to Day 13.
+- What it shows: Day 5 1,215 ordered and 21% heard; Day 9 2,204 and 29%; Day 13 4,177 and 40%, with 3 of 14 stores out and their beacons red. The first stockout is on Day 10 at 3:30 pm.
+- Frames on the M4 in Chrome, WebGPU, tier high, 16x on the real tape with the readouts card and timeline visible: p50 16.7, p95 17.6 ms, 60 fps, 12 draw calls, and the same while recording. On battery at 65% with Low Power Mode off.
+- The fixture route also passes in Firefox and Playwright WebKit (`SHOTS_ENGINES=1`, `-g fixture`).
+- Next: move the stills to `/dev/fixture` (one rebaseline) and drop `pack-v1.ts`, since nothing writes v1 now.
 - Timeline event labels use short names below 1400 px, a breakpoint tuned to the toy run's two campaigns and monsoon. When real events feed the timeline, labels need collision handling from their measured widths, and every event needs a `short` name.
-- Frames on the M4 in Chrome, WebGPU, tier high, one full run at 16x with the readouts card visible in every frame:
-  - 48k residents on `/dev/fixture`: p50 16.7, p95 17.6, worst 17.8 ms, 60 fps, none over 20 ms.
-  - 100k residents on `/dev/stage`: p50 16.7, p95 17.6, worst 33 ms, 60 fps, 2 of 2,697 over 20 ms.
 
 ## River layer
 - The stage reads `river.bin` and draws any water ring: a dark ribbon whose slow sheen fades out toward the banks. Reduced motion holds the sheen. Rain sheen waits for P-042.
@@ -21,6 +21,7 @@ Worktree `.claude/worktrees/stage`. Lead folds this into MEMORY.md at each wrap.
 
 ## Gotchas
 - Open: Playwright WebKit once failed `Stage.create` at load above 15, logging `WebGL Device Lost` and a null-array `TypeError`, and showed "needs WebGPU or WebGL 2". Six reruns at load 8 passed. A context lost during creation reads as an unsupported browser, with no retry; not reproduced, so not changed.
+- The first `next dev` compile of `/dev/fixture` on this branch reloaded the page about 1,500 times before it settled; later loads were normal. If a dev page stays blank, look for repeated GETs in the server log before suspecting the stage.
 - Chrome caps animation at 30 fps on battery at low charge, so p50 33.3 ms can be the cap and not a regression. Time a page with no 3D before suspecting a change.
 - `design/prototype/twinlight-city.html` shows its "needs WebGL" card over a working scene: the card's `display: grid` beats `hidden`. Hide `#fail` in devtools to see the reference.
 
