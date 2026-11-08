@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import shapely
 
-from twl_citybake.config import BBox, CityConfig
+from twl_citybake.config import BBox, CityConfig, TierConfig
 from twl_citybake.population.allocate import Allocation, allocate
 from twl_citybake.population.capacity import residential_capacity, storeys
 from twl_citybake.population.check import load_wards, population_check
@@ -21,6 +21,7 @@ from twl_citybake.population.raster import (
     rescale_to_total,
 )
 from twl_citybake.population.residents import expected_adults, sample_residents
+from twl_citybake.population.tier import HIGH, MIDDLE, Tiers, building_tiers
 from twl_citybake.projection import LocalProjection
 from twl_citybake.rng import Stream, stream
 from twl_citybake.store import read_table, write_json, write_table
@@ -105,6 +106,10 @@ def run_population(
         stream(city.seed, Stream.POPULATION),
     )
     persons = np.bincount(households.building, minlength=len(capacity), weights=households.size)
+    tiers = _tiers(city.tier, buildings, households, persons)
+    tier = np.full(len(capacity), MIDDLE, np.uint8) if tiers is None else tiers.tier
+    household_tier = tier[households.building]
+    residents = {**residents, "tier": tier[residents["building"]]}
     building_population = {
         "capacity": capacity,
         "target": alloc.target,
@@ -140,6 +145,11 @@ def run_population(
             "census_mean_household_size": city.households.mean_size,
         }
     )
+    report["tier"] = (
+        None
+        if city.tier is None or tiers is None
+        else _rounded(_tier_report(city.tier, tiers, households, household_tier, buildings["bank"]))
+    )
     report["population_total"] = None if total is None else _rounded(total.report)
     report["correction"] = (
         None
@@ -171,6 +181,7 @@ def run_population(
             *([] if source is None else [f"{source.source}, {source.licence}"]),
             *([] if city.population_total is None else [city.population_total.source]),
             CENSUS_ATTRIBUTION,
+            *([] if city.tier is None else [city.tier.attribution]),
         ],
         "shopper_share": pop.shopper_share,
         "mean_weight": report["residents"]["weight"],
@@ -191,6 +202,7 @@ def run_population(
                 "source": city.population_check.source,
             },
             "households": city.households.source,
+            "tier": None if city.tier is None else asdict(city.tier),
         },
     }
     return PopulationLayers(
@@ -199,6 +211,7 @@ def run_population(
             "building": households.building,
             "size": households.size,
             "district": households.district,
+            "tier": household_tier,
         },
         residents=residents,
         report=report,
@@ -296,11 +309,63 @@ def _correction(
         lon,
         lat,
         buildings["area_m2"],
-        buildings["floors"] if "floors" in buildings else storeys(buildings["height_m"]),
+        _floors(buildings),
         capacity.astype(np.float64) * city.population.min_floor_m2_per_person,
         shapely.contains_xy(union, *grid.centres()),
         config,
     )
+
+
+def _floors(buildings: dict[str, np.ndarray]) -> np.ndarray:
+    return buildings["floors"] if "floors" in buildings else storeys(buildings["height_m"])
+
+
+def _tiers(
+    config: TierConfig | None,
+    buildings: dict[str, np.ndarray],
+    households: Households,
+    persons: np.ndarray,
+) -> Tiers | None:
+    if config is None:
+        return None
+    return building_tiers(
+        buildings["area_m2"],
+        _floors(buildings),
+        persons,
+        np.bincount(households.building, minlength=len(persons)),
+        config.low_share,
+        config.high_share,
+    )
+
+
+def _tier_report(
+    config: TierConfig,
+    tiers: Tiers,
+    households: Households,
+    household_tier: np.ndarray,
+    bank: np.ndarray,
+) -> dict[str, Any]:
+    household_bank = np.asarray(bank)[households.building]
+    return {
+        "low_share": float(config.low_share),
+        "high_share": float(config.high_share),
+        "low_share_source": config.low_share_source,
+        "high_share_source": config.high_share_source,
+        "low_cut_m2_per_person": tiers.low_cut,
+        "high_cut_m2_per_person": tiers.high_cut,
+        "households": _tier_shares(household_tier),
+        "people": _tier_shares(household_tier, households.size),
+        "banks": {
+            name: _tier_shares(household_tier[household_bank == b])
+            for b, name in enumerate(("west", "east"))
+        },
+    }
+
+
+def _tier_shares(tier: np.ndarray, weights: np.ndarray | None = None) -> list[float]:
+    counts = np.bincount(tier, weights=weights, minlength=HIGH + 1).astype(np.float64)
+    total = counts.sum()
+    return (counts / total).tolist() if total > 0 else [0.0] * (HIGH + 1)
 
 
 def write_population_layers(layers: PopulationLayers, out_dir: Path) -> None:

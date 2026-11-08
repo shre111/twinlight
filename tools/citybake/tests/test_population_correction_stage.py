@@ -33,7 +33,7 @@ from twl_citybake.population.stage import (
 from twl_citybake.projection import LocalProjection
 from twl_citybake.store import read_table, write_json
 
-UNCORRECTED_GOLDEN = "60886a97a731a3fb154b3ef267a75a764fc74e6dc5220c4d91bf2ab0b37b5af3"
+UNCORRECTED_GOLDEN = "a0c09630dd25acef2abf09b0643aa9d5243c1040d92c86963f6c02f27bbd98df"
 WARD_SOURCE = "Ward polygons: Test Wards, CC BY-SA 2.5 IN"
 WARD_NAMES = ("ALPHAWARD", "BETAWARD")
 OLD_REPORT_KEYS = {
@@ -164,17 +164,20 @@ def test_unset_fields_give_the_same_files_whether_passed_as_none_or_left_out(
 def test_an_uncorrected_report_and_layer_only_gain_null_fields(
     baseline: PopulationLayers,
 ) -> None:
-    assert set(baseline.report) == OLD_REPORT_KEYS | {"correction", "check"}
+    assert set(baseline.report) == OLD_REPORT_KEYS | {"correction", "check", "tier"}
     assert baseline.report["correction"] is None
     assert baseline.report["check"] is None
+    assert baseline.report["tier"] is None
     assert baseline.meta["source"]["population_correction"] is None
     assert baseline.meta["source"]["population_check"] is None
+    assert baseline.meta["source"]["tier"] is None
     assert set(baseline.meta["source"]) == {
         "raster",
         "population_total",
         "households",
         "population_correction",
         "population_check",
+        "tier",
     }
 
 
