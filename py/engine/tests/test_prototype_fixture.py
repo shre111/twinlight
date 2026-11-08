@@ -1,5 +1,6 @@
 import dataclasses
 import math
+import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,8 @@ from twl_engine.goldens import (
 )
 from twl_engine.scenario import PROTOTYPE_TOD, Campaign, Params, Scenario, load_scenario
 
+FITTED = ("paid_scale", "q", "alpha_0")
+PINNED = ("occasions_per_day", "occasion_profile")
 MINIMAL = """
 [scenario]
 days = 2
@@ -103,11 +106,14 @@ def test_fixture_is_three_campaigns_in_the_prototype_reach_ratio() -> None:
 
 
 def test_fixture_params_differ_from_the_defaults_only_in_the_three_fitted_values() -> None:
+    text = PROTOTYPE_SCENARIO_PATH.read_text()
+    assert sorted(tomllib.loads(text)["params"]) == sorted(FITTED + PINNED)
     _, params = load_scenario(PROTOTYPE_SCENARIO_PATH)
     defaults = dataclasses.asdict(Params())
     changed = {k for k, v in dataclasses.asdict(params).items() if v != defaults[k]}
-    assert changed <= {"paid_scale", "q", "alpha_0"}
-    assert "[params]" in PROTOTYPE_SCENARIO_PATH.read_text().split("never edit by hand.\n")[1]
+    assert changed <= set(FITTED)
+    fitted = text.split("never edit by hand.\n")[1].splitlines()
+    assert [line.split(" = ")[0] for line in fitted] == list(FITTED)
 
 
 def test_fit_targets_are_days_6_and_13_and_day_30_is_only_reported() -> None:
@@ -139,6 +145,7 @@ def test_rewriting_params_keeps_the_scenario_and_round_trips(tmp_path: Path) -> 
     after, params = load_scenario(path)
     assert after == before
     assert params == Params(paid_scale=1.5, q=0.0125, alpha_0=-5.75)
+    assert sorted(tomllib.loads(path.read_text())["params"]) == sorted(FITTED + PINNED)
     rewrite_params(path, Fit(paid_scale=1.5, q=0.0125, alpha_0=-5.75))
     assert load_scenario(path) == (after, params)
 

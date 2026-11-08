@@ -12,6 +12,9 @@ TIE_FRIEND = 2
 
 NO_PERSONA = 0xFFFF_FFFF
 
+DEFAULT_TIMEZONE = "Asia/Kolkata"
+SATURDAY_SUNDAY = (6, 7)
+
 
 @dataclass(frozen=True, eq=False)
 class Buildings:
@@ -80,6 +83,9 @@ class Stores:
 
 @dataclass(frozen=True, eq=False)
 class ToyCity:
+    """`timezone` is an IANA name and `weekend_days` are ISO weekdays, 1 Monday to 7 Sunday
+    (D-036)."""
+
     seed: int
     buildings: Buildings
     roads: Roads
@@ -88,3 +94,5 @@ class ToyCity:
     residents: Residents
     ties: Ties
     stores: Stores
+    timezone: str = DEFAULT_TIMEZONE
+    weekend_days: tuple[int, ...] = SATURDAY_SUNDAY

@@ -3,7 +3,8 @@
 `python -m twl_engine.fit_prototype [--write]` fits `paid_scale`, `q` and `alpha_0` to the
 prototype's heard and ordered shares on days 6 and 13 only (mean of seeds 1 to 8 on the
 48,000-resident toy city), then reports every day of the prototype's summary. Day 30 is out of
-sample: it is printed, never fitted. `--write` rewrites the `[params]` block of the scenario file.
+sample: it is printed, never fitted. `--write` rewrites the fitted values, which close the
+scenario file's `[params]` table below `PARAMS_HEADER`; the pinned values above it are kept.
 """
 
 import argparse
@@ -126,8 +127,10 @@ def fit_parameters(workers: int) -> Fit:
 def rewrite_params(path: Path, fit: Fit) -> None:
     text = path.read_text()
     head = text[: text.index(PARAMS_HEADER)]
+    if "\n[params]\n" not in head:
+        raise ValueError(f"{path}: the fitted values must close the [params] table")
     values = "".join(f"{key} = {value!r}\n" for key, value in dataclasses.asdict(fit).items())
-    path.write_text(f"{head}{PARAMS_HEADER}\n[params]\n{values}")
+    path.write_text(f"{head}{PARAMS_HEADER}\n{values}")
 
 
 def report(fit: Fit, workers: int) -> None:

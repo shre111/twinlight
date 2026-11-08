@@ -4,6 +4,7 @@ import math
 import operator
 import tomllib
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -150,7 +151,8 @@ class Supply:
 class Scenario:
     """What is launched and when: the price, the paid campaigns and how supply is run.
 
-    Without `supply` nothing limits orders (MODEL.md section 12).
+    Without `supply` nothing limits orders (MODEL.md section 12). `start_date` is the ISO date of
+    day 1; without it every day is a working day (D-036).
     """
 
     days: int = 30
@@ -159,11 +161,14 @@ class Scenario:
     ref_price: float = 49.0
     campaigns: tuple[Campaign, ...] = ()
     supply: Supply | None = None
+    start_date: str | None = None
 
     def __post_init__(self) -> None:
         _coerce(self, floats=("price", "ref_price"), vectors=())
         _require_ints(self, ("days", "tick_minutes"))
         object.__setattr__(self, "campaigns", tuple(self.campaigns))
+        if self.start_date is not None:
+            object.__setattr__(self, "start_date", _iso_date(self.start_date))
         if self.supply is not None and not isinstance(self.supply, Supply):
             raise TypeError("supply must be a Supply instance or None")
         if self.days < 1:
@@ -190,7 +195,12 @@ class Scenario:
 
 @dataclass(frozen=True)
 class Params:
-    """Per-run model parameters with the MODEL.md section 11 and 12 defaults; rates are per hour."""
+    """Per-run model parameters with the MODEL.md section 11 and 12 defaults; rates are per hour.
+
+    The segment occasion tables (D-036) are empty or one entry per segment, and a profile row is
+    empty or 24 hourly weights. Empty falls back to `occasions_per_day` and `occasion_profile`,
+    and on weekend days to the segment's working-day rate and profile.
+    """
 
     theta_aware: float = 1.0
     impression_gain: float = 0.6
@@ -204,6 +214,10 @@ class Params:
     talk_kind: tuple[float, ...] = (1.0, 0.6, 1.0, 0.5)
     occasions_per_day: float = 3.0
     occasion_profile: tuple[float, ...] = PROTOTYPE_TOD
+    segment_occasions_per_day: tuple[float, ...] = ()
+    segment_occasion_profile: tuple[tuple[float, ...], ...] = ()
+    weekend_occasion_factor: tuple[float, ...] = ()
+    weekend_occasion_profile: tuple[tuple[float, ...], ...] = ()
     alpha_0: float = -3.0
     alpha_segment: tuple[float, ...] = (0.3001, 0.1823, -0.1054, -0.5108, -0.9676)
     affinity_sd: float = 0.3
@@ -244,7 +258,14 @@ class Params:
                 "p_wait",
                 "satisfaction_drop",
             ),
-            vectors=("kappa", "talk_kind", "occasion_profile", "alpha_segment"),
+            vectors=(
+                "kappa",
+                "talk_kind",
+                "occasion_profile",
+                "segment_occasions_per_day",
+                "weekend_occasion_factor",
+                "alpha_segment",
+            ),
             optional_floats=("talk_decay_hours", "awareness_half_life_days"),
         )
         object.__setattr__(self, "order_on_awareness", bool(self.order_on_awareness))
@@ -280,13 +301,30 @@ class Params:
             raise ValueError(f"talk_kind needs {TIE_KINDS} values, one per tie kind")
         if len(self.occasion_profile) != HOURS_PER_DAY:
             raise ValueError("occasion_profile needs 24 hourly weights")
-        for name in ("kappa", "talk_kind", "occasion_profile"):
+        for name in (
+            "kappa",
+            "talk_kind",
+            "occasion_profile",
+            "segment_occasions_per_day",
+            "weekend_occasion_factor",
+        ):
             _require_weights(name, getattr(self, name))
         if self.occasions_per_day > 0 and sum(self.occasion_profile) <= 0:
             raise ValueError("occasion_profile must have a positive sum")
         if self.wom_mixing not in WOM_MIXINGS:
             raise ValueError(f"wom_mixing must be one of {WOM_MIXINGS}")
         self._check_channel_tables()
+        self._check_occasion_profiles()
+
+    def _check_occasion_profiles(self) -> None:
+        """Rows are checked here; their count against the segments at world build."""
+        for name in ("segment_occasion_profile", "weekend_occasion_profile"):
+            rows = tuple(tuple(float(v) for v in row) for row in getattr(self, name))
+            object.__setattr__(self, name, rows)
+            for row in rows:
+                if row and len(row) != HOURS_PER_DAY:
+                    raise ValueError(f"{name} rows need 24 hourly weights, or none")
+                _require_weights(name, row)
 
     def _check_channel_tables(self) -> None:
         """Each table is empty (neutral) or one row per channel; a row is empty (neutral) or one
@@ -343,6 +381,15 @@ def _require_ints(instance: object, names: tuple[str, ...]) -> None:
         object.__setattr__(instance, name, operator.index(value))
 
 
+def _iso_date(value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"start_date must be an ISO date string, got {value!r}")
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError as error:
+        raise ValueError(f"start_date must be an ISO date (YYYY-MM-DD), got {value!r}") from error
+
+
 def _require_weights(label: str, values: tuple[float, ...]) -> None:
     if any(v < 0 or not math.isfinite(v) for v in values):
         raise ValueError(f"{label} must be finite and >= 0")
@@ -356,10 +403,13 @@ def load_scenario(path: Path) -> tuple[Scenario, Params]:
     """Read `[scenario]`, `[[scenario.campaigns]]`, `[scenario.supply]` and `[params]` from TOML.
 
     Unknown keys raise. Without a `[scenario.supply]` table the scenario has no supply limits.
+    `start_date` may be a TOML date or a string.
     """
     data = tomllib.loads(path.read_text())
     _reject_unknown(str(path), data, ("scenario", "params"))
     scenario_table = dict(data.get("scenario", {}))
+    if type(scenario_table.get("start_date")) is date:
+        scenario_table["start_date"] = scenario_table["start_date"].isoformat()
     campaign_tables = scenario_table.pop("campaigns", [])
     supply_table = scenario_table.pop("supply", None)
     campaigns = tuple(
