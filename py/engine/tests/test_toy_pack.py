@@ -9,7 +9,7 @@ import pytest
 from blake3 import blake3
 
 from twl_engine.fixtures import ToyCity, build_toy_city, write_pack
-from twl_engine.fixtures.pack import SEGMENTS, TILE_LEVEL, pack_floors, toy_contents
+from twl_engine.fixtures.pack import SEGMENTS, TILE_LEVEL, TOY_TIER, pack_floors, toy_contents
 from twl_pack import NO_PERSONA, PACK_VERSION, EncodedPack, PackReader, encode_pack
 
 SMALL = 5_000
@@ -103,6 +103,8 @@ def test_manifest_describes_a_toy_pack_of_this_city(
     assert manifest["name"] == "toy"
     assert manifest["seed"] == 49
     assert manifest["crs"] == "local"
+    assert manifest["timezone"] == city.timezone == "Asia/Kolkata"
+    assert manifest["weekend_days"] == list(city.weekend_days) == [6, 7]
     assert manifest["segments"] == list(SEGMENTS)
     assert manifest["bands"] == []
     assert manifest["attributions"] == []
@@ -193,6 +195,7 @@ def test_engine_columns_are_the_toy_constants(reader: PackReader) -> None:
     assert (engine.hex == 0).all()
     assert (engine.persona_ref == NO_PERSONA).all()
     assert (engine.weight == 1).all()
+    assert (engine.tier == TOY_TIER).all()
 
 
 def test_stores_river_and_graph_are_exact(reader: PackReader, city: ToyCity) -> None:
