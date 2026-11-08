@@ -82,7 +82,7 @@ def toy_contents(city: ToyCity) -> twl_pack.PackContents:
 
 
 def pack_floors(z: NDArray[np.float32]) -> NDArray[np.uint8]:
-    """The highest pack floor, `z = (floor + 0.5) * 3.2`, at or below each height, so a resident
-    who was under their roof stays under it."""
+    """The highest pack floor, `z = (floor + 0.5) * 3.2`, at or below each height (floor 0 below
+    1.6 m), so a resident who was under their roof stays under it."""
     floors = np.floor(z.astype(np.float64) / FLOOR_HEIGHT_M - 0.5)
     return np.maximum(floors, 0).astype(np.uint8)
