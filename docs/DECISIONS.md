@@ -246,3 +246,10 @@ Status: Accepted (2026-11-09)
 - **Alternatives:** Sourced or hand-set profile defaults now (weak sources, would read as findings); a citywide sourced weekend shift; `start_weekday` instead of a date (festivals would need their own day numbers); hard-coded Saturday and Sunday.
 - **Consequences:** The occasion draw stays exact: one binomial over the aware pool when every segment shares the tick's rate, otherwise one binomial per segment. P-034's festivals key on actual dates from a per-city, per-year calendar file, since Diwali and Eid move every year. The pack manifest gains `timezone` and `weekend_days`.
 
+### D-037 Tier effects and spouse tilt
+Status: Accepted (2026-11-09)
+- **Decision:** The tier enters purchase utility as an additive `alpha_tier` and a per-tier scale on `beta`, both neutral (0 and 1) until P-062 calibrates them. P-062 gives them ordered priors: the high tier is at least as likely to adopt as the low and no more price-sensitive, because the direction is known and only the size needs data. The D-027 east/west split test moves from P-061b to P-062. Spouses get the same per-tier education odds as free draws, using the odds for the spouse's sex, since the wealth-quintile tables cover all household members by household wealth.
+- **Why:** No data sets the size of the tier effect yet, and neutral defaults keep invented numbers out of results (as D-034 and D-036). Untilted spouses (about 32% of residents) halved the tier's education gradient across residents, which fell short of D-035's household-wide tilt.
+- **Alternatives:** A prior anchored to the prototype's west/east affinity (the test would pass, but on prototype numbers, not data); sourced priors from published spending gaps (weak sources); waiting for an educational homogamy source before tilting spouses; leaving spouses untilted until P-062.
+- **Consequences:** Until P-062, the Plan view labels any neighbourhood comparison uncalibrated. Educational homogamy within tier (NFHS couples or IHDS) is a possible refinement of the spouse tilt, not a blocker.
+
