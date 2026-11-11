@@ -253,3 +253,10 @@ Status: Accepted (2026-11-09)
 - **Alternatives:** A prior anchored to the prototype's west/east affinity (the test would pass, but on prototype numbers, not data); sourced priors from published spending gaps (weak sources); waiting for an educational homogamy source before tilting spouses; leaving spouses untilted until P-062.
 - **Consequences:** Until P-062, the Plan view labels any neighbourhood comparison uncalibrated. Educational homogamy within tier (NFHS couples or IHDS) is a possible refinement of the spouse tilt, not a blocker.
 
+### D-038 Parameter states: neutral, elicited, calibrated
+Status: Accepted (2026-11-11)
+- **Decision:** Every run's behaviour parameters are in one of three states, recorded with the run: `neutral` (no data: on a real city every segment gets `kappa` 1 and `alpha_segment` 0 and shares the occasion profile, as do the D-034, D-036 and D-037 tables), `elicited` (priors mapped from the MODEL.md section 8 persona elicitation, with no brand sales data), and `calibrated` (fitted to a backtest). Once elicitation has run for a city and scenario, its runs use the elicited priors even if P-062 never gets sales data. The Plan view shows which state a run used: "neutral", "elicited, not calibrated" or "calibrated".
+- **Why:** The engine now runs on real cities (P-031b), whose six segments (D-026) have no defaults; the toy city's age-band values do not name them. Neutral values show the mechanics without inventing behaviour, and elicited priors are real information worth using before any sales data exists, but each state must be visible so no one reads an uncalibrated number as a finding.
+- **Alternatives:** Borrowing the toy's age-band values by typical age (prototype numbers, not data); refusing real-city runs until calibration (no Ahmedabad run to watch); two states only, neutral and calibrated (elicitation's value would wait on sales data that may never come).
+- **Consequences:** The parameter state is part of the run's parameters and its hash. P-062's mapping writes the `elicited` state even without a backtest, and backtests move a run to `calibrated`. The Plan view (P-055) and any export label the state.
+

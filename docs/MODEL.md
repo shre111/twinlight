@@ -126,6 +126,8 @@ Every constant below is a field of the run parameters with this default, so test
 
 Impressions are not like for like across channels: platforms count ads served, creators count Reel views, outdoor counts estimated chances to see. Until calibration sets `channel_kappa`, an impression on any channel adds the same awareness, so channel comparisons are uncalibrated (D-034).
 
+**Parameter states (D-038).** A run's parameters are `neutral`, `elicited` (mapped from the section 8 persona answers, no sales data) or `calibrated` (fitted to a backtest), recorded with the run. On a real city, neutral segments have `kappa` 1 and `alpha_segment` 0; the defaults below name only the toy city's age bands.
+
 **Defaults**
 | Parameter | Default |
 | --- | --- |
