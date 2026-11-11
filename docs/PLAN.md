@@ -73,6 +73,8 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
   AC: a campaign names one of the five channels and falls back to the channel's sourced CPM; an outdoor campaign without district targeting is refused; impressions land with probability proportional to targeting times per-segment presence; in-app impressions follow the ordering-occasion profile; channel responsiveness scales the gain per impression; the daily cap holds per campaign (property test); with neutral defaults, engine outputs are unchanged apart from hashes.
 - [x] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift (D-036). `[tests]`
   AC: occasion rates and hourly weights per segment, for working days and weekends, default to the single prototype profile; the scenario's `start_date` with the city's time zone and weekend days sets each tick's local hour and day type; occasion counts per segment match their rates (statistical test); with neutral defaults, engine outputs are unchanged apart from hashes; the prototype fixture pins its occasion profile.
+- [ ] **P-031b Engine on a real city pack** Lane A. The engine builds its world from a v2 pack through `twl_pack` (residents at the quantised positions the stage draws, ties, stores, districts, tiers, segments by manifest name, time zone and weekend days, cells and travel for P-033), alongside the in-memory toy city. `[tests]`
+  AC: the small golden pack and the toy pack both run through the loader with goldens; segment parameters are keyed by the manifest's segment names, with documented neutral values until P-062 for segments the defaults don't name; a 30-day Ahmedabad seed at 100k residents runs within ARCHITECTURE section 9's budget; `just fixture` can write an Ahmedabad tape so the stage plays a launch over the real city. Added 2026-11-11 (owner): P-033, P-035 and P-053 assume it.
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
 - [ ] **P-034 Scenario events** Lane A. rain, festival, match night, price change, store closed. `[tests]`
@@ -106,10 +108,11 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-057 Share links** Lane A. Read-only run pages with signed links. `[tests]`
 
 ## M6 Minds
-- [ ] **P-060 Deep persona sampling** Lane C. Stratified sample of ~300 per city run from the persona pool. `[tests]`
+- [x] **P-060 Deep persona sampling** Lane C. Stratified sample of ~300 per city run from the persona pool. `[tests]`
 - [ ] **P-061 Elicitation** Lane C. Instrument, JSON schemas, Batches API client, cache, cost guard. `[tests]`
-- [ ] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
-  Progress: D-035; citybake tier stage (#134); pack format with tier, time zone and weekend days (#135). Open: the persona tilt (Lane C, NFHS-5 table 2.24 mapped onto urban quintiles) and the engine side (Lane A: `alpha_tier`, `beta` scale, the D-027 east/west test).
+  Settled 2026-11-11: `claude-haiku-5-5` per D-011 through the Batches API (real spend needs the owner's approval); `ElicitationBrief` lives in minds until `packages/contracts` exists, and the cache key's scenario hash covers the brief; persona demographics come from a per-city artifact keyed by `pack_hash`; DuckDB cache until the gateway's `elicitations` table exists. Progress: instrument (#148).
+- [x] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
+  Done: D-035, D-037; citybake tier stage (#134), pack format (#135), persona tilt (#141), spouse tilt (#147), neutral engine tier effects (#146). The east/west test and the tier priors moved to P-062.
 - [ ] **P-062 Calibration** Lane C. Answer-to-parameter mapping with intent deflator; NumPyro hierarchical model; posterior draws to object storage; diagnostics. `[tests] [deep]`
   Includes the tier effects with ordered priors (D-037) and the D-027 east/west split test, moved here from P-061b.
 - [ ] **P-063 Backtests and honesty meter** Lane C. CSV upload, fit days 1 to 10, forecast 11 to 30, coverage and MAPE. `[tests] [deep]`
