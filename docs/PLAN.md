@@ -74,7 +74,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-031 Occasions and time-of-day** Lane A. Segment occasion profiles, evening peaks, weekend shift (D-036). `[tests]`
   AC: occasion rates and hourly weights per segment, for working days and weekends, default to the single prototype profile; the scenario's `start_date` with the city's time zone and weekend days sets each tick's local hour and day type; occasion counts per segment match their rates (statistical test); with neutral defaults, engine outputs are unchanged apart from hashes; the prototype fixture pins its occasion profile.
 - [ ] **P-031b Engine on a real city pack** Lane A. The engine builds its world from a v2 pack through `twl_pack` (residents at the quantised positions the stage draws, ties, stores, districts, tiers, segments by manifest name, time zone and weekend days, cells and travel for P-033), alongside the in-memory toy city. `[tests]`
-  AC: the small golden pack and the toy pack both run through the loader with goldens; segment parameters are keyed by the manifest's segment names, with documented neutral values until P-062 for segments the defaults don't name; a 30-day Ahmedabad seed at 100k residents runs within ARCHITECTURE section 9's budget; `just fixture` can write an Ahmedabad tape so the stage plays a launch over the real city. Added 2026-11-11 (owner): P-033, P-035 and P-053 assume it.
+  AC: the small golden pack and the toy pack both run through the loader with goldens; segment parameters are keyed by the manifest's segment names, neutral for a real city's segments (D-038) and recorded as the run's parameter state; a 30-day Ahmedabad seed at 100k residents runs within ARCHITECTURE section 9's budget; `just fixture` can write an Ahmedabad tape so the stage plays a launch over the real city. Added 2026-11-11 (owner): P-033, P-035 and P-053 assume it.
 - [ ] **P-032 Out-of-stock behaviour** Lane A. Spillover, wait, give up, satisfaction. `[tests]`
 - [ ] **P-033 Riders and routing** Lane A. Shifts, assignment, travel from `travel.bin`, rain slowdown, late flags. `[tests]`
 - [ ] **P-034 Scenario events** Lane A. rain, festival, match night, price change, store closed. `[tests]`
@@ -103,7 +103,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [ ] **P-053 City view** Lane B. Stage + timeline + layers + readouts + legend, wired to real runs.
 - [ ] **P-054 Resident and store cards** Lane B. Stories derived from tape events; store stock sparkline with stockout spans.
 - [ ] **P-055 Plan view** Lane B + A. Fan chart of adopters (P10 to P90), per-store stock plan table, next-city ranking, calibration panel, CSV export. `[tests]`
-  While channel defaults are neutral (D-034), channel-versus-channel comparisons are labelled uncalibrated, not shown as findings; until P-062 the same holds for neighbourhood comparisons (D-037).
+  While channel defaults are neutral (D-034), channel-versus-channel comparisons are labelled uncalibrated, not shown as findings; until P-062 the same holds for neighbourhood comparisons (D-037). Every run shows its parameter state: neutral, elicited (not calibrated) or calibrated (D-038).
 - [ ] **P-056 Compare view** Lane B. Two scenarios as two cities side by side with a shared timeline (e.g. Rs 49 vs Rs 59). `[deep]`
 - [ ] **P-057 Share links** Lane A. Read-only run pages with signed links. `[tests]`
 
@@ -114,7 +114,7 @@ Goal: a procedural toy city of ~20k residents plays a 30-day launch, end to end 
 - [x] **P-061b Household affluence tier** Lane C. Three levels from built form (building height, footprint, district, ward literacy if available) that shift `alpha` and `beta` and condition persona sampling, so east and west of a city stop behaving alike (D-026). `[tests]`
   Done: D-035, D-037; citybake tier stage (#134), pack format (#135), persona tilt (#141), spouse tilt (#147), neutral engine tier effects (#146). The east/west test and the tier priors moved to P-062.
 - [ ] **P-062 Calibration** Lane C. Answer-to-parameter mapping with intent deflator; NumPyro hierarchical model; posterior draws to object storage; diagnostics. `[tests] [deep]`
-  Includes the tier effects with ordered priors (D-037) and the D-027 east/west split test, moved here from P-061b.
+  Includes the tier effects with ordered priors (D-037) and the D-027 east/west split test, moved here from P-061b. Writes the `elicited` parameter state from the persona answers even without sales data (D-038); a backtest makes a run `calibrated`.
 - [ ] **P-063 Backtests and honesty meter** Lane C. CSV upload, fit days 1 to 10, forecast 11 to 30, coverage and MAPE. `[tests] [deep]`
 - [ ] **P-064 Resident life logs** Lane C. Compile a resident's tape events + profile into a retrievable memory. `[tests]`
 - [ ] **P-065 Text interviews** Lane C + B. Grounded replies that cite tape events; uncited claims dropped; interview UI in the resident card. `[tests]`
