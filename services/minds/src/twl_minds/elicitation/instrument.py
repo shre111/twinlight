@@ -105,7 +105,7 @@ Answer only with the JSON object."""
 
 
 @dataclass(frozen=True)
-class Brief:
+class ElicitationBrief:
     product_name: str
     category: str
     description: str
@@ -270,7 +270,7 @@ def _check_intent_matches_ladder(answer: Answer, stated: int) -> None:
         )
 
 
-def system_prompt(brief: Brief) -> str:
+def system_prompt(brief: ElicitationBrief) -> str:
     price = _rupees(brief.price_inr)
     return _SYSTEM.format(
         name=_one_line(brief.product_name),
@@ -309,7 +309,7 @@ def user_message(profile: PersonaProfile) -> str:
 
 
 def request_params(
-    brief: Brief, profile: PersonaProfile, model: str, max_tokens: int = 1024
+    brief: ElicitationBrief, profile: PersonaProfile, model: str, max_tokens: int = 1024
 ) -> dict[str, Any]:
     if not model.strip():
         raise ValueError("model must not be blank")
