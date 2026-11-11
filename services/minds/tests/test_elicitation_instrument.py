@@ -19,7 +19,7 @@ from twl_minds.elicitation.instrument import (
     PROMPT_VERSION,
     TIE_KINDS,
     Answer,
-    Brief,
+    ElicitationBrief,
     InvalidAnswer,
     PersonaProfile,
     answer_schema,
@@ -34,7 +34,7 @@ UNSUPPORTED = {"minimum", "maximum", "minLength", "maxLength", "minItems", "maxI
 SAMPLING_KEYS = {"temperature", "top_p", "top_k"}
 
 
-def make_brief(**over: Any) -> Brief:
+def make_brief(**over: Any) -> ElicitationBrief:
     base: dict[str, Any] = {
         "product_name": "Kesar Kulfi Bites",
         "category": "frozen desserts",
@@ -43,7 +43,7 @@ def make_brief(**over: Any) -> Brief:
         "pack_size": "200 g",
     }
     base.update(over)
-    return Brief(**base)
+    return ElicitationBrief(**base)
 
 
 def make_profile(**over: Any) -> PersonaProfile:
