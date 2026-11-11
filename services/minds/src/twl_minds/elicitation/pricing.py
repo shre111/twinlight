@@ -109,7 +109,8 @@ def upper_bound_usd(
 ) -> float:
     """Bills each prompt as a full cache write and the full max_tokens of output. Cache writes are
     the dearest input rate and long-prompt rates are never below base ones (both checked on
-    construction), so no usage within those sizes costs more."""
+    construction), so no usage within those sizes costs more. The bound covers 5-minute cache
+    writes only, which is what `request_params` asks for; a 1-hour TTL needs its own rate here."""
     model_price(model)
     output = _count("max_tokens", max_tokens)
     return sum(
