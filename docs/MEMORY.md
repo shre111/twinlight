@@ -4,9 +4,9 @@ Working memory for coding sessions. Read at the start of every session; update a
 
 ## Now
 - Milestone: M1 done (P-019 merged 2026-11-09). Lane A on M3, Lane B on M4 groundwork, Lane C on M2 and M6.
-- Point: P-061b done (both lanes) and P-060 done. Next Lane A: P-032 out-of-stock behaviour (much of it exists from P-013; check the gaps, such as the give-up flag, against MODEL sections 4 and 12). Lane B: P-045 bloom. Lane C: P-061 elicitation (instrument merged, #148; cache, ledger, batch client and entry point next).
+- Point: P-061b done (both lanes) and P-060 done. Next Lane A: P-031b, the engine on a real city pack (added by the owner 2026-11-11), then P-032 out-of-stock behaviour (much of it exists from P-013; check the gaps, such as the give-up flag, against MODEL sections 4 and 12). Lane B: P-045 bloom. Lane C: P-061 elicitation (instrument merged, #148; cache, ledger, batch client and entry point next).
 - Branch: none
-- Next: `/start-point P-032`. Lane sessions restart with new names; find them with ListAgents, and if Lane C is not running, its P-061 answers are in PLAN under P-061.
+- Next: `/start-point P-031b`. Lane sessions restart with new names; find them with ListAgents, and if Lane C is not running, its P-061 answers are in PLAN under P-061.
 
 ## Recent changes
 - 2026-11-11 P-061b done: tier stage (#134), pack tier, time zone and weekend days (#135), persona tilt (#141) and spouse tilt (#147) by Lane C; neutral `alpha_tier` and `beta_tier` in the engine with a range check (#146); D-037 (#145). Real Ahmedabad pack rebaked on the tilted personas (`pack_hash` acf16e9b, first load 5,634,897 bytes). P-060 done (Lane C #138, #143). P-061 instrument merged (#148); owner chose Haiku 5.5 per D-011.
