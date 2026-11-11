@@ -3,6 +3,7 @@ name = "twl-minds"
 version = "0.0.0"
 requires-python = ">=3.13"
 dependencies = [
+    "duckdb>=2,<3",
     "fastapi>=0.162,<0.163",
     "numpy>=2.5,<3",
     "pydantic>=2,<3",

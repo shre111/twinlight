@@ -1181,6 +1181,7 @@ name = "twl-minds"
 version = "0.0.0"
 source = { editable = "services/minds" }
 dependencies = [
+    { name = "duckdb" },
     { name = "fastapi" },
     { name = "numpy" },
     { name = "pydantic" },
@@ -1190,6 +1191,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "duckdb", specifier = ">=2,<3" },
     { name = "fastapi", specifier = ">=0.162,<0.163" },
     { name = "numpy", specifier = ">=2.5,<3" },
     { name = "pydantic", specifier = ">=2,<3" },
